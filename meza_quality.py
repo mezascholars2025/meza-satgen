@@ -33,16 +33,44 @@ SEC_STEM = "Which choice completes the text so that it conforms to the conventio
 FIXED_STEMS = {
     "words_in_context_completion": "Which choice completes the text with the most logical and precise word or phrase?",
     "transitions": "Which choice completes the text with the most logical transition?",
-    "central_ideas": "Which choice best states the main idea of the text?",
     "inferences": "Which choice most logically completes the text?",
     "text_structure_purpose": "Which choice best states the main purpose of the text?",
     "text_structure_overall": "Which choice best describes the overall structure of the text?",
 }
+# Main idea items: about 8 in 10 real items use the standard stem; the rest use one of these variations.
+CENTRAL_STEMS = {
+    "standard": re.compile(r"^Which choice best states the main idea of the text\?$"),
+    "question": re.compile(r"^Which question does the text most directly attempt to answer\?$"),
+    "describes": re.compile(r"^Which choice best describes the main idea of the text\?$"),
+    "about": re.compile(r"^Which choice best states the text's main idea about [^?]+\?$"),
+    "research": re.compile(r"^Based on the text, which research question was .+ most likely intended to answer\?$"),
+}
+# Central Ideas and Details (main idea + detail items), from a review of 33 real items at all three levels.
+CID_TYPES = ("central_ideas", "details")
+CID_WORDS = (60, 110)  # real words, not counting a literary excerpt's introduction line
+CID_MAX_SENTENCES = {"easy": 6, "medium": 5, "hard": 4}  # informational passages; more is a warning
+# Inferences, from a review of 21 real items (7 per level): informational passages of 50-120 words ending in the blank.
+INF_WORDS = (50, 120)
+INF_MAX_SENTENCES = {"easy": 6, "medium": 6, "hard": 4}
+INF_KEY_ABSOLUTES = ["soon", "maximize", "maximizes"]  # plus ABSOLUTES; real correct answers never rest on these
+SUGGEST_WORDS = ("suggest", "indicate", "imply", "implies")
+LOGIC_WORDS = ("therefore", "thus", "consequently", "in this way", "taken together", "as a result", "hence")
+# Command of Evidence, from a review of 21 real items (7 per level): length grows with difficulty.
+COE_WORDS = {  # real words of text, not counting a table; above the top is a failure, below the bottom a warning
+    "command_of_evidence_claim": (55, 125),
+    "command_of_evidence_quotation": (15, 60),
+    "command_of_evidence_quantitative": (20, 125),
+}
+QUOTATION_STEM = re.compile(r"^Which quotation from .+ most effectively illustrates the claim\?$")
+# Detail stems come in three families; "According to the text" never appears on hard items.
+DETAIL_SUGGEST = ("What does the text most strongly suggest", "What does the text indicate",
+                  "The text makes which point", "It can most reasonably be inferred from the text",
+                  "Information in the text best supports", "The text most strongly suggests")
 MEANING_STEM = re.compile(r'^As used in the text, what does the (word|phrase) "([^"]+)" most nearly mean\?$')
 SHORT_CHOICE_TYPES = ("words_in_context", "transitions", "boundaries_", "form_")
 NEEDS_BLANK = ("words_in_context_completion", "inferences", "transitions", "boundaries_", "form_")
 NO_BLANK = ("details", "central_ideas", "text_structure", "cross_text_connections",
-            "command_of_evidence_claim", "command_of_evidence_quotation", "rhetorical_synthesis",
+            "command_of_evidence_claim", "rhetorical_synthesis",
             "words_in_context_meaning")
 # Types the passage-free probe is fair for. Grammar, vocabulary and transition items cannot be
 # answered without the text anyway, and rhetorical synthesis puts its goal in the stem on purpose.
@@ -125,6 +153,46 @@ def has_word(text: str, phrase: str) -> bool:
     return re.search(r"(?<![a-z])" + re.escape(phrase) + r"(?![a-z])", text.lower()) is not None
 
 
+def central_stem_kind(stem: str) -> str | None:
+    """Which main-idea stem this is (standard, question, describes, about), or None if it isn't one."""
+    s = norm(stem)
+    kind = next((kind for kind, rx in CENTRAL_STEMS.items() if rx.match(s)), None)
+    return "question" if kind == "research" else kind
+
+
+def leadin_kinds(passage: str) -> set[str]:
+    """Which lead-ins the last sentence of an inference passage uses: "suggests" and/or "logic"."""
+    last = re.split(r"(?<=[.!?])\s+", reading_text(passage).strip())[-1].lower()
+    kinds = set()
+    if any(w in last for w in SUGGEST_WORDS):
+        kinds.add("suggests")
+    if any(has_word(last, w) for w in LOGIC_WORDS):
+        kinds.add("logic")
+    return kinds
+
+
+def detail_stem_family(stem: str) -> str | None:
+    """literal ("According to the text"), based ("Based on the text"), suggest (other inference wordings), or None."""
+    s = norm(stem)
+    if not s.endswith("?"):
+        return None
+    if s.startswith("According to the text"):
+        return "literal"
+    if s.startswith("Based on the text"):
+        return "based"
+    return "suggest" if s.startswith(DETAIL_SUGGEST) else None
+
+
+def excerpt_body(passage: str) -> str:
+    """The passage without a literary excerpt's introduction line ("The following text is from ...")."""
+    p = passage.strip()
+    if not p.startswith("The following text is from"):
+        return p
+    if "\n\n" in p:
+        return p.split("\n\n", 1)[1]
+    return re.sub(r"^The following text is from[^.]*\.\s*", "", p)
+
+
 # ----------------------------------------------------------------------------- lint
 
 
@@ -139,9 +207,10 @@ class LintResult:
 
 
 def lint(qtype: str, passage: str, stem: str, choices: dict[str, str], answer: str,
-         explanation: str = "", subject: str = "", clue: str = "") -> LintResult:
+         explanation: str = "", subject: str = "", clue: str = "", difficulty: str = "") -> LintResult:
     r = LintResult()
     t = base_type(qtype)
+    level = difficulty or difficulty_of(qtype) or ""
     text = reading_text(passage)
     n_std = std_words(text)
     n_real = len(text.split())
@@ -154,10 +223,63 @@ def lint(qtype: str, passage: str, stem: str, choices: dict[str, str], answer: s
                        f"Cut about {len(text) - 900} characters (roughly {(len(text) - 900) // 6 + 1} words).")
     elif n_std < 25:
         r.fails.append(f"The passage is only {n_std:.0f} standardized words; the minimum is 25.")
-    band = ("short" if t.startswith(SHORT_CHOICE_TYPES) else "notes" if t == "rhetorical_synthesis" else "default")
-    lo, hi = TARGET_WORDS[band]
-    if not lo <= n_real <= hi:
-        r.warns.append(f"Passage has {n_real} words; real items of this type usually run {lo}-{hi}.")
+    if t in CID_TYPES:
+        body = reading_text(excerpt_body(passage))
+        n_body = len(body.split())
+        lo, hi = CID_WORDS
+        if n_body > hi:
+            r.fails.append(f"The passage is {n_body} words (not counting a literary introduction line); central "
+                           f"ideas and details passages run {lo}-{hi}, usually about 85. Cut about {n_body - 85} "
+                           f"words. Harder items get denser sentences, not more words.")
+        elif n_body < lo:
+            r.warns.append(f"Passage has {n_body} words; central ideas and details passages usually run {lo}-{hi}.")
+        n_sent = len(_sentences(body))
+        most = CID_MAX_SENTENCES.get(level, CID_MAX_SENTENCES["medium"])
+        if not passage.lstrip().startswith("The following text is from") and n_sent > most:
+            r.warns.append(f"Passage has {n_sent} sentences; real {level or 'medium'} items of this skill usually "
+                           f"have at most {most} (easy about 4-5, medium 3-4, hard 2-3 long ones).")
+    elif t == "inferences":
+        lo, hi = INF_WORDS
+        if n_real > hi:
+            r.fails.append(f"The passage is {n_real} words; inference passages run {lo}-{hi}, usually 85-95. Cut "
+                           f"about {n_real - 90} words. Harder items get denser sentences, not more words.")
+        elif n_real < lo:
+            r.warns.append(f"Passage has {n_real} words; inference passages usually run {lo}-{hi}.")
+        n_sent = len(_sentences(text))
+        most = INF_MAX_SENTENCES.get(level, INF_MAX_SENTENCES["medium"])
+        if n_sent > most:
+            r.warns.append(f"Passage has {n_sent} sentences; real {level or 'medium'} inference items usually have at "
+                           f"most {most} (easy and medium 4-6 shorter ones, hard 2-4 long ones).")
+        if passage.lstrip().startswith("The following text is from"):
+            r.fails.append("Inference passages are informational, never a literary excerpt. Write about an author or "
+                           "a work instead of quoting one.")
+        if not re.search(re.escape(BLANK) + r"\.?\s*$", passage):
+            r.fails.append(f"The blank ({BLANK}) must come at the very end of the passage, finishing the last "
+                           f"sentence.")
+    elif t in COE_WORDS:
+        lo, hi = COE_WORDS[t]
+        if n_real > hi:
+            r.fails.append(f"The text is {n_real} words (not counting the table); this kind of evidence item runs "
+                           f"about {lo}-{hi}. Cut about {n_real - hi + 10} words.")
+        elif n_real < lo:
+            r.warns.append(f"Text has {n_real} words; this kind of evidence item usually runs {lo}-{hi}.")
+        if t == "command_of_evidence_quotation":
+            if not re.search(r":\s*" + re.escape(BLANK) + r"\.?\s*$", passage):
+                r.fails.append(f'End the text with the claim, a colon, and the blank, for example: "In the poem, the '
+                               f'speaker conveys a growing impatience with the city: {BLANK}"')
+            if not QUOTATION_STEM.match(norm(stem)):
+                r.fails.append('Use the stem "Which quotation from [title] most effectively illustrates the claim?"')
+            if not re.search(r"\b1[5-9]\d\d\b", passage):
+                r.warns.append('Open by naming the work, its year, genre, and author ("[Title] is a [year] [genre] by '
+                               '[author].").')
+            if "[Invented work]" not in explanation:
+                r.warns.append('End the explanation with "[Invented work]".')
+    else:
+        band = ("short" if t.startswith(SHORT_CHOICE_TYPES) else "notes" if t == "rhetorical_synthesis"
+                else "default")
+        lo, hi = TARGET_WORDS[band]
+        if not lo <= n_real <= hi:
+            r.warns.append(f"Passage has {n_real} words; real items of this type usually run {lo}-{hi}.")
 
     # --- blanks and underlines ---
     blanks = passage.count(BLANK)
@@ -191,6 +313,44 @@ def lint(qtype: str, passage: str, stem: str, choices: dict[str, str], answer: s
     want = SEC_STEM if t.startswith(("boundaries_", "form_")) else FIXED_STEMS.get(t)
     if want and norm(stem) != norm(want):
         r.fails.append(f'Use the exact stem for this type: "{want}"')
+    if t == "central_ideas":
+        kind = central_stem_kind(stem)
+        if kind is None:
+            r.fails.append('Use a main-idea stem: "Which choice best states the main idea of the text?", "Which '
+                           'question does the text most directly attempt to answer?", "Which choice best describes '
+                           'the main idea of the text?", "Which choice best states the text\'s main idea about '
+                           '[person]?", or "Based on the text, which research question was [the researchers\'] '
+                           'study most likely intended to answer?"')
+        asks = [v for v in choices.values() if norm(v).endswith("?")]
+        if kind == "question" and len(asks) != len(choices):
+            r.fails.append('With the "Which question..." stem, every choice must be a question ending with "?".')
+        elif kind is not None and kind != "question" and asks:
+            r.fails.append('Main-idea choices are statements. Only the "Which question..." stem takes questions.')
+    if t == "details":
+        family = detail_stem_family(stem)
+        if family is None:
+            r.fails.append('Use a detail question wording: "According to the text, ...?", "Based on the text, ...?", '
+                           'or an inference wording such as "What does the text most strongly suggest about ...?", '
+                           '"It can most reasonably be inferred from the text that ...", or "Information in the text '
+                           'best supports which statement about ...?"')
+        elif family == "literal" and level == "hard":
+            r.fails.append('Hard detail questions never begin "According to the text." Use "Based on the text, ...'
+                           'most likely...?" or an inference wording such as "What does the text most strongly '
+                           'suggest about ...?"')
+    if t == "inferences" and key:
+        heavy = [a for a in ABSOLUTES + INF_KEY_ABSOLUTES if has_word(key, a) and not has_word(key, "not " + a)]
+        if heavy:
+            r.fails.append(f"The correct answer uses {', '.join(heavy)}. Real correct answers never rest on absolutes "
+                           f"or superlatives; state the conclusion with the strength the passage supports.")
+    if t in CID_TYPES:
+        extreme = [w for w in ("always", "never") if any(has_word(v, w) for v in choices.values())]
+        if extreme:
+            r.fails.append(f"Real choices in this skill basically never use {' or '.join(extreme)}. For an overstated "
+                           f"wrong answer, use a superlative or comparative instead (most, largely, more strongly).")
+        firsts = [words(v)[0] for v in choices.values() if words(v) and not norm(v).endswith("?")]
+        if len(firsts) == len(choices) and max(firsts.count(w) for w in firsts) < 3:
+            r.warns.append("Real items start all four choices with the same subject or frame (\"The narrator...,\" "
+                           "\"It...,\" \"Although...\"), so only the rest of each choice tells them apart.")
 
     # --- structure by type ---
     if t == "command_of_evidence_quantitative":
@@ -214,7 +374,12 @@ def lint(qtype: str, passage: str, stem: str, choices: dict[str, str], answer: s
         lens = {k: len(v) for k, v in choices.items()}
         longest = max(lens.values())
         mean_wrong = sum(len(w) for w in wrong) / len(wrong)
-        if lens[answer] == longest and lens[answer] > 1.25 * mean_wrong:
+        # Hard inference keys carry a qualifier or both halves of an idea, and are the longest about half the time.
+        strict = not (t == "inferences" and level == "hard")
+        if lens[answer] == longest and lens[answer] > 1.25 * mean_wrong and not strict:
+            r.warns.append("The correct answer is clearly the longest choice. That is common on hard inference items, "
+                           "but give at least one wrong answer a similar two-part length.")
+        elif lens[answer] == longest and lens[answer] > 1.25 * mean_wrong:
             r.fails.append(f"The correct answer is the longest choice ({lens[answer]} characters vs. an average of "
                            f"{mean_wrong:.0f} for the wrong ones). Make the choices similar in length, and make at "
                            f"least one wrong answer as long and detailed as the key.")
@@ -225,7 +390,7 @@ def lint(qtype: str, passage: str, stem: str, choices: dict[str, str], answer: s
 
         abs_wrong = [w for w in wrong if any(has_word(w, a) for a in ABSOLUTES)]
         abs_key = any(has_word(key, a) for a in ABSOLUTES)
-        if len(abs_wrong) >= 2 and not abs_key:
+        if len(abs_wrong) >= 2 and not abs_key and t != "command_of_evidence_quotation":  # quotes may say "never"
             found = sorted({a for w in abs_wrong for a in ABSOLUTES if has_word(w, a)})
             r.fails.append(f"Absolute words ({', '.join(found)}) appear only in wrong answers, so students can "
                            f"eliminate them without reading. Keep at most one overstated distractor and make the "
@@ -338,8 +503,9 @@ def describe(f: dict) -> str:
     return "; ".join(parts)
 
 
-def rhythm_check(f: dict, recent: list[dict]) -> list[str]:
-    """Fails for a draft that repeats the shape of the same type's recent questions (newest last)."""
+def rhythm_check(f: dict, recent: list[dict], twist_ok: bool = False) -> list[str]:
+    """Fails for a draft that repeats the shape of the same type's recent questions (newest last).
+    twist_ok: the item was assigned a shape that is built on a contrast, so a third twist in a row is allowed."""
     fails = []
     t = f["type"]
     if t.startswith("words_in_context") and f["clue"] and f["clue"] != "contrast" and f["twist"]:
@@ -347,7 +513,7 @@ def rhythm_check(f: dict, recent: list[dict]) -> list[str]:
                      f'"expected/believed, then actually" setup (you used: {", ".join(f["markers"])}). Rewrite the '
                      f"passage with no contrast words and no twist; the clue must come from the structure you were given.")
     last2 = recent[-2:]
-    if (not t.startswith(CONTRAST_NATIVE) and f["clue"] != "contrast" and f["twist"]
+    if (not twist_ok and not t.startswith(CONTRAST_NATIVE) and f["clue"] != "contrast" and f["twist"]
             and len(last2) == 2 and all(r["twist"] for r in last2)):
         fails.append("Your last two questions of this type both used a belief-then-twist rhythm. This one must not: "
                      "remove the contrast (however, yet, but, although, instead...) and build the passage another way.")
@@ -491,6 +657,16 @@ def probe_feedback(hits: list[bool]) -> str:
 # ----------------------------------------------------------------------------- CLI
 
 
+def letter_mix(answers: list[str]) -> str:
+    """'A 5, B 5, C 5, D 5; longest run of one letter: 2' for a list of answer letters."""
+    run = best = 0
+    for i, a in enumerate(answers):
+        run = run + 1 if i and a == answers[i - 1] else 1
+        best = max(best, run)
+    counts = ", ".join(f"{k} {answers.count(k)}" for k in CHOICE_KEYS)
+    return f"{counts}; longest run of one letter: {best}"
+
+
 def main(argv: list[str]) -> int:
     if not argv:
         print(__doc__)
@@ -498,15 +674,21 @@ def main(argv: list[str]) -> int:
     total = failing = 0
     tallies: dict[str, int] = {}
     key_longest = 0
+    answers: list[str] = []
     for path in argv:
         for i, q in enumerate(json.loads(Path(path).read_text(encoding="utf-8"))):
+            if q.get("format", "mcq") != "mcq":  # numeric-answer math items have no choices to check
+                continue
             qtype = q.get("type") or q.get("qtype") or ""
             m = re.search(r"\[Subject:\s*([^\]]+)\]", q.get("explanation", ""))
+            d = re.search(r"\[Difficulty:\s*(Easy|Medium|Hard)\]", q.get("explanation", ""))
             res = lint(qtype, q.get("passage", ""), q["stem"], q["choices"], q["answer"],
-                       q.get("explanation", ""), subject=m.group(1) if m else "")
+                       q.get("explanation", ""), subject=m.group(1) if m else "",
+                       difficulty=d.group(1).lower() if d else "")
             total += 1
             lens = {k: len(v) for k, v in q["choices"].items()}
             key_longest += lens[q["answer"]] == max(lens.values())
+            answers.append(q["answer"])
             if res.fails or res.warns:
                 print(f"\n{path} #{i} [{qtype}]")
                 for f in res.fails:
@@ -516,6 +698,7 @@ def main(argv: list[str]) -> int:
                     print("  warn", w)
             failing += not res.ok
     print(f"\n{failing} of {total} questions fail at least one check.")
+    print(f"Correct answers: {letter_mix(answers)}.")
     print(f"Correct answer is the longest choice in {key_longest} of {total} questions "
           f"(about {total // 4} expected by chance).")
     return 0

@@ -16,14 +16,16 @@ if [ "$#" -gt 0 ]; then
 else
   # 53-slot rotation that mirrors the real test's mix:
   # Craft & Structure 15, Information & Ideas 14, Conventions 14, Expression of Ideas 10
+  # (Central Ideas and Details: 4 detail to 1 main idea, as in a review of 33 real items)
+  # (Command of Evidence: 3 findings, 2 tables, 1 quotation, as in a review of 21 real items)
   TYPES=(
     words_in_context_completion details boundaries_independent_clauses transitions
     words_in_context_meaning command_of_evidence_quantitative form_subject_verb_agreement rhetorical_synthesis
     text_structure_function inferences boundaries_supplements transitions
-    words_in_context_completion central_ideas form_verb_tense rhetorical_synthesis
+    words_in_context_completion details form_verb_tense rhetorical_synthesis
     words_in_context_meaning command_of_evidence_claim boundaries_dependent_clauses transitions
     text_structure_purpose details form_finite_verbs rhetorical_synthesis
-    words_in_context_completion command_of_evidence_quantitative boundaries_end_punctuation transitions
+    words_in_context_completion command_of_evidence_claim boundaries_end_punctuation transitions
     cross_text_connections inferences form_pronouns rhetorical_synthesis
     words_in_context_meaning command_of_evidence_quotation boundaries_transition_punctuation transitions
     text_structure_overall central_ideas form_possessives rhetorical_synthesis
