@@ -37,6 +37,7 @@ from pathlib import Path
 
 from meza_quality import (PROBE_TYPES, base_type, describe, difficulty_of, features, lint, probe_feedback,
                           probe_votes, rhythm_check, vocab_used)
+from meza_quality import FOCUS_CRITIC_PROMPT, FOCUS_CRITIC_SYSTEM, focus_problems
 from meza_quality import (TRAP_CRITIC_PROMPT, TRAP_CRITIC_SYSTEM, TSP_BANDS, TSP_TRAPS, TSP_TYPES, TSP_VERBS,
                           advanced_in, choice_mix_problems, lead_verb, trap_critic_problems, trap_label_problems,
                           word_tier)
@@ -127,6 +128,19 @@ TSP_LINE = (
     "\nOPENING VERBS: give each choice a different opening verb, mostly from: {verbs}.{avoid}"
 )
 FUNCTION_LINE = "\nREQUIRED UNDERLINED PORTION FOR THIS ITEM: {desc}."
+# Where the tested word sits (Sebastian's note): on real items it is usually a detail in one sentence, not the
+# passage's main idea. Easy items may build the passage around it more often.
+WORD_ROLE_WEIGHTS = {"easy": {"detail": 1, "central": 1}, "medium": {"detail": 4, "central": 1},
+                     "hard": {"detail": 4, "central": 1}}
+ROLE_LINE = {
+    "detail": ("\nROLE OF THE TESTED WORD: a DETAIL. The passage's main idea is about something else (a finding, an "
+               "event, a person's work). The tested word sits in ONE sentence as part of that larger point, and only "
+               "that sentence, plus at most one nearby phrase, gives the clue. No other sentence should exist mainly to "
+               "hint at the word's meaning, and do not attach the word to an appositive that sums up the passage."),
+    "central": ("\nROLE OF THE TESTED WORD: central. The passage may be built around the idea the word names, but "
+                "still give only one or two clues, never a sentence that restates the word's meaning."),
+}
+FOCUS_CRITIC = os.environ.get("MEZA_FOCUS_CRITIC", "on").lower()
 CLUE_LINE = "\nREQUIRED CLUE STRUCTURE FOR THIS WORDS IN CONTEXT ITEM: {desc}."
 
 
@@ -146,8 +160,10 @@ REPAIR_BLOCK = (
     "\n\nYOUR PREVIOUS DRAFT OF THIS QUESTION FAILED QUALITY CHECKS.\n"
     "Previous draft (JSON):\n{draft}\n\n"
     "Problems to fix:\n{problems}\n\n"
-    "Write a corrected version. Keep the same question type, difficulty, and subject area. "
-    "You may keep the passage if it was not part of the problem. Return the full JSON again."
+    "Write a corrected version. Keep the same question type, difficulty, and subject area. Change ONLY what the "
+    "problems require: if specific answer choices are named, rewrite just those and keep the passage, the correct "
+    "answer, and every other choice word for word. Return the full JSON again, with any double quotation marks "
+    "inside strings escaped as \\\"."
 )
 
 QUALITY = os.environ.get("MEZA_QUALITY", "on").lower()
@@ -320,9 +336,17 @@ class MezaPipeline(pipeline.Pipeline):
         return super().run(qtypes, count, *args, **kwargs)
 
     def _draft(self, prompt: str, qtype: str, fmt: str) -> tuple[Question, dict]:
-        text = self._call(self.generator, "generate", prompt, system=pipeline.GEN_SYSTEM,
-                          temperature=0.9, json_mode=True)
-        data = pipeline.parse_json(text)
+        for tries in range(3):  # a draft with broken JSON is retried without using up a rewrite
+            text = self._call(self.generator, "generate", prompt, system=pipeline.GEN_SYSTEM,
+                              temperature=0.9, json_mode=True)
+            try:
+                data = pipeline.parse_json(text)
+                break
+            except (ValueError, json.JSONDecodeError):
+                if tries == 2:
+                    raise
+                prompt += ("\n\nYour last reply was not valid JSON. Return valid JSON only, escaping any double "
+                           "quotation marks inside strings as \\\".")
         q = Question(
             qtype=qtype,  # keep the requested name (with its difficulty) rather than the writer's echo
             stem=str(data["stem"]),
@@ -334,6 +358,15 @@ class MezaPipeline(pipeline.Pipeline):
         )
         q.answer = q.answer.upper() if fmt == MCQ else normalize_spr(q.answer)
         return q, data
+
+    def _focus_critic(self, q: Question) -> dict:
+        """The reviewer model judges whether a Words in Context passage is built around the tested word."""
+        prompt = FOCUS_CRITIC_PROMPT.format(question=q.to_prompt())
+        try:
+            return pipeline.parse_json(self._call(self.reviewer, "focus_critic", prompt, system=FOCUS_CRITIC_SYSTEM,
+                                                  json_mode=True))
+        except (ValueError, KeyError, TypeError):
+            return {}
 
     def _trap_critic(self, q: Question) -> dict:
         """The reviewer model rates each wrong answer: on topic? how tempting? which trap?"""
@@ -366,7 +399,7 @@ class MezaPipeline(pipeline.Pipeline):
             context=self.context,
             format_rules=pipeline.SPR_RULES if fmt == SPR else pipeline.MCQ_RULES,
         ) + SUBJECT_LINE.format(subject=subject)
-        clue = ""
+        clue, role = "", ""
         if base_type(qtype).startswith("words_in_context"):
             ci = self.clues[index] if index < len(self.clues) else index % len(WIC_CLUES)
             clue, _, desc = WIC_CLUES[ci]
@@ -375,6 +408,9 @@ class MezaPipeline(pipeline.Pipeline):
                     clue, _, desc = next(c for c in WIC_CLUES if c[0] == "exposition")
                 desc = desc.replace("the blank", "the underlined word")
             base_prompt += CLUE_LINE.format(desc=desc)
+            weights = WORD_ROLE_WEIGHTS.get(difficulty_of(qtype, index) or "medium", WORD_ROLE_WEIGHTS["medium"])
+            role = random.Random(f"role:{index}:{len(self.plan)}").choices(list(weights), list(weights.values()))[0]
+            base_prompt += ROLE_LINE[role]
         want_kind, band = "", None
         if base_type(qtype) in TSP_TYPES:
             rng_b = random.Random(f"tsp:{index}:{len(self.plan)}")
@@ -431,12 +467,13 @@ class MezaPipeline(pipeline.Pipeline):
         # The offline demo's simulated writer can't follow the rulebook; skip the gate there.
         gate = QUALITY != "off" and fmt == MCQ and not isinstance(self.generator, SimulatedClient)
         prompt, problems = base_prompt, []
-        for attempt in range(MAX_REPAIRS + 1 if gate else 1):
+        repairs = MAX_REPAIRS + (1 if base_type(qtype) in TSP_TYPES else 0)
+        for attempt in range(repairs + 1 if gate else 1):
             try:
                 q, data = self._draft(prompt, qtype, fmt)
                 q.validate()
             except (ValueError, KeyError, TypeError, AttributeError, json.JSONDecodeError) as exc:
-                if not gate or attempt == MAX_REPAIRS:
+                if not gate or attempt == repairs:
                     raise
                 problems = [f"The draft could not be used: {exc}. Follow the JSON format exactly."]
                 log_attempt({"index": index, "qtype": qtype, "attempt": attempt, "invalid": str(exc)})
@@ -474,6 +511,10 @@ class MezaPipeline(pipeline.Pipeline):
                 if not problems and QUALITY == "on" and TRAP_CRITIC == "on":
                     critic = self._trap_critic(q)
                     problems += trap_critic_problems(critic, q.answer, level)
+            focus: dict = {}
+            if role == "detail" and not problems and QUALITY == "on" and FOCUS_CRITIC == "on":
+                focus = self._focus_critic(q)
+                problems += focus_problems(focus, role)
             if not problems and QUALITY == "on" and base_type(qtype).startswith(PROBE_TYPES):
                 hits = self._probe(q, index, attempt)
                 if sum(hits) >= PROBE_FAIL:
@@ -482,7 +523,8 @@ class MezaPipeline(pipeline.Pipeline):
                          "fails": res.fails, "warns": res.warns, "probe_hits": sum(hits),
                          "probe_runs": len(hits), "shape": shape, "underlined": want_kind,
                          "traps": data.get("traps"), "trap_critic": critic, "vocab": vocab, "vocab_used": used,
-                         "choice_plan": plan, "passed": not problems})
+                         "choice_plan": plan, "word_role": role, "focus": focus,
+                         "problems": problems, "passed": not problems})
             if not problems:
                 self._recent.setdefault(base_type(qtype), []).append(shape)
                 del self._recent[base_type(qtype)][:-RECENT_KEEP]

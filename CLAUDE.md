@@ -98,6 +98,18 @@ Each rule below came from auditing output or from Sebastian's review rounds agai
   requires 2+ of 3 wrong answers to be accurate, and scores anything contradicting the text or built on a passing
   word as tempting 1-2. Also: hand-written review rounds must shuffle key positions (satgen already shuffles real runs).
 
+- **First real run (Nov 24, 10 questions): 5/5 vocabulary shipped, 0/5 Text Structure.** Fixes:
+  - Words in Context passages were built around the tested word (every sentence hinting at "a sound mentor").
+    → code assigns a word role (detail 4:1 at medium/hard, 1:1 at easy); for "detail" the word sits in one sentence
+    and only that sentence gives the clue; a reviewer-model focus check rejects passages built around the word
+    (MEZA_FOCUS_CRITIC=off to skip).
+  - Literary introductions counted toward passage length, leaving one-sentence excerpts. → the intro is excluded
+    from all length checks; excerpts need 40+ words of their own.
+  - Text Structure: the trap critic failed any item with one weak wrong answer and rewrites redid every choice, so
+    nothing converged. → medium may keep one wrong answer rated 2 (never 1); hard still needs all >= 3; rewrites
+    change only the flagged choices; Text Structure gets one extra rewrite; broken-JSON drafts are retried for free.
+  - The quality log now records every problem in full ("problems" field).
+
 ## Source rule (Sebastian, Nov 24; do not break)
 
 Allowed as source or training material, and nothing else:

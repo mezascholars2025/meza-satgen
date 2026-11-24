@@ -122,9 +122,18 @@ def std_words(text: str) -> float:
     return len(text) / 6
 
 
+def strip_intro(passage: str) -> str:
+    """Drop a literary introduction ("The following text is from ...") so it never counts toward length."""
+    p = passage.lstrip()
+    if p.startswith("The following text is from"):
+        parts = re.split(r"\n\s*\n", p, maxsplit=1)
+        return parts[1] if len(parts) > 1 else ""
+    return passage
+
+
 def reading_text(passage: str) -> str:
-    """Passage without the data table and its title line (tables are not counted as text)."""
-    lines = passage.splitlines()
+    """Passage without the literary introduction, the data table, and the table's title line."""
+    lines = strip_intro(passage).splitlines()
     keep = []
     for i, line in enumerate(lines):
         s = line.strip()
@@ -185,6 +194,9 @@ def lint(qtype: str, passage: str, stem: str, choices: dict[str, str], answer: s
     lo, hi = TARGET_WORDS[band]
     if not lo <= n_real <= hi:
         r.warns.append(f"Passage has {n_real} words; real items of this type usually run {lo}-{hi}.")
+    if passage.lstrip().startswith("The following text is from") and n_real < 40:
+        r.fails.append(f"The excerpt itself is only {n_real} words; the introduction does not count toward length. "
+                       f"Give the excerpt at least 40 words of its own.")
 
     # --- blanks and underlines ---
     blanks = passage.count(BLANK)
@@ -383,7 +395,7 @@ def _sentences(text: str) -> list[str]:
 def features(qtype: str, passage: str, key_text: str = "", clue: str = "") -> dict:
     """A short description of a passage's shape: how it opens, whether it twists, where the blank sits."""
     text = reading_text(passage)
-    body = re.sub(r"^The following text is from[^.]*\.\s*([^.]*\.)?\s*", "", text) if "following text" in text else text
+    body = text
     low = " " + body.lower() + " "
     low_nb = re.sub(r"not only(.*?)\bbut\b", r"\1", low)  # "not only ... but" is an extension, not a contrast
     contrast = [m for m in CONTRAST_MARKERS if has_word(low_nb, m.rstrip(","))
@@ -597,7 +609,7 @@ def trap_critic_problems(verdict: dict, answer: str, level: str) -> list[str]:
     wrong = [k for k in CHOICE_KEYS if k != answer]
     if not isinstance(verdict, dict) or not any(isinstance(verdict.get(k), dict) for k in wrong):
         return []  # critic unavailable: don't block on it
-    off, weak, inaccurate = [], [], []
+    off, weak, inaccurate, very_weak = [], [], [], []
     for k in wrong:
         v = verdict.get(k)
         if not isinstance(v, dict):
@@ -615,6 +627,8 @@ def trap_critic_problems(verdict: dict, answer: str, level: str) -> list[str]:
             t = 3
         if t <= 2:
             weak.append(label)
+            if t <= 1:
+                very_weak.append(label)
     out = []
     if off:
         out.append("These wrong answers bring in content the passage never mentions or target no real mistake, so "
@@ -624,10 +638,41 @@ def trap_critic_problems(verdict: dict, answer: str, level: str) -> list[str]:
         out.append("Too many wrong answers misstate the passage's content: " + "; ".join(inaccurate) + ". At least two "
                    "wrong answers must describe what the passage really says, accurately, and be wrong only about its "
                    "purpose, scope, order, or role, so a student who skimmed would accept them.")
-    if weak and (level != "easy" or len(weak) > 1):
+    allowed = {"easy": 1, "medium": 1, "hard": 0}.get(level, 0)
+    if len(weak) > allowed or (level != "easy" and very_weak):
         out.append("These wrong answers are too easy to rule out: " + "; ".join(weak) + ". Make each a near miss: an "
                    "accurate statement about the passage with the wrong scope, action, relationship, order, or target.")
     return out
+
+
+# ----------------------------------------------------------------------------- word focus (Words in Context)
+# On real items the tested word is usually a detail in one sentence; the passage's main idea is about something else.
+# A passage built entirely around the word (every sentence hinting at its meaning) is too easy to solve.
+
+FOCUS_CRITIC_SYSTEM = "You are a veteran Digital SAT item reviewer."
+FOCUS_CRITIC_PROMPT = """Here is a Words in Context question. The tested word is the blank or the underlined word.
+
+{question}
+
+Answer with JSON only:
+{{"main_idea": "<the passage's main idea in one sentence>",
+  "word_is_main_idea": <true if the passage is mainly ABOUT the quality, action, or idea the tested word names>,
+  "hint_sentences": <how many sentences or clauses exist mainly to point to the tested word's meaning>}}"""
+
+
+def focus_problems(verdict: dict, role: str) -> list[str]:
+    if role != "detail" or not isinstance(verdict, dict) or "hint_sentences" not in verdict:
+        return []
+    try:
+        hints = int(verdict.get("hint_sentences", 0))
+    except (TypeError, ValueError):
+        hints = 0
+    if verdict.get("word_is_main_idea") is True or hints > 1:
+        return [f"The passage is built around the tested word (main idea: {verdict.get('main_idea', '?')}; "
+                f"{hints} sentence(s) mainly hint at its meaning). For this item the word must be a DETAIL: write a "
+                "passage whose main idea is about something else, put the word in one sentence, and let only that "
+                "sentence (and at most one nearby phrase) supply the clue."]
+    return []
 
 
 # ----------------------------------------------------------------------------- probe
