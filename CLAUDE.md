@@ -9,7 +9,7 @@ Update it in the same pull request whenever you add a rule or change how somethi
   It writes Digital SAT questions, solves each one 5 times without the key, has a stronger model review it with the
   key hidden, confirms any key change, and removes near-duplicates. **Don't edit `src/satgen/`.** Pull upstream
   fixes with `git fetch upstream && git merge upstream/main`.
-- Everything Meza-specific lives in the `meza_*` files, `data/vocab_bank.json`, and `tests/test_meza_quality.py`.
+- Everything Meza-specific lives in the `meza_*` files, `data/meza_vocab_bank.json`, and `tests/test_meza_quality.py`.
 - Scope right now: **Reading and Writing only.**
 
 | File | What it does |
@@ -19,7 +19,7 @@ Update it in the same pull request whenever you add a rule or change how somethi
 | `meza_quality.py` | Free, deterministic checks (lint, rhythm, vocabulary) and the passage-free probe. `python meza_quality.py runs/<run>/questions.json` lints an old run with no API calls. |
 | `meza_context.txt` | The item-writing rulebook the writer model follows. |
 | `meza_export.py` | Builds `review.html` and `questions.csv` for human review. |
-| `data/vocab_bank.json` | 499 words from Sebastian's Barron's deck (words and parts of speech only), tiered by word frequency: 233 advanced, 209 mid, 57 common. |
+| `data/meza_vocab_bank.json` | 1,961 unique words merged from three public Anki decks Sebastian chose (words and parts of speech only), tiered by word frequency: 1,069 advanced, 691 mid, 201 common; 103 flagged as having a second meaning (used for underlined-word items). |
 
 Run tests with `pytest` (no network). Offline smoke run: `python meza_satgen.py run --offline --count 6`.
 Optional but recommended: `pip install wordfreq` so the checker can judge the level of words outside the bank.
@@ -54,7 +54,7 @@ Each rule below came from auditing output or from Sebastian's review rounds agai
 - **Don't fall into a rhythm.** Round 2: every passage was "belief, then twist" even with different labels.
   → the writer sees its last 5 questions; rhythm check rejects a third twist in a row, a repeated opening, the
   blank in the same place three times, or a repeated answer/tested word. Only `contrast` items may twist.
-- **Harder passages need harder words, but only a sprinkle.** Round 3: everything was readable by any student.
+- **Harder passages need harder words, but only a sprinkle** (bank since replaced; see Source rule). Round 3: everything was readable by any student.
   Round 4: three bank words per passage was too much. → medium: 1 advanced word max; hard: 1–2 max.
 - **Balance answer-choice difficulty.** Round 4: all four hard choices were obscure, which real tests rarely do.
   → hard WIC choices = 2 advanced + 1 mid + 1 common; medium = 1/2/1; easy = 0/1/3. The key's tier is assigned
@@ -63,22 +63,74 @@ Each rule below came from auditing output or from Sebastian's review rounds agai
   ≤4 words, at least one wrong choice is the word's most common meaning, ≤1 advanced word among choices
   (difficulty comes from the uncommon sense). Tested words come from the bank's common/mid tiers.
 
-## Legal and content rules (do not break)
+- **Text Structure and Purpose: what gets underlined (Sebastian's note).** Function items usually underline a
+  sentence, but real tests occasionally underline a question the text poses ("the underlined question") or a
+  phrase/quotation ("the underlined portion"). → assigned in code by weight (sentence 8, question 1, portion 1);
+  lint checks that the stem word matches what is underlined.
 
-- Never paste official College Board / Bluebook / Question Bank questions into prompts, the rulebook, tests, or
-  this repo. Study them yourself and write the **pattern** in your own words.
-- The vocabulary bank holds words and parts of speech only — no Barron's definitions or example sentences.
-- Never invent a quote, study, or statistic and present it as real. Use generic researchers ("a team of
-  ecologists") for invented findings.
-- Never commit `.env` (API keys). Each person uses their own key.
+- **Text Structure and Purpose: choice verbs and length (Sebastian's note from practice sets).** Choices open with
+  "To [verb]" (purpose) or "It [verbs]" (function, overall), mostly from: suggest, indicate, emphasize, convey,
+  describe, illustrate, summarize, present, reflect, represent, introduce, establish, demonstrate, provide, discuss,
+  evaluate, compare, explain, capture. Real items come in two length styles: ~9-12 words or ~15-22 words.
+  → code assigns a band per item (overall structure = long; purpose/function = short or long at random) and lint
+  enforces it (±1 word) plus ≥2 preferred verbs; the correct answer's opening verb rotates (can't repeat the last 3).
+
+- **Literary passages: specific intros and denser poetry (Sebastian's note).** Round 1's poem intro ("The speaker
+  addresses an old clock") was too vague and the language too plain. → intros must name an author, a year
+  (1820-1925), the form, and a quoted title, then one specific sentence on who the speaker/character is and their
+  situation. Authors and titles are INVENTED (never a real writer or work, so no invented lines are attributed to a
+  real author) and the explanation ends with [Invented work]. Poems/drama use period diction (inversion,
+  apostrophe, extended metaphor) and get more bank words: medium up to 2 advanced, hard 2-3.
+
+- **Text Structure wrong answers must be near misses (Sebastian, round 2).** Distractors like "to describe the
+  plants" (no plants in the text) or "compares two engineers' competing plans" (only one plan) can be crossed out
+  without reading. → the writer must build wrong answers from the passage's own content and label each with a trap
+  type (too_narrow, too_broad, wrong_action, wrong_relationship, wrong_order, partial, wrong_target,
+  misread_stance); medium/hard need 2+ types. Then the reviewer model rates each wrong answer (on topic? tempting
+  1-5?) and off-topic or untempting ones go back for a rewrite (easy may keep one plain trap). A word-overlap check
+  was tried and rejected: correct answers are worded abstractly, so overlap can't separate good traps from bad.
+  Turn the critic off with MEZA_TRAP_CRITIC=off.
+
+- **The skim test (Sebastian, round 3).** Even "on-topic" traps were weak when they leaned on a word the text barely
+  touches ("compares the godwit with other animals" from "of any animal") or contradicted an explicit statement.
+  Real wrong answers are statements a student who skimmed would accept as accurate: their facts match the passage,
+  only the purpose/scope/order/role is wrong. → rule + writer prompt; the critic now also rates accurate_content,
+  requires 2+ of 3 wrong answers to be accurate, and scores anything contradicting the text or built on a passing
+  word as tempting 1-2. Also: hand-written review rounds must shuffle key positions (satgen already shuffles real runs).
+
+## Source rule (Sebastian, Nov 24; do not break)
+
+Allowed as source or training material, and nothing else:
+- original questions written by the Meza team or by this generator
+- public test SPECIFICATIONS (the prose of College Board's Assessment Framework and Skills Insight documents),
+  but NOT the sample questions printed inside them
+- openly licensed content (e.g. OpenStax, public-domain passages, Creative Commons word lists), with attribution
+- the MIT-licensed satgen code (its bundled eval questions are hand-written by its author, not official items)
+
+Never allowed, directly or indirectly: College Board Question Bank items, Bluebook or other official practice-test
+questions, sample questions from College Board documents, and commercial prep material (books, decks, courses).
+"Indirectly" includes rules or statistics derived from studying those questions.
+
+Also: never invent a quote, study, or statistic and present it as real (use generic researchers for invented
+findings); never commit `.env`; each person uses their own API key.
+
+Audit decisions (Nov 24):
+- Vocabulary bank: the Barron's-based list was removed. `data/meza_vocab_bank.json` merges three publicly shared Anki
+  decks Sebastian chose; only words and parts of speech are kept (no definitions, sentences, or audio). The decks
+  state no license; Sebastian's call is that a list of English words from public decks is acceptable.
+- Question stems: kept. Sebastian's call: they are the standard wording used across SAT prep, not taken from the
+  Question Bank.
+- Review-round rules (Nov 24): kept. Sebastian built them with Claude, without College Board material.
+- Bundled satgen eval questions: checked; hand-written by the satgen author, no official items.
 
 ## How we improve it (the review loop)
 
-1. Work a real practice set for one skill.
-2. Generate 3–5 questions of that skill (or ask Claude to write a round by hand to the current rules).
-3. Note every difference from the real test: structure, clue directness, vocabulary level, trap quality, rhythm.
-4. Turn each difference into (a) a rule in `meza_context.txt`, (b) a check in `meza_quality.py` if it can be
-   checked in code, and (c) a test in `tests/test_meza_quality.py`. Add the reason to the decisions log above.
+1. Pick one skill. Read what the public spec text says about it (skills, formats, difficulty factors).
+2. Generate 3-5 questions of that skill (or ask Claude to write a round by hand to the current rules).
+3. Review them against the spec and against item-writing quality: clue directness, trap quality (skim test),
+   rhythm, vocabulary level, answer-position balance. Do not compare them against official questions.
+4. Turn each finding into (a) a rule in `meza_context.txt`, (b) a check in `meza_quality.py` if it can be checked in
+   code, and (c) a test in `tests/test_meza_quality.py`. Add the reason and its source to the decisions log.
 
 ## Working together
 

@@ -37,7 +37,9 @@ from pathlib import Path
 
 from meza_quality import (PROBE_TYPES, base_type, describe, difficulty_of, features, lint, probe_feedback,
                           probe_votes, rhythm_check, vocab_used)
-from meza_quality import advanced_in, choice_mix_problems, word_tier
+from meza_quality import (TRAP_CRITIC_PROMPT, TRAP_CRITIC_SYSTEM, TSP_BANDS, TSP_TRAPS, TSP_TYPES, TSP_VERBS,
+                          advanced_in, choice_mix_problems, lead_verb, trap_critic_problems, trap_label_problems,
+                          word_tier)
 from satgen import cli, pipeline
 from satgen.answers import normalize_spr
 from satgen.llm import SimulatedClient
@@ -96,6 +98,35 @@ WIC_CLUES = [
     ("restatement", 1, "restatement: a colon or dash after the blank leads into an explanation of it (this is the "
                        "only structure allowed to do that)"),
 ]
+# Function items: what gets underlined. A question the text poses shows up occasionally on the real test.
+FUNCTION_KINDS = [
+    ("sentence", 8, "one complete declarative sentence"),
+    ("question", 1, "one question that the text itself poses (it ends with a question mark); the stem must say "
+                    "\"underlined question\""),
+    ("portion", 1, "a phrase or a quotation within a sentence, not a whole sentence; the stem must say "
+                   "\"underlined portion\""),
+]
+TRAP_LINE = (
+    "\nWRONG ANSWERS FOR THIS ITEM: build every wrong answer from the passage's own content (its real subject, "
+    "details, people, and moves). Each must be wrong only about the text's purpose, structure, or the role of a part, "
+    "never because it mentions something the passage does not. Use these trap types:\n{traps}\n"
+    "SKIM TEST: at least two wrong answers must be accurate statements about what the passage says, wrong only in "
+    "purpose, scope, order, or role, so a student who skimmed would accept them. Never build a wrong answer on a word "
+    "the passage barely touches, and never let one contradict an explicit statement.\n"
+    "{level_rule} Add a \"traps\" field to the JSON mapping each wrong answer's letter to its trap type."
+)
+TRAP_LEVEL_RULE = {
+    "easy": "Even at easy, every wrong answer stays on topic; easy items just use plainer traps (too narrow, wrong target).",
+    "medium": "Use at least two different trap types; at least one wrong answer should need a second look.",
+    "hard": "Use at least two different trap types; every wrong answer should be a near miss that is right about "
+            "most of the text.",
+}
+TRAP_CRITIC = os.environ.get("MEZA_TRAP_CRITIC", "on").lower()  # on / off
+TSP_LINE = (
+    "\nANSWER CHOICE LENGTH FOR THIS ITEM: every choice is {lo}-{hi} words ({style})."
+    "\nOPENING VERBS: give each choice a different opening verb, mostly from: {verbs}.{avoid}"
+)
+FUNCTION_LINE = "\nREQUIRED UNDERLINED PORTION FOR THIS ITEM: {desc}."
 CLUE_LINE = "\nREQUIRED CLUE STRUCTURE FOR THIS WORDS IN CONTEXT ITEM: {desc}."
 
 
@@ -125,7 +156,7 @@ PROBE_RUNS = int(os.environ.get("MEZA_PROBE_RUNS", "3"))
 PROBE_FAIL = int(os.environ.get("MEZA_PROBE_FAIL", "3"))
 LOG_PATH = os.environ.get("MEZA_QUALITY_LOG", "")
 _log_lock = threading.Lock()
-VOCAB_PATH = Path(os.environ.get("MEZA_VOCAB", Path(__file__).with_name("data") / "vocab_bank.json"))
+VOCAB_PATH = Path(os.environ.get("MEZA_VOCAB", Path(__file__).with_name("data") / "meza_vocab_bank.json"))
 RECENT_KEEP = 5
 RECENT_BLOCK = (
     "\n\nYOUR MOST RECENT QUESTIONS OF THIS TYPE (newest last):\n{items}\n"
@@ -134,14 +165,20 @@ RECENT_BLOCK = (
 )
 
 
-# Harder passages draw advanced words from the vocabulary bank (data/vocab_bank.json, built from the
-# Barron's deck: words and parts of speech only). Words are dealt like cards, so a run uses the whole
-# bank before repeating one.
+# Harder passages draw advanced words from the vocabulary bank (data/meza_vocab_bank.json: 1,961 unique words
+# merged from three public Anki decks; words and parts of speech only). Words are dealt like cards, so a run uses
+# the whole bank before repeating one.
 VOCAB_RULES = {
     # difficulty: (bank words offered, minimum to use, most advanced bank words allowed in the passage, tiers dealt)
     "easy": (0, 0, 1, ()),
     "medium": (2, 1, 1, ("mid", "advanced")),
     "hard": (3, 1, 2, ("advanced", "mid", "advanced")),
+}
+# Poems and plays get denser period language (Sebastian's note): more bank words allowed.
+POETRY_VOCAB_RULES = {
+    "easy": (1, 0, 1, ("mid",)),
+    "medium": (3, 1, 2, ("advanced", "mid", "advanced")),
+    "hard": (4, 2, 3, ("advanced", "advanced", "mid", "advanced")),
 }
 # Words in Context answer choices: how many of each tier, and how often the key comes from each tier.
 # Real hard items usually mix two words a typical student doesn't know, one they half know, one they know.
@@ -184,6 +221,8 @@ class VocabBank:
         self.by_tier: dict[str, list[dict]] = {}
         for w in data:
             self.by_tier.setdefault(w["tier"], []).append(w)
+            if w.get("multi_meaning") and " " not in w["word"]:
+                self.by_tier.setdefault("multi", []).append(w)
         self.decks: dict[str, list[dict]] = {}
         self.lock = threading.Lock()
 
@@ -203,16 +242,19 @@ class VocabBank:
                     out.append(w)
         return out
 
-    def passage_words(self, difficulty: str) -> tuple[list[str], int, int]:
-        n, need, cap, tiers = VOCAB_RULES.get(difficulty, (0, 0, 1, ()))
+    def passage_words(self, difficulty: str, poetry: bool = False) -> tuple[list[str], int, int]:
+        rules = POETRY_VOCAB_RULES if poetry else VOCAB_RULES
+        n, need, cap, tiers = rules.get(difficulty, (0, 0, 1, ()))
         words: list[str] = []
         for i in range(n):
             words += self.deal(tiers[i % len(tiers)], 1)
         return words, (need if words else 0), cap
 
     def targets(self, n: int) -> list[str]:
-        """Candidate tested words for meaning items: everyday and mid-level words, many with several senses."""
-        out = self.deal("common", n // 2 + 1) + self.deal("mid", n - n // 2 - 1)
+        """Candidate tested words for meaning items: mostly words the decks mark as having a second meaning,
+        topped up with everyday and mid-level words."""
+        out = self.deal("multi", n - 2) if self.by_tier.get("multi") else []
+        out += [w for w in self.deal("common", 1) + self.deal("mid", 2) if w not in out]
         return out[:n]
 
     def choice_plan(self, difficulty: str) -> dict:
@@ -293,6 +335,15 @@ class MezaPipeline(pipeline.Pipeline):
         q.answer = q.answer.upper() if fmt == MCQ else normalize_spr(q.answer)
         return q, data
 
+    def _trap_critic(self, q: Question) -> dict:
+        """The reviewer model rates each wrong answer: on topic? how tempting? which trap?"""
+        prompt = TRAP_CRITIC_PROMPT.format(question=q.to_prompt(), answer=q.answer, traps=", ".join(TSP_TRAPS))
+        try:
+            return pipeline.parse_json(self._call(self.reviewer, "trap_critic", prompt, system=TRAP_CRITIC_SYSTEM,
+                                                  json_mode=True))
+        except (ValueError, KeyError, TypeError):
+            return {}
+
     def _probe(self, q: Question, index: int, attempt: int) -> list[bool]:
         def ask(prompt: str, system: str) -> str:
             return self._call(self.solver, "probe", prompt, system=system, json_mode=True)
@@ -324,6 +375,27 @@ class MezaPipeline(pipeline.Pipeline):
                     clue, _, desc = next(c for c in WIC_CLUES if c[0] == "exposition")
                 desc = desc.replace("the blank", "the underlined word")
             base_prompt += CLUE_LINE.format(desc=desc)
+        want_kind, band = "", None
+        if base_type(qtype) in TSP_TYPES:
+            rng_b = random.Random(f"tsp:{index}:{len(self.plan)}")
+            style = "long" if base_type(qtype) == "text_structure_overall" else rng_b.choice(["short", "long"])
+            band = TSP_BANDS[style]
+            verbs = TSP_VERBS[:]
+            rng_b.shuffle(verbs)
+            prior = [r["key"] for r in self._recent.get(base_type(qtype), [])[-3:] if r.get("key")] \
+                if "_recent" in self.__dict__ else []
+            avoid = (f" The correct answer must NOT open with {', '.join(sorted(set(prior)))} "
+                     f"(recent correct answers did)." if prior else "")
+            base_prompt += TSP_LINE.format(lo=band[0], hi=band[1], style=f"{style} style", verbs=", ".join(verbs[:9]),
+                                           avoid=avoid)
+            base_prompt += TRAP_LINE.format(
+                traps="\n".join(f"  - {k}: {v}" for k, v in TSP_TRAPS.items()),
+                level_rule=TRAP_LEVEL_RULE.get(difficulty_of(qtype, index) or "medium", ""))
+        if base_type(qtype) == "text_structure_function":
+            rng = random.Random(f"function:{index}:{len(self.plan)}")
+            kinds = [k for k, w, _ in FUNCTION_KINDS for _ in range(w)]
+            want_kind = rng.choice(kinds)
+            base_prompt += FUNCTION_LINE.format(desc=next(d for k, _, d in FUNCTION_KINDS if k == want_kind))
         if "_recent" not in self.__dict__:
             self._recent = {}
         if "vocab" not in self.__dict__:
@@ -331,7 +403,8 @@ class MezaPipeline(pipeline.Pipeline):
         level = difficulty_of(qtype, index) or "medium"
         vocab, need, cap, plan = [], 0, 9, None
         if fmt == MCQ and QUALITY != "off" and not base_type(qtype).startswith(NO_VOCAB_TYPES):
-            vocab, need, cap = self.vocab.passage_words(level)
+            poetry = "POETRY" in subject.upper()
+            vocab, need, cap = self.vocab.passage_words(level, poetry=poetry)
             if vocab:
                 base_prompt += VOCAB_LINE.format(level=level, need_text="one or two" if cap > 1 else "one",
                                                  words=", ".join(vocab), cap=cap, s="s" if cap > 1 else "")
@@ -372,9 +445,11 @@ class MezaPipeline(pipeline.Pipeline):
             if not gate:
                 return q
 
-            res = lint(qtype, q.passage, q.stem, q.choices, q.answer, q.explanation, subject=subject, clue=clue)
-            shape = features(qtype, q.passage, q.choices.get(q.answer, "") if base_type(qtype).startswith(
-                ("words_in_context", "transitions")) else "", clue)
+            res = lint(qtype, q.passage, q.stem, q.choices, q.answer, q.explanation, subject=subject, clue=clue,
+                       want_kind=want_kind, choice_band=band)
+            key_mark = (q.choices.get(q.answer, "") if base_type(qtype).startswith(("words_in_context", "transitions"))
+                        else lead_verb(q.choices.get(q.answer, "")) if base_type(qtype) in TSP_TYPES else "")
+            shape = features(qtype, q.passage, key_mark, clue)
             problems = list(res.fails) + rhythm_check(shape, recent)
             used = vocab_used(q.passage, vocab)
             if len(used) < need:
@@ -393,27 +468,39 @@ class MezaPipeline(pipeline.Pipeline):
             elif plan:
                 problems += choice_mix_problems(q.choices, q.answer, plan["mix"], plan["key_tier"])
             hits: list[bool] = []
+            critic: dict = {}
+            if base_type(qtype) in TSP_TYPES:
+                problems += trap_label_problems(data.get("traps"), q.answer, level)
+                if not problems and QUALITY == "on" and TRAP_CRITIC == "on":
+                    critic = self._trap_critic(q)
+                    problems += trap_critic_problems(critic, q.answer, level)
             if not problems and QUALITY == "on" and base_type(qtype).startswith(PROBE_TYPES):
                 hits = self._probe(q, index, attempt)
                 if sum(hits) >= PROBE_FAIL:
                     problems.append(probe_feedback(hits))
             log_attempt({"index": index, "qtype": qtype, "subject": subject, "clue": clue, "attempt": attempt,
                          "fails": res.fails, "warns": res.warns, "probe_hits": sum(hits),
-                         "probe_runs": len(hits), "shape": shape, "vocab": vocab, "vocab_used": used,
+                         "probe_runs": len(hits), "shape": shape, "underlined": want_kind,
+                         "traps": data.get("traps"), "trap_critic": critic, "vocab": vocab, "vocab_used": used,
                          "choice_plan": plan, "passed": not problems})
             if not problems:
                 self._recent.setdefault(base_type(qtype), []).append(shape)
                 del self._recent[base_type(qtype)][:-RECENT_KEEP]
                 return q
-            draft = json.dumps({k: data.get(k) for k in ("passage", "stem", "choices", "answer", "explanation")},
+            draft = json.dumps({k: data.get(k) for k in ("passage", "stem", "choices", "answer", "explanation", "traps")},
                                ensure_ascii=False, indent=1)
             prompt = base_prompt + REPAIR_BLOCK.format(draft=draft, problems="\n".join(f"- {p}" for p in problems))
         raise ValueError("quality gate: " + " | ".join(p[:120] for p in problems))
 
 
-pipeline.Pipeline = MezaPipeline
+def install() -> None:
+    """Make satgen's CLI build a MezaPipeline. Done only when this file is run, not on import, so importing it
+    (for example from tests) leaves satgen's own Pipeline untouched."""
+    pipeline.Pipeline = MezaPipeline
+
 
 if __name__ == "__main__":
+    install()
     args = sys.argv[1:]
     if args[:1] != ["run"]:
         args = ["run", *args]
