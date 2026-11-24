@@ -493,9 +493,14 @@ class MezaPipeline(pipeline.Pipeline):
         raise ValueError("quality gate: " + " | ".join(p[:120] for p in problems))
 
 
-pipeline.Pipeline = MezaPipeline
+def install() -> None:
+    """Make satgen's CLI build a MezaPipeline. Done only when this file is run, not on import, so importing it
+    (for example from tests) leaves satgen's own Pipeline untouched."""
+    pipeline.Pipeline = MezaPipeline
+
 
 if __name__ == "__main__":
+    install()
     args = sys.argv[1:]
     if args[:1] != ["run"]:
         args = ["run", *args]
