@@ -1,0 +1,222 @@
+MEZA SCHOLARS - DIGITAL SAT READING AND WRITING ITEM-WRITING RULES
+Write original content only. Follow every rule below. The question type you must write is named in the prompt; follow PART 1 and PART 2 for every item, plus the matching section in PART 3.
+
+==================================================
+PART 1 - RULES FOR EVERY QUESTION
+==================================================
+
+1. FORMAT
+- One passage (or a pair of passages labeled "Text 1" and "Text 2") followed by exactly one question with four answer choices and exactly one correct answer.
+- The passage (or both texts together) is 25-150 words. Count the words before you finish. Notes in rhetorical synthesis items count toward the limit.
+- Target lengths: Standard English Conventions, Transitions, and Words in Context: 25-70 words. Rhetorical Synthesis: 60-120 words of notes. All other types: 80-150 words.
+- Use "______" (six underscores) for any blank the student must fill.
+- Mark an underlined portion with <u> and </u>.
+- Write tables in Markdown, with a title line above the table and units in the column headers.
+
+2. PASSAGE CONTENT
+- Subject area: every prompt ends with a REQUIRED SUBJECT AREA. Write the passage on that subject area only, never a different one. The full rotation is life science, history, prose fiction, physical science, social science, earth and space science, humanities, poetry or drama, archaeology and anthropology, and technology and engineering history.
+- Within the subject, pick a specific, less common topic. Avoid overused topics: bees and pollination, bean or sunflower seedlings, sea turtles, mangroves, octopuses, crows, coral reefs, and urban heat islands.
+- Informational passages read like a condensed academic summary: a researcher, scholar, or group; what they studied or argued; what they found or claimed.
+- Literary passages begin with a one-sentence introduction such as "The following text is from a short story." / "...from a poem." / "...from a novel." Add one clause of context if the student needs it (who a character is, the setting). Write the excerpt yourself.
+- Self-contained: a student must be able to answer from the passage alone, with no outside knowledge.
+- Never give an invented person a first and last name and present them as a real scholar, scientist, or historian. Describe invented experts generically ("one architectural historian," "a team of ecologists"). Full invented names are allowed only for characters in fiction and for authors of invented literary works in quotation items.
+- Real-world facts must be widely established and accurate. Never invent a quote from a real person, a real study, or a statistic and present it as fact. When you need a study or data, use a generic invented researcher or group ("a team of ecologists," "students in a biology class") or frame findings as "if true."
+- Avoid politically or emotionally charged topics, violence, tragedy, illness, religion, and anything that requires regional or cultural insider knowledge.
+- Academic register: third person, formal, no slang, never "you."
+- Never mention College Board, never describe the item as official, and never copy, closely paraphrase, or imitate a specific official SAT question.
+
+3. ANSWER CHOICES
+- The correct answer must be provable from specific words in the passage or specific data in the table. A careful student must be able to point to the evidence.
+- Each wrong choice must be wrong for one clear, identifiable reason. Use these distractor types:
+  a. Too broad - claims more than the passage supports.
+  b. Too narrow - a true detail that does not answer the question asked.
+  c. Reversed - states the opposite of the passage or flips cause and effect.
+  d. True but irrelevant - accurate, but does not answer the question.
+  e. Word trap - reuses words from the passage while misrepresenting what it says.
+  f. Overstatement - absolute language ("proves," "always," "all," "never") the passage does not support.
+  g. Misread data - misreports a value or comparison in the table (quantitative items only).
+- No two choices may both be defensible. If a wrong choice could be argued for, rewrite it.
+- Keep all four choices parallel in length, grammar, and level of detail (how long and complex they are overall depends on difficulty; see section 4). The correct answer must not be the longest or most specific choice by default.
+- Never use "all of the above," "none of the above," or "both A and B."
+- NO GIVEAWAYS. A test-wise student who skips the passage must not be able to find the key from the choices alone:
+  * Length: the key must NOT be the longest choice in most items. In about half your items, make a wrong answer the longest and most detailed choice. Never let the key be the only choice with two clauses or a qualification.
+  * Absolutes: at most ONE wrong answer may rely on absolute or extreme wording (only, always, never, all, best, entirely, proves). The others must be wrong for reasons the student can only see in the passage.
+  * Tone: if the key is hedged or balanced ("can," "may," "partly"), at least one wrong answer must be hedged or balanced too.
+  * Plausibility: even at Easy, every wrong answer should sound reasonable to someone who has not read the passage. Wrong answers are wrong because of the passage, not because they sound silly.
+- Every wrong answer should use the passage's topic and vocabulary. A choice about an unrelated topic is too easy to eliminate.
+
+4. DIFFICULTY
+If the type name ends in _easy, _medium, or _hard, write the question at exactly that difficulty, and treat the rest of the name as the type (for example, details_easy means an easy details question). Otherwise, divide the Variation number by 3 and use the remainder: 0 = easy, 1 = medium, 2 = hard.
+The biggest difference between an easy and a hard question is how many complex ideas the passage juggles at once - not length and not obscure vocabulary alone.
+- Easy: a relatively direct text that develops one main idea and does not juggle several complex ideas. Mostly short and medium-length sentences, common vocabulary, and the evidence for the answer is stated plainly in one place. Distractors are clearly off-target on a careful read. Length toward the lower end of the type's range. Answer choices are short and concise: usually one simple idea each, often a brief phrase or a short sentence.
+- Medium: a main idea plus one complicating idea (a qualification, an exception, or a contrast between two views). A mix of sentence lengths and some academic vocabulary. One distractor is tempting on a quick read. Answer choices are moderate in length and may combine two related ideas.
+- PASSAGE VOCABULARY: medium and hard prompts list words from the Meza vocabulary bank under "VOCABULARY FOR THIS PASSAGE". Sprinkle them in naturally: one advanced word in a medium passage, one or two in a hard passage, never more. The difficulty of a hard passage comes mostly from its ideas and sentence structure; a word or two the student may not know adds to that, but the rest of the passage stays in clear academic English.
+- Hard: many long sentences that discuss several high-level, abstract ideas at once (for example, a theory, an objection to it, and a qualification, interwoven rather than presented one at a time), with embedded clauses and academic or literary vocabulary. Answering requires tracking how those ideas relate across sentences. Hard passages are slightly longer than easy passages of the same type, but not by much (roughly 10-25% more words, never past the 150-word limit). Two tempting distractors; still exactly one defensible answer. Answer choices are multifaceted and complex: each is typically a full sentence that combines two or more ideas (for example, a claim and its qualification, or a relationship between two parts of the passage), so a distractor can be right about one part and wrong about another.
+- Standard English Conventions, Transitions, and Rhetorical Synthesis follow the same principle: difficulty comes from denser sentences and more ideas around the tested point (long intervening phrases, embedded clauses, notes that relate in subtler ways), never from obscure or disputed rules.
+- Exception to the answer-length scaling: Words in Context, Transitions, and Standard English Conventions choices stay short at every level (a word, phrase, or punctuation variant). For those, harder means subtler word distinctions and more complex text around the blank.
+
+5. EXPLANATION (required format)
+- Start with: "[Domain: X] [Skill: Y] [Difficulty: Z] [Subject: S]", where S is the required subject area name (for example, History) and Domain is one of Craft and Structure, Information and Ideas, Standard English Conventions, or Expression of Ideas; Skill is the exact type name you were given without any _easy/_medium/_hard ending (for example, form_verb_tense); and Difficulty is Easy, Medium, or Hard.
+- Then explain why the correct answer is right, citing the specific words or data that prove it.
+- Then give one sentence per wrong choice naming why it is wrong.
+- The answer choices are shuffled after you write them, so NEVER refer to a choice by its letter. Refer to each choice by quoting its first few words.
+- For items built on an invented literary work, end the explanation with "[Invented work]".
+
+==================================================
+PART 2 - STANDARD ENGLISH CONVENTIONS: SHARED RULES
+==================================================
+- Stem for every Standard English Conventions item: "Which choice completes the text so that it conforms to the conventions of Standard English?"
+- The passage is informational (science, history, the arts) and contains exactly one blank.
+- The four choices are the same words differing ONLY in the feature being tested (punctuation, or one verb, pronoun, or noun form). Test one skill per item.
+- The text around the blank must make exactly one choice correct in standard written English. Avoid points where style guides disagree (for example, the serial comma).
+
+==================================================
+PART 3 - QUESTION TYPES
+==================================================
+
+---------- CRAFT AND STRUCTURE ----------
+
+words_in_context_meaning
+- Stem: "As used in the text, what does the word "[word]" most nearly mean?" For a two- or three-word expression, write "phrase" instead of "word" (about one item in five).
+- Underline the tested word or phrase in the passage with <u></u>, exactly once. The stem quotes it exactly as underlined.
+- The tested word is an everyday word with several common meanings, used in a less common sense. The prompt offers candidate words under "TESTED WORD FOR THIS ITEM". Never use an example word from this rulebook.
+- CLUE STRUCTURE: the prompt names a REQUIRED CLUE STRUCTURE. Build the passage around it, as for completion items: unless the structure is "contrast", no contrast words and no "expected, but actually" setup.
+- Choices: four short meanings (a word or a phrase of up to four words), the same part of speech as the tested word as used. At least one wrong choice is the word's most common meaning; another may be a second real meaning. Every choice must fit the sentence grammatically, so the student has to decide by meaning, not grammar.
+- Do not define the tested word nearby. The sense must come from the logic of the passage, not from a sentence that restates it.
+- Difficulty for this type:
+  - Easy: a fairly familiar secondary sense; the clue is in the same sentence. No advanced words among the choices.
+  - Medium: a less familiar sense; the clue is a sentence away or needs one step of reasoning. One wrong choice is the word's everyday meaning. At most one advanced word among the choices.
+  - Hard: an uncommon sense in an abstract, college-level passage. Two wrong choices are real meanings of the word that fit a hurried reading. At most one advanced word among the choices: the difficulty comes from the sense of the tested word, not from obscure choices.
+
+words_in_context_completion
+- Stem: "Which choice completes the text with the most logical and precise word or phrase?"
+- The passage contains one blank. The text must make exactly one choice correct, but the student should have to WORK OUT the meaning from the logic of the passage, not find a synonym sitting next to the blank.
+- CLUE STRUCTURE: every words_in_context_completion prompt names a REQUIRED CLUE STRUCTURE. Build the passage around it. Unless the required structure is "restatement", never put a colon, semicolon, or dash right after the blank to explain the word. (On the real test that pattern is uncommon, roughly 1 item in 10-15.)
+- DO NOT DEFINE THE ANSWER. No sentence may restate the key's meaning or pile up concrete examples that spell it out (bad: a blank for "exacting" followed by "she fixed every uneven phrase and had players repeat passages until perfect"). The evidence must be indirect: a result, a contrast with what was expected, an evaluation, a consequence someone draws, or a qualification.
+- Choices: four words or short phrases of the same part of speech and register. In about one item in four, use short phrases (for example "at odds with", "in keeping with") instead of single words. Distractors fit the grammar but not the logic or precision (wrong direction, wrong degree, wrong connotation). Never offer two near-synonyms that both work.
+- Vary the key. Never use a word shown as an example anywhere in this rulebook as the answer.
+- Difficulty for this type (overrides the general difficulty rules where they differ):
+  - Easy: common academic vocabulary in the passage and the choices. The clue is in the same or the next sentence and fairly direct, but it is still not a definition.
+  - Medium: less common words. The clue is at least a sentence away from the blank or needs one step of reasoning (what a contrast or a consequence implies). At least one distractor fits a quick or partial reading.
+  - Choice levels: follow the "ANSWER CHOICES FOR THIS ITEM" mix in the prompt. A hard item usually has two words most students don't know, one they half know, and one they know; the correct answer is not always the hardest word. Never make all four choices advanced words.
+  - Hard: the passage reads like college-level academic writing about abstract ideas (an interpretation, a theory, the strength of evidence, a scholar's view), with long sentences and advanced vocabulary. The meaning of the blank follows only from how two or more sentences relate, often through a concession or qualification. No concrete detail paraphrases the answer. The key and all three distractors are advanced words with similar connotations, so the student must know precise meanings to choose.
+
+text_structure_function
+- Stem: "Which choice best describes the function of the underlined sentence in the text as a whole?" A sentence is most common; a quotation, phrase, or word may be underlined instead (adjust the stem to match).
+- Underline exactly one portion with <u></u>.
+- Choices describe roles: introduces a claim, provides an example that supports a claim, presents a counterargument, qualifies an earlier statement, explains a result, offers a hypothesis that is later tested, establishes a contrast. Distractors name a role the portion does not play or misidentify what it relates to.
+
+text_structure_overall
+- Stem: "Which choice best describes the overall structure of the text?"
+- The passage has a clear two- or three-part movement (claim then evidence; problem then solution; a common view then a challenge to it; a description then a reversal).
+- Choices are sequences ("It describes X, then explains Y."). Distractors get the order wrong, include a move the passage does not make, or misdescribe one part.
+
+text_structure_purpose
+- Stem: "Which choice best states the main purpose of the text?"
+- Choices begin with infinitives ("To explain...," "To argue...," "To describe...," "To challenge..."). Distractors are too narrow (the purpose of one sentence), the wrong action (argue vs. describe), or overstated.
+
+cross_text_connections
+- Two short texts labeled "Text 1" and "Text 2" on the same topic, together 25-150 words. Usually Text 2 responds to, extends, qualifies, or disputes Text 1. Narrative pairs are also allowed.
+- Stems (use the one that fits): "Based on the texts, how would the author of Text 2 most likely respond to [the claim/finding] in Text 1?" / "Based on the texts, both authors would most likely agree with which statement?" / "How does the author of Text 2 differ from the author of Text 1 in their view of [topic]?" / "In both Text 1 and Text 2, ..." / "What would the author of Text 1 most likely consider [X described in Text 2]?" / "What do these two narrative texts have in common?" / "Which of the following words best describes [subject] as it is portrayed in Text 1 and Text 2?" / "Which of the authors would most likely agree with this statement: '[statement]'?"
+- The correct answer requires reading both texts. Distractors represent only one text's view, overstate the disagreement, or attribute a view to the wrong author.
+
+---------- INFORMATION AND IDEAS ----------
+
+details
+- Stems: "According to the text, what/why/how ...?" or "Based on the text, ...?"
+- The correct answer restates one specific detail in different words. At least one distractor swaps in a different detail from the same passage; another is a word trap.
+
+central_ideas
+- Stem: "Which choice best states the main idea of the text?"
+- The answer captures the whole passage. At least one distractor is a true detail that is too narrow; another is too broad or adds an unsupported claim.
+
+command_of_evidence_claim
+- The passage presents a claim or hypothesis, ideally alongside an alternative explanation. When using the underlined-sentence stem, underline the claim with <u></u>.
+- Stems: "Which finding, if true, would most directly support the [researchers'] [hypothesis/claim]?" / "Which finding, if true, would most directly undermine the [claim]?" / "Which statement, if true, would most strongly support the claim in the underlined sentence?"
+- The correct finding tests the specific claim and separates it from the alternative. Distractors support the alternative, are consistent with both explanations, or are irrelevant. Findings are hypothetical ("if true"), so they may describe new results.
+
+command_of_evidence_quotation
+- The passage describes a literary work whose title and author are invented for this item, and makes a claim about it (for example, "In the poem, the speaker expresses both pride and regret about leaving home.").
+- Stem: "Which quotation from [title] most effectively illustrates the claim?"
+- Choices: four short invented quotations (one or two lines each) in the same voice. Only one shows the specific claim, including both halves of a two-part claim. Distractors show only part of the claim, a related but different idea, or the opposite.
+- End the explanation with "[Invented work]".
+
+command_of_evidence_quantitative
+- Begin the passage field with a titled Markdown table (2-5 rows, 2-4 columns, units shown). Then write 40-100 words about a study, survey, or class experiment that ends with a claim, an example, or an unfinished statement.
+- Stems: "Which choice most effectively uses data from the table to support the [claim/hypothesis]?" / "Which choice most effectively uses data from the table to complete the [example/statement]?" (for this stem, end the text with "______.").
+- The table must be necessary to answer. At least two distractors describe the table accurately but do not support the claim; at most one misreads the data.
+
+inferences
+- The passage ends with an incomplete final sentence ending in "______."
+- Stem: "Which choice most logically completes the text?"
+- The correct completion follows necessarily from the passage's reasoning. Distractors sound plausible but are unsupported, contradict an earlier statement, or overreach.
+- Do not restate the needed premise inside the final sentence (for example, "since copper conducts heat better than aluminum, ______"). The student must connect earlier sentences to reach the conclusion.
+
+---------- STANDARD ENGLISH CONVENTIONS: BOUNDARIES ----------
+(All use the shared stem and rules in PART 2.)
+
+boundaries_end_punctuation
+- Tests whether a question or a statement is needed. Direct questions end with "?"; indirect (reported) questions are statements and end with "." (for example, "The researchers wondered whether the birds could see ultraviolet light.").
+- Choices differ in word order and/or end punctuation.
+
+boundaries_independent_clauses
+- Tests joining two independent clauses. Correct options: a period; a semicolon; a comma plus a coordinating conjunction (for, and, nor, but, or, yet, so); a colon when the second clause explains, specifies, or elaborates on the first.
+- Distractors: comma splice (comma alone), run-on (no punctuation), conjunction without the comma, colon where the second clause does not explain the first. Only one choice may be correct, so never offer both a correct period and a correct semicolon in the same item.
+
+boundaries_dependent_clauses
+- Tests joining an independent clause and a dependent clause (beginning with because, although, while, when, since, if, unless, etc.). Correct: a comma after an introductory dependent clause, or no punctuation when the dependent clause follows the main clause and is essential.
+- Distractors: a semicolon or period (creates a fragment), or a colon.
+
+boundaries_transition_punctuation
+- Tests punctuation around a conjunctive adverb or transitional phrase (however, therefore, consequently, for example, in contrast) between two independent clauses: semicolon or period before it, comma after it ("...; however, ..."). Within a single clause, the transition is set off by commas.
+- Distractors: comma before the transition (comma splice), missing comma after it, punctuation on the wrong side.
+
+boundaries_supplements
+- Tests specifying (essential) information vs. additional (nonessential) information. Specifying information is NOT surrounded by commas ("the novelist Toni Morrison," "the students who finished early"). Additional information is set off on both sides by matching punctuation: two commas, two dashes, or two parentheses ("Mars, the fourth planet from the sun, ...").
+- Distractors: mismatched pair (comma then dash), one half of the pair missing, commas around specifying information.
+
+boundaries_lists
+- Tests punctuating a series: commas between items; a colon introduces a list only after a complete independent clause; semicolons separate items that contain internal commas. Never a colon between a verb or preposition and its list.
+
+boundaries_unnecessary_punctuation
+- Tests where punctuation is NOT needed: between subject and verb, between verb and object, between a preposition and its object, before a "that" clause, or between two items joined by "and."
+- The correct answer is usually the choice with no punctuation at the blank.
+
+---------- STANDARD ENGLISH CONVENTIONS: FORM, STRUCTURE, AND SENSE ----------
+(All use the shared stem and rules in PART 2.)
+
+form_finite_verbs
+- Tests the verb form a complete sentence needs. Every sentence needs a main (finite) verb; -ing forms, "to" + verb, and "having" + past participle cannot serve as the main verb.
+- Choices: four forms of the same verb (for example, "describes," "describing," "to describe," "having described").
+
+form_subject_verb_agreement
+- Tests singular vs. plural verbs. Include one challenge: a phrase between subject and verb ("The collection of letters ______"), an inverted sentence, a compound subject, or a subject such as "each," "every," "a number of," or "the number of."
+- Choices: singular and plural forms (for example, "was/were," "has/have," "shows/show") in tenses that let only one fit.
+
+form_verb_tense
+- Tests tense and aspect from time clues in the passage: simple past, simple present, present perfect (has/have + past participle: an action that began in the past and continues or still matters; clues like "since," "for decades," "so far"), past perfect (had + past participle: the earlier of two past events; clues like "by the time," "before," "already").
+- Choices: four tenses of the same verb; only one matches the time clues.
+
+form_pronouns
+- Tests pronoun-antecedent agreement in number (it/its vs. they/their for singular nouns such as "the committee," "the company," "the species") and pronoun case (who/whom, they/them, she/her).
+- The antecedent must be unambiguous.
+
+form_possessives
+- Tests apostrophes and plural vs. possessive nouns: singular possessive ('s), plural possessive (s'), irregular plurals (children's), its vs. it's, their vs. they're vs. there, whose vs. who's.
+- Choices: four spellings of the same word or words (for example, "scientists," "scientist's," "scientists'," "scientist").
+
+form_modifiers
+- Tests dangling and misplaced modifiers. The sentence begins with a modifying phrase (for example, "Built in the 1890s, ______"), and the blank begins the main clause. The correct choice places the noun the phrase describes immediately after the comma.
+- Choices: four versions of the main clause with different subjects or word orders.
+
+---------- EXPRESSION OF IDEAS ----------
+
+transitions
+- Stem: "Which choice completes the text with the most logical transition?"
+- The blank is at the start of a sentence (followed by a comma) or after a semicolon. The two ideas have one clear relationship: contrast/concession (however, nevertheless, still), cause/effect (therefore, consequently, as a result), addition (furthermore, moreover, similarly), example (for example, for instance), clarification (in other words, that is), sequence/time (later, subsequently, meanwhile, finally), or emphasis (in fact, indeed).
+- Choices: four transitions from DIFFERENT relationship categories, so exactly one fits. Never offer two transitions from the same category.
+
+rhetorical_synthesis
+- The passage is: "While researching a topic, a student has taken the following notes:" followed by 4-6 factual notes, each on its own line starting with "- ". The notes may describe a person, work, study, place, or phenomenon. Use only widely established facts about real subjects, or an invented subject framed hypothetically.
+- Stem: "The student wants to [specific goal]. Which choice most effectively uses relevant information from the notes to accomplish this goal?" Goals include: emphasize a similarity or difference between two things; introduce [subject] to an audience unfamiliar with it; present a study and its findings; explain a cause or an advantage; make a generalization; emphasize the significance of a detail; specify when or where something happened.
+- Choices: four complete sentences, all factually consistent with the notes. Only one accomplishes the exact goal. Distractors accomplish a different goal, cover only part of what the goal requires, or rely on irrelevant notes.

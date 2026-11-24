@@ -1,0 +1,2999 @@
+{
+ "source": "Word list from Sebastian's Barron's SAT vocabulary deck (words and parts of speech only; no definitions or example sentences). tier comes from English word frequency (wordfreq zipf): advanced < 3.0 <= mid < 3.8 <= common.",
+ "words": [
+  {
+   "word": "abate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.68
+  },
+  {
+   "word": "abridge",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 1.95
+  },
+  {
+   "word": "abstemious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 1.74
+  },
+  {
+   "word": "abstract",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 4.14
+  },
+  {
+   "word": "abstruse",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.13
+  },
+  {
+   "word": "accessible",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 4.18
+  },
+  {
+   "word": "acclaim",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.29
+  },
+  {
+   "word": "accolade",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.82
+  },
+  {
+   "word": "acknowledge",
+   "pos": "verb",
+   "tier": "common",
+   "zipf": 4.18
+  },
+  {
+   "word": "acquiesce",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.48
+  },
+  {
+   "word": "acrid",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.37
+  },
+  {
+   "word": "acrimonious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.55
+  },
+  {
+   "word": "adherent",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.6
+  },
+  {
+   "word": "adroit",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.31
+  },
+  {
+   "word": "adulation",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.6
+  },
+  {
+   "word": "adversary",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.29
+  },
+  {
+   "word": "adversity",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.38
+  },
+  {
+   "word": "advocate",
+   "pos": "verb",
+   "tier": "common",
+   "zipf": 4.21
+  },
+  {
+   "word": "aesthetic",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 4.02
+  },
+  {
+   "word": "affable",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.66
+  },
+  {
+   "word": "affirmation",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.24
+  },
+  {
+   "word": "alacrity",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.36
+  },
+  {
+   "word": "alleviate",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.52
+  },
+  {
+   "word": "allusion",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.94
+  },
+  {
+   "word": "aloof",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.99
+  },
+  {
+   "word": "altruistic",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.95
+  },
+  {
+   "word": "ambiguous",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.57
+  },
+  {
+   "word": "ambivalence",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.8
+  },
+  {
+   "word": "amorphous",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.95
+  },
+  {
+   "word": "anachronism",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.53
+  },
+  {
+   "word": "analogous",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.36
+  },
+  {
+   "word": "anarchy",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.52
+  },
+  {
+   "word": "anecdote",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.2
+  },
+  {
+   "word": "animosity",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.17
+  },
+  {
+   "word": "anomaly",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.47
+  },
+  {
+   "word": "antagonism",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.84
+  },
+  {
+   "word": "antipathy",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.7
+  },
+  {
+   "word": "apathy",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.26
+  },
+  {
+   "word": "appease",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.2
+  },
+  {
+   "word": "apprehension",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.09
+  },
+  {
+   "word": "appropriate",
+   "pos": "verb",
+   "tier": "common",
+   "zipf": 4.67
+  },
+  {
+   "word": "arbitrary",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 3.85
+  },
+  {
+   "word": "archaic",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.36
+  },
+  {
+   "word": "ardent",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.28
+  },
+  {
+   "word": "articulate",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.54
+  },
+  {
+   "word": "ascendancy",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.88
+  },
+  {
+   "word": "ascetic",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.81
+  },
+  {
+   "word": "assiduous",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.15
+  },
+  {
+   "word": "assuage",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.63
+  },
+  {
+   "word": "assumption",
+   "pos": "noun",
+   "tier": "common",
+   "zipf": 4.07
+  },
+  {
+   "word": "astute",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.1
+  },
+  {
+   "word": "atrophy",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.97
+  },
+  {
+   "word": "attribute",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.77
+  },
+  {
+   "word": "augment",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.19
+  },
+  {
+   "word": "austere",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.0
+  },
+  {
+   "word": "autonomous",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 3.85
+  },
+  {
+   "word": "banal",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.88
+  },
+  {
+   "word": "bane",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.26
+  },
+  {
+   "word": "belie",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.45
+  },
+  {
+   "word": "belittle",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.86
+  },
+  {
+   "word": "benevolent",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.34
+  },
+  {
+   "word": "benign",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.51
+  },
+  {
+   "word": "bleak",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.43
+  },
+  {
+   "word": "bolster",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.31
+  },
+  {
+   "word": "brevity",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.85
+  },
+  {
+   "word": "buttress",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.67
+  },
+  {
+   "word": "cacophonous",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 1.94
+  },
+  {
+   "word": "cajole",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.19
+  },
+  {
+   "word": "calculated",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 4.1
+  },
+  {
+   "word": "candor",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.8
+  },
+  {
+   "word": "capitulate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.5
+  },
+  {
+   "word": "capricious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.79
+  },
+  {
+   "word": "captivate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.52
+  },
+  {
+   "word": "catalyst",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.76
+  },
+  {
+   "word": "censorious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 1.94
+  },
+  {
+   "word": "censure",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.94
+  },
+  {
+   "word": "clich\u00e9",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.19
+  },
+  {
+   "word": "coercion",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.27
+  },
+  {
+   "word": "cogent",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.71
+  },
+  {
+   "word": "coherence",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.09
+  },
+  {
+   "word": "cohesion",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.28
+  },
+  {
+   "word": "collaborate",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.51
+  },
+  {
+   "word": "colloquial",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.93
+  },
+  {
+   "word": "commemorate",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.49
+  },
+  {
+   "word": "compile",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.38
+  },
+  {
+   "word": "complacency",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.05
+  },
+  {
+   "word": "complement",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.77
+  },
+  {
+   "word": "compliance",
+   "pos": "noun",
+   "tier": "common",
+   "zipf": 4.17
+  },
+  {
+   "word": "composure",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.18
+  },
+  {
+   "word": "comprehensive",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 4.36
+  },
+  {
+   "word": "concede",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.48
+  },
+  {
+   "word": "conciliatory",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.76
+  },
+  {
+   "word": "concise",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.46
+  },
+  {
+   "word": "concur",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.18
+  },
+  {
+   "word": "condone",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.17
+  },
+  {
+   "word": "conflagration",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.57
+  },
+  {
+   "word": "confound",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.65
+  },
+  {
+   "word": "conjecture",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.35
+  },
+  {
+   "word": "consensus",
+   "pos": "noun",
+   "tier": "common",
+   "zipf": 4.1
+  },
+  {
+   "word": "constraint",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.28
+  },
+  {
+   "word": "contend",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.56
+  },
+  {
+   "word": "contentious",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.31
+  },
+  {
+   "word": "contract",
+   "pos": "verb",
+   "tier": "common",
+   "zipf": 4.94
+  },
+  {
+   "word": "converge",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.23
+  },
+  {
+   "word": "conviction",
+   "pos": "noun",
+   "tier": "common",
+   "zipf": 4.14
+  },
+  {
+   "word": "cordial",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.1
+  },
+  {
+   "word": "corroborate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.92
+  },
+  {
+   "word": "credulity",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.33
+  },
+  {
+   "word": "criterion",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.46
+  },
+  {
+   "word": "cryptic",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.23
+  },
+  {
+   "word": "culpable",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.89
+  },
+  {
+   "word": "cursory",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.92
+  },
+  {
+   "word": "debilitate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 1.7
+  },
+  {
+   "word": "debunk",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.68
+  },
+  {
+   "word": "decorum",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.87
+  },
+  {
+   "word": "decry",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.6
+  },
+  {
+   "word": "deference",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.96
+  },
+  {
+   "word": "definitive",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 3.8
+  },
+  {
+   "word": "degradation",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.6
+  },
+  {
+   "word": "deleterious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.72
+  },
+  {
+   "word": "delineate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.56
+  },
+  {
+   "word": "denounce",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.24
+  },
+  {
+   "word": "depict",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.41
+  },
+  {
+   "word": "deplore",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.43
+  },
+  {
+   "word": "depravity",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.86
+  },
+  {
+   "word": "deprecate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 1.88
+  },
+  {
+   "word": "deride",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.4
+  },
+  {
+   "word": "derivative",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.65
+  },
+  {
+   "word": "despondent",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.68
+  },
+  {
+   "word": "detachment",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.46
+  },
+  {
+   "word": "deterrent",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.33
+  },
+  {
+   "word": "detrimental",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.55
+  },
+  {
+   "word": "devious",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.03
+  },
+  {
+   "word": "devise",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.19
+  },
+  {
+   "word": "didactic",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.74
+  },
+  {
+   "word": "diffidence",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 1.83
+  },
+  {
+   "word": "diffuse",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.28
+  },
+  {
+   "word": "digression",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.25
+  },
+  {
+   "word": "dilemma",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.73
+  },
+  {
+   "word": "diligence",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.51
+  },
+  {
+   "word": "diminution",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.4
+  },
+  {
+   "word": "discerning",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.02
+  },
+  {
+   "word": "disclose",
+   "pos": "verb",
+   "tier": "common",
+   "zipf": 3.84
+  },
+  {
+   "word": "discordant",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.6
+  },
+  {
+   "word": "discount",
+   "pos": "verb",
+   "tier": "common",
+   "zipf": 4.35
+  },
+  {
+   "word": "discourse",
+   "pos": "verb",
+   "tier": "common",
+   "zipf": 3.83
+  },
+  {
+   "word": "discredit",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.36
+  },
+  {
+   "word": "discrepancy",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.29
+  },
+  {
+   "word": "discriminating",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.14
+  },
+  {
+   "word": "disdain",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.33
+  },
+  {
+   "word": "disinclination",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 1.84
+  },
+  {
+   "word": "dismiss",
+   "pos": "verb",
+   "tier": "common",
+   "zipf": 3.85
+  },
+  {
+   "word": "disparage",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.58
+  },
+  {
+   "word": "disparity",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.42
+  },
+  {
+   "word": "disperse",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.3
+  },
+  {
+   "word": "disposition",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.48
+  },
+  {
+   "word": "disputatious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 1.4
+  },
+  {
+   "word": "disseminate",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.03
+  },
+  {
+   "word": "dissent",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.56
+  },
+  {
+   "word": "distinction",
+   "pos": "noun",
+   "tier": "common",
+   "zipf": 4.1
+  },
+  {
+   "word": "divergent",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.38
+  },
+  {
+   "word": "doctrine",
+   "pos": "noun",
+   "tier": "common",
+   "zipf": 3.98
+  },
+  {
+   "word": "document",
+   "pos": "verb",
+   "tier": "common",
+   "zipf": 4.5
+  },
+  {
+   "word": "dogmatic",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.93
+  },
+  {
+   "word": "dormant",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.41
+  },
+  {
+   "word": "dubious",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.49
+  },
+  {
+   "word": "duplicity",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.51
+  },
+  {
+   "word": "ebullient",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.17
+  },
+  {
+   "word": "eclectic",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.37
+  },
+  {
+   "word": "edify",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 1.96
+  },
+  {
+   "word": "egotism",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.28
+  },
+  {
+   "word": "elaborate",
+   "pos": "verb",
+   "tier": "common",
+   "zipf": 4.06
+  },
+  {
+   "word": "elated",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.97
+  },
+  {
+   "word": "elicit",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.1
+  },
+  {
+   "word": "eloquence",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.83
+  },
+  {
+   "word": "elucidate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.7
+  },
+  {
+   "word": "elusive",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.47
+  },
+  {
+   "word": "embellish",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.55
+  },
+  {
+   "word": "eminent",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.56
+  },
+  {
+   "word": "emulate",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.41
+  },
+  {
+   "word": "endorse",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.63
+  },
+  {
+   "word": "enhance",
+   "pos": "verb",
+   "tier": "common",
+   "zipf": 4.04
+  },
+  {
+   "word": "enigma",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.24
+  },
+  {
+   "word": "enmity",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.01
+  },
+  {
+   "word": "enumerate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.4
+  },
+  {
+   "word": "ephemeral",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.99
+  },
+  {
+   "word": "epitome",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.28
+  },
+  {
+   "word": "equitable",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.36
+  },
+  {
+   "word": "equivocal",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.37
+  },
+  {
+   "word": "erroneous",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.22
+  },
+  {
+   "word": "erudite",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.75
+  },
+  {
+   "word": "esoteric",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.17
+  },
+  {
+   "word": "eulogy",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.02
+  },
+  {
+   "word": "euphemism",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.92
+  },
+  {
+   "word": "exacerbate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.92
+  },
+  {
+   "word": "exalt",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.6
+  },
+  {
+   "word": "excerpt",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.51
+  },
+  {
+   "word": "execute",
+   "pos": "verb",
+   "tier": "common",
+   "zipf": 3.95
+  },
+  {
+   "word": "exemplary",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.38
+  },
+  {
+   "word": "exemplify",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.73
+  },
+  {
+   "word": "exempt",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.78
+  },
+  {
+   "word": "exhaustive",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.3
+  },
+  {
+   "word": "exhilarating",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.12
+  },
+  {
+   "word": "exonerate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.61
+  },
+  {
+   "word": "expedient",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.83
+  },
+  {
+   "word": "expedite",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.05
+  },
+  {
+   "word": "explicit",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 3.96
+  },
+  {
+   "word": "exploit",
+   "pos": "noun",
+   "tier": "common",
+   "zipf": 3.83
+  },
+  {
+   "word": "extol",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.3
+  },
+  {
+   "word": "extraneous",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.79
+  },
+  {
+   "word": "extricate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.59
+  },
+  {
+   "word": "exuberance",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.79
+  },
+  {
+   "word": "facilitate",
+   "pos": "verb",
+   "tier": "common",
+   "zipf": 3.99
+  },
+  {
+   "word": "fallacious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.64
+  },
+  {
+   "word": "falter",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.82
+  },
+  {
+   "word": "fanaticism",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.73
+  },
+  {
+   "word": "fastidious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.64
+  },
+  {
+   "word": "feasible",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.72
+  },
+  {
+   "word": "fervor",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.05
+  },
+  {
+   "word": "flagrant",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.01
+  },
+  {
+   "word": "flippant",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.59
+  },
+  {
+   "word": "florid",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.39
+  },
+  {
+   "word": "foolhardy",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.57
+  },
+  {
+   "word": "formulaic",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.74
+  },
+  {
+   "word": "frivolous",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.22
+  },
+  {
+   "word": "frugality",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.52
+  },
+  {
+   "word": "furtive",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.49
+  },
+  {
+   "word": "futile",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.39
+  },
+  {
+   "word": "garrulous",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.11
+  },
+  {
+   "word": "genre",
+   "pos": "noun",
+   "tier": "common",
+   "zipf": 4.17
+  },
+  {
+   "word": "glutton",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.45
+  },
+  {
+   "word": "gratify",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.28
+  },
+  {
+   "word": "gratuitous",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.94
+  },
+  {
+   "word": "gravity",
+   "pos": "noun",
+   "tier": "common",
+   "zipf": 4.21
+  },
+  {
+   "word": "gregarious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.71
+  },
+  {
+   "word": "guile",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.75
+  },
+  {
+   "word": "gullible",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.1
+  },
+  {
+   "word": "hackneyed",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.4
+  },
+  {
+   "word": "hamper",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.26
+  },
+  {
+   "word": "hardy",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 3.86
+  },
+  {
+   "word": "haughtiness",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 1.77
+  },
+  {
+   "word": "hedonist",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.04
+  },
+  {
+   "word": "heresy",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.35
+  },
+  {
+   "word": "hierarchy",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.78
+  },
+  {
+   "word": "homogeneous",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.22
+  },
+  {
+   "word": "hyperbole",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.93
+  },
+  {
+   "word": "hypocritical",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.31
+  },
+  {
+   "word": "hypothetical",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.61
+  },
+  {
+   "word": "iconoclastic",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.37
+  },
+  {
+   "word": "idiosyncrasy",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 1.95
+  },
+  {
+   "word": "illicit",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.43
+  },
+  {
+   "word": "illusory",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.79
+  },
+  {
+   "word": "immaterial",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.89
+  },
+  {
+   "word": "immutable",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.85
+  },
+  {
+   "word": "impair",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.93
+  },
+  {
+   "word": "impeccable",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.25
+  },
+  {
+   "word": "impecunious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 1.73
+  },
+  {
+   "word": "impede",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.14
+  },
+  {
+   "word": "implement",
+   "pos": "verb",
+   "tier": "common",
+   "zipf": 4.2
+  },
+  {
+   "word": "impudence",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.32
+  },
+  {
+   "word": "inadvertently",
+   "pos": "adverb",
+   "tier": "mid",
+   "zipf": 3.44
+  },
+  {
+   "word": "inane",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.7
+  },
+  {
+   "word": "incidental",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.31
+  },
+  {
+   "word": "incisive",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.76
+  },
+  {
+   "word": "incite",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.12
+  },
+  {
+   "word": "inclusive",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 3.97
+  },
+  {
+   "word": "incongruous",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.69
+  },
+  {
+   "word": "inconsequential",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.86
+  },
+  {
+   "word": "incorrigible",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.51
+  },
+  {
+   "word": "indefatigable",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.55
+  },
+  {
+   "word": "indict",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.85
+  },
+  {
+   "word": "indifferent",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.44
+  },
+  {
+   "word": "indiscriminate",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.0
+  },
+  {
+   "word": "indolent",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.26
+  },
+  {
+   "word": "induce",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.56
+  },
+  {
+   "word": "ineffable",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.41
+  },
+  {
+   "word": "inert",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.09
+  },
+  {
+   "word": "inexorable",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.57
+  },
+  {
+   "word": "ingenious",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.35
+  },
+  {
+   "word": "inherent",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 3.83
+  },
+  {
+   "word": "innate",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.48
+  },
+  {
+   "word": "innocuous",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.06
+  },
+  {
+   "word": "innovation",
+   "pos": "noun",
+   "tier": "common",
+   "zipf": 4.32
+  },
+  {
+   "word": "insipid",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.64
+  },
+  {
+   "word": "instigate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.76
+  },
+  {
+   "word": "insularity",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.02
+  },
+  {
+   "word": "integrity",
+   "pos": "noun",
+   "tier": "common",
+   "zipf": 4.22
+  },
+  {
+   "word": "intervene",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.65
+  },
+  {
+   "word": "intimidate",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.31
+  },
+  {
+   "word": "intractable",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.88
+  },
+  {
+   "word": "intrepid",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.04
+  },
+  {
+   "word": "inundate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.07
+  },
+  {
+   "word": "inure",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 1.9
+  },
+  {
+   "word": "invert",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.74
+  },
+  {
+   "word": "irate",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.78
+  },
+  {
+   "word": "ironic",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 3.8
+  },
+  {
+   "word": "irreproachable",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 1.91
+  },
+  {
+   "word": "itinerant",
+   "pos": "adjective, noun",
+   "tier": "advanced",
+   "zipf": 2.82
+  },
+  {
+   "word": "jocular",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.21
+  },
+  {
+   "word": "juxtaposition",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.96
+  },
+  {
+   "word": "labyrinth",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.31
+  },
+  {
+   "word": "laconic",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.39
+  },
+  {
+   "word": "lament",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.25
+  },
+  {
+   "word": "lampoon",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.33
+  },
+  {
+   "word": "lassitude",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 1.71
+  },
+  {
+   "word": "laud",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.6
+  },
+  {
+   "word": "lavish",
+   "pos": "adjective, verb",
+   "tier": "mid",
+   "zipf": 3.42
+  },
+  {
+   "word": "lethargic",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.78
+  },
+  {
+   "word": "levity",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.6
+  },
+  {
+   "word": "linger",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.31
+  },
+  {
+   "word": "listless",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.53
+  },
+  {
+   "word": "lofty",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.34
+  },
+  {
+   "word": "loquacious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.11
+  },
+  {
+   "word": "malicious",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.67
+  },
+  {
+   "word": "mar",
+   "pos": "verb",
+   "tier": "common",
+   "zipf": 4.19
+  },
+  {
+   "word": "materialism",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.05
+  },
+  {
+   "word": "mercenary",
+   "pos": "adjective, noun",
+   "tier": "mid",
+   "zipf": 3.26
+  },
+  {
+   "word": "metaphor",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.73
+  },
+  {
+   "word": "methodical",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.02
+  },
+  {
+   "word": "meticulous",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.24
+  },
+  {
+   "word": "misanthrope",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.2
+  },
+  {
+   "word": "miserly",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.33
+  },
+  {
+   "word": "misnomer",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.73
+  },
+  {
+   "word": "mitigate",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.54
+  },
+  {
+   "word": "mollify",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.04
+  },
+  {
+   "word": "morose",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.44
+  },
+  {
+   "word": "mundane",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.43
+  },
+  {
+   "word": "munificent",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 1.76
+  },
+  {
+   "word": "myriad",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.49
+  },
+  {
+   "word": "na\u00efvet\u00e9",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.09
+  },
+  {
+   "word": "nebulous",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.75
+  },
+  {
+   "word": "nefarious",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.0
+  },
+  {
+   "word": "negate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.98
+  },
+  {
+   "word": "nonchalance",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.22
+  },
+  {
+   "word": "notoriety",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.19
+  },
+  {
+   "word": "novelty",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.66
+  },
+  {
+   "word": "nuance",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.09
+  },
+  {
+   "word": "nurture",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.31
+  },
+  {
+   "word": "obdurate",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.01
+  },
+  {
+   "word": "obliterate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.79
+  },
+  {
+   "word": "oblivion",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.32
+  },
+  {
+   "word": "obscure",
+   "pos": "verb",
+   "tier": "common",
+   "zipf": 3.85
+  },
+  {
+   "word": "obstinate",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.73
+  },
+  {
+   "word": "officious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.08
+  },
+  {
+   "word": "ominous",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.4
+  },
+  {
+   "word": "opaque",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.37
+  },
+  {
+   "word": "opportunist",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.77
+  },
+  {
+   "word": "optimist",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.02
+  },
+  {
+   "word": "opulence",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.69
+  },
+  {
+   "word": "orator",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.9
+  },
+  {
+   "word": "ornate",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.19
+  },
+  {
+   "word": "ostentatious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.68
+  },
+  {
+   "word": "overt",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.31
+  },
+  {
+   "word": "pacifist",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.07
+  },
+  {
+   "word": "paradox",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.63
+  },
+  {
+   "word": "paragon",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.05
+  },
+  {
+   "word": "parody",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.78
+  },
+  {
+   "word": "partisan",
+   "pos": "adjective, noun",
+   "tier": "common",
+   "zipf": 3.81
+  },
+  {
+   "word": "patronize",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.72
+  },
+  {
+   "word": "paucity",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.61
+  },
+  {
+   "word": "pedantic",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.66
+  },
+  {
+   "word": "pedestrian",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.71
+  },
+  {
+   "word": "perfunctory",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.45
+  },
+  {
+   "word": "peripheral",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.66
+  },
+  {
+   "word": "pernicious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.87
+  },
+  {
+   "word": "perpetuate",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.19
+  },
+  {
+   "word": "pervasive",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.39
+  },
+  {
+   "word": "pessimism",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.97
+  },
+  {
+   "word": "phenomena",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.74
+  },
+  {
+   "word": "philanthropist",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.12
+  },
+  {
+   "word": "piety",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.09
+  },
+  {
+   "word": "pithy",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.61
+  },
+  {
+   "word": "placate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.77
+  },
+  {
+   "word": "plausible",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.64
+  },
+  {
+   "word": "polarize",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.25
+  },
+  {
+   "word": "polemical",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.49
+  },
+  {
+   "word": "ponderous",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.47
+  },
+  {
+   "word": "pragmatic",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.49
+  },
+  {
+   "word": "precarious",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.27
+  },
+  {
+   "word": "preclude",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.03
+  },
+  {
+   "word": "precocious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.86
+  },
+  {
+   "word": "precursor",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.44
+  },
+  {
+   "word": "predator",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.71
+  },
+  {
+   "word": "predecessor",
+   "pos": "noun",
+   "tier": "common",
+   "zipf": 3.82
+  },
+  {
+   "word": "predilection",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.52
+  },
+  {
+   "word": "presumptuous",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.86
+  },
+  {
+   "word": "pretentious",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.17
+  },
+  {
+   "word": "prevalent",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.78
+  },
+  {
+   "word": "prodigal",
+   "pos": "adjective, noun",
+   "tier": "advanced",
+   "zipf": 2.92
+  },
+  {
+   "word": "profane",
+   "pos": "verb, adjective",
+   "tier": "advanced",
+   "zipf": 2.96
+  },
+  {
+   "word": "profound",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 3.94
+  },
+  {
+   "word": "profusion",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.52
+  },
+  {
+   "word": "proliferation",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.61
+  },
+  {
+   "word": "prolific",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.6
+  },
+  {
+   "word": "proponent",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.15
+  },
+  {
+   "word": "prosaic",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.6
+  },
+  {
+   "word": "provincial",
+   "pos": "adjective, noun",
+   "tier": "common",
+   "zipf": 4.08
+  },
+  {
+   "word": "proximity",
+   "pos": "noun",
+   "tier": "common",
+   "zipf": 3.88
+  },
+  {
+   "word": "prudent",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.41
+  },
+  {
+   "word": "qualified",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 4.46
+  },
+  {
+   "word": "quandary",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.6
+  },
+  {
+   "word": "quell",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.0
+  },
+  {
+   "word": "querulous",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 1.61
+  },
+  {
+   "word": "quiescent",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.35
+  },
+  {
+   "word": "quixotic",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.33
+  },
+  {
+   "word": "ramble",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.85
+  },
+  {
+   "word": "rancor",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.51
+  },
+  {
+   "word": "random",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 4.58
+  },
+  {
+   "word": "rant",
+   "pos": "verb, noun",
+   "tier": "mid",
+   "zipf": 3.67
+  },
+  {
+   "word": "ratify",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.94
+  },
+  {
+   "word": "rationale",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.53
+  },
+  {
+   "word": "raucous",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.82
+  },
+  {
+   "word": "rebuttal",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.1
+  },
+  {
+   "word": "recant",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.42
+  },
+  {
+   "word": "recluse",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.92
+  },
+  {
+   "word": "recount",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.24
+  },
+  {
+   "word": "rectify",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.17
+  },
+  {
+   "word": "redundant",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.59
+  },
+  {
+   "word": "refute",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.14
+  },
+  {
+   "word": "regimen",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.29
+  },
+  {
+   "word": "relegate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.47
+  },
+  {
+   "word": "remorse",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.49
+  },
+  {
+   "word": "renounce",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.19
+  },
+  {
+   "word": "repel",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.2
+  },
+  {
+   "word": "reprehensible",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.97
+  },
+  {
+   "word": "reprimand",
+   "pos": "noun, verb",
+   "tier": "advanced",
+   "zipf": 2.9
+  },
+  {
+   "word": "reprove",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 1.79
+  },
+  {
+   "word": "repudiate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.45
+  },
+  {
+   "word": "rescind",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.87
+  },
+  {
+   "word": "reserve",
+   "pos": "noun",
+   "tier": "common",
+   "zipf": 4.6
+  },
+  {
+   "word": "resigned",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 4.04
+  },
+  {
+   "word": "resolution",
+   "pos": "noun",
+   "tier": "common",
+   "zipf": 4.59
+  },
+  {
+   "word": "resolve",
+   "pos": "noun",
+   "tier": "common",
+   "zipf": 4.17
+  },
+  {
+   "word": "restraint",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.64
+  },
+  {
+   "word": "reticent",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.62
+  },
+  {
+   "word": "retract",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.03
+  },
+  {
+   "word": "reverent",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.46
+  },
+  {
+   "word": "rhetorical",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.38
+  },
+  {
+   "word": "rigorous",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.68
+  },
+  {
+   "word": "robust",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 3.94
+  },
+  {
+   "word": "sage",
+   "pos": "noun, adjective",
+   "tier": "common",
+   "zipf": 3.83
+  },
+  {
+   "word": "sanction",
+   "pos": "verb, noun",
+   "tier": "mid",
+   "zipf": 3.43
+  },
+  {
+   "word": "satirical",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.36
+  },
+  {
+   "word": "scrupulous",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.57
+  },
+  {
+   "word": "scrutiny",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.74
+  },
+  {
+   "word": "seclusion",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.92
+  },
+  {
+   "word": "servile",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.45
+  },
+  {
+   "word": "skeptic",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.89
+  },
+  {
+   "word": "sluggish",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.25
+  },
+  {
+   "word": "somber",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.05
+  },
+  {
+   "word": "soporific",
+   "pos": "adjective, noun",
+   "tier": "advanced",
+   "zipf": 2.1
+  },
+  {
+   "word": "specious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.45
+  },
+  {
+   "word": "sporadic",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.29
+  },
+  {
+   "word": "spurious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.96
+  },
+  {
+   "word": "squander",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.74
+  },
+  {
+   "word": "stagnant",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.31
+  },
+  {
+   "word": "static",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 4.05
+  },
+  {
+   "word": "strident",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.66
+  },
+  {
+   "word": "submissive",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.25
+  },
+  {
+   "word": "subordinate",
+   "pos": "adjective, noun",
+   "tier": "mid",
+   "zipf": 3.45
+  },
+  {
+   "word": "subside",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.88
+  },
+  {
+   "word": "substantiate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.83
+  },
+  {
+   "word": "succinct",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.9
+  },
+  {
+   "word": "superficial",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.56
+  },
+  {
+   "word": "superfluous",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.0
+  },
+  {
+   "word": "supplant",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.56
+  },
+  {
+   "word": "surpass",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.37
+  },
+  {
+   "word": "surreptitious",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.28
+  },
+  {
+   "word": "susceptible",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.67
+  },
+  {
+   "word": "sustain",
+   "pos": "verb",
+   "tier": "common",
+   "zipf": 3.93
+  },
+  {
+   "word": "taciturn",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.37
+  },
+  {
+   "word": "tantamount",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.93
+  },
+  {
+   "word": "tenacity",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.11
+  },
+  {
+   "word": "tentative",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.45
+  },
+  {
+   "word": "terse",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.67
+  },
+  {
+   "word": "tirade",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.87
+  },
+  {
+   "word": "transient",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.37
+  },
+  {
+   "word": "trepidation",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.72
+  },
+  {
+   "word": "trifling",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.69
+  },
+  {
+   "word": "trite",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.8
+  },
+  {
+   "word": "turbulent",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.47
+  },
+  {
+   "word": "turmoil",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.52
+  },
+  {
+   "word": "undermine",
+   "pos": "verb",
+   "tier": "mid",
+   "zipf": 3.65
+  },
+  {
+   "word": "uniformity",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.03
+  },
+  {
+   "word": "unprecedented",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 3.82
+  },
+  {
+   "word": "unwarranted",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.11
+  },
+  {
+   "word": "usurp",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.7
+  },
+  {
+   "word": "vacillate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 1.77
+  },
+  {
+   "word": "venerate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.28
+  },
+  {
+   "word": "verbose",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.44
+  },
+  {
+   "word": "vestigial",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.47
+  },
+  {
+   "word": "viable",
+   "pos": "adjective",
+   "tier": "common",
+   "zipf": 3.96
+  },
+  {
+   "word": "vigor",
+   "pos": "noun",
+   "tier": "mid",
+   "zipf": 3.03
+  },
+  {
+   "word": "vindicate",
+   "pos": "verb",
+   "tier": "advanced",
+   "zipf": 2.54
+  },
+  {
+   "word": "virulent",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.88
+  },
+  {
+   "word": "volatile",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.72
+  },
+  {
+   "word": "voluble",
+   "pos": "adjective",
+   "tier": "advanced",
+   "zipf": 2.04
+  },
+  {
+   "word": "whimsical",
+   "pos": "adjective",
+   "tier": "mid",
+   "zipf": 3.1
+  },
+  {
+   "word": "zealot",
+   "pos": "noun",
+   "tier": "advanced",
+   "zipf": 2.51
+  }
+ ]
+}
