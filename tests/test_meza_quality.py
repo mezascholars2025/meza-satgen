@@ -9,6 +9,7 @@ sys.path.insert(0, str(ROOT))
 os.environ.setdefault("MEZA_QUALITY", "on")
 
 import meza_satgen  # noqa: E402
+from meza_quality import trap_critic_problems, trap_label_problems
 from meza_quality import advanced_in, choice_mix_problems, features, lint, probe_votes, rhythm_check, vocab_used  # noqa: E402
 from satgen import pipeline  # noqa: E402
 
@@ -297,3 +298,188 @@ def test_meaning_prompt_gets_clue_and_targets(monkeypatch):
     first = writer.prompts[0]
     assert "TESTED WORD FOR THIS ITEM" in first and "REQUIRED CLUE STRUCTURE" in first
     assert "plain explanation" in first.split("REQUIRED CLUE STRUCTURE")[1]
+
+
+FN_STEM = "Which choice best describes the function of the underlined {} in the text as a whole?"
+FN_CH = {"A": "It introduces the problem that the rest of the text addresses.",
+         "B": "It presents the conclusion that the biologists finally reached.",
+         "C": "It provides an example that supports the claim in the first sentence.",
+         "D": "It describes a method that the biologists considered and rejected."}
+FN_P = ("Many birds migrate thousands of kilometers each year and return to the same nesting sites. <u>How do young "
+        "birds on their first journey find their way?</u> Biologists tracking juvenile warblers found that the birds "
+        "rely partly on the earth's magnetic field and partly on stars visible at night.")
+
+
+def test_function_item_kinds():
+    assert lint("text_structure_function", FN_P, FN_STEM.format("question"), FN_CH, "A", EXPL, want_kind="question").ok
+    assert any("must say" in x for x in lint("text_structure_function", FN_P, FN_STEM.format("sentence"), FN_CH, "A", EXPL).fails)
+    assert any("must underline a sentence" in x for x in
+               lint("text_structure_function", FN_P, FN_STEM.format("question"), FN_CH, "A", EXPL, want_kind="sentence").fails)
+    sent = FN_P.replace("<u>How do young birds on their first journey find their way?</u>",
+                        "<u>Young birds on their first journey still find their way.</u>")
+    assert lint("text_structure_function", sent, FN_STEM.format("sentence"), FN_CH, "A", EXPL).ok
+    assert any("not a question" in x for x in lint("text_structure_function", sent, FN_STEM.format("question"), FN_CH, "A", EXPL).fails)
+    portion = FN_P.replace("<u>How do young birds on their first journey find their way?</u>",
+                           "How do young birds on <u>their first journey</u> find their way?")
+    assert lint("text_structure_function", portion, FN_STEM.format("portion"), FN_CH, "A", EXPL).ok
+
+
+def test_function_prompt_assigns_kind(monkeypatch):
+    monkeypatch.setattr(meza_satgen, "LOG_PATH", "")
+    seen = set()
+    for i in range(60):
+        writer = FakeWriter()
+        p = meza_satgen.MezaPipeline(writer, FakeSolver(), FakeSolver(), context="rules")
+        p.plan = [5] * 60
+        try:
+            p.generate(i, "text_structure_function_medium")
+        except ValueError:
+            pass
+        line = [x for x in writer.prompts[0].splitlines() if x.startswith("REQUIRED UNDERLINED PORTION")]
+        seen.add("question" if "question that the text itself poses" in line[0] else
+                 "portion" if "phrase or a quotation" in line[0] else "sentence")
+    assert seen == {"sentence", "question", "portion"}
+
+
+def test_tsp_verbs_and_length_bands():
+    stem = "Which choice best states the main purpose of the text?"
+    p = ("In the forests of Central and South America, leafcutter ants carry pieces of leaves back to their nests, "
+         "where workers chew the leaves into a paste and grow a fungus that becomes the colony's main food.")
+    short = {"A": "To describe how leafcutter ants grow their own food", "B": "To argue that leafcutter ants harm forests badly",
+             "C": "To explain why some ant workers are smaller", "D": "To compare leafcutter ants with other insects that farm"}
+    assert lint("text_structure_purpose", p, stem, short, "A", EXPL, choice_band=(9, 12)).fails == []
+    assert any("15-22 words" in x for x in lint("text_structure_purpose", p, stem, short, "A", EXPL, choice_band=(15, 22)).fails)
+    it_open = {k: v.replace("To ", "It ", 1) for k, v in short.items()}
+    assert any('open with "To' in x for x in lint("text_structure_purpose", p, stem, it_open, "A", EXPL).fails)
+    weak = {"A": "To argue that ants grow their own food", "B": "To criticize forests for harboring ants",
+            "C": "To refute a claim about ant workers", "D": "To describe ants and other insects"}
+    assert any("preferred list" in x for x in lint("text_structure_purpose", p, stem, weak, "A", EXPL).fails)
+    from meza_quality import lead_verb
+    assert lead_verb("It presents a finding") == "present" and lead_verb("To emphasize the point") == "emphasize"
+    assert lead_verb("It summarizes the view") == "summarize"
+
+
+def test_tsp_prompt_band_and_key_verb_rotation(monkeypatch):
+    monkeypatch.setattr(meza_satgen, "LOG_PATH", "")
+    writer = FakeWriter()
+    p = meza_satgen.MezaPipeline(writer, FakeSolver(), FakeSolver(), context="rules")
+    p.plan = [5, 5]
+    p._recent = {"text_structure_overall": [{"key": "describe", "twist": False, "opening": "x", "blank": None,
+                                              "sentences": 3, "clue": "", "markers": [], "type": "text_structure_overall"}]}
+    try:
+        p.generate(0, "text_structure_overall_medium")
+    except ValueError:
+        pass
+    first = writer.prompts[0]
+    assert "every choice is 15-22 words" in first and "must NOT open with describe" in first
+
+
+POEM = ('The following text is from Harriet Lowell Ames\'s 1874 poem "To the Clock in the Hall." The speaker, a '
+        'widow who has just sold the house where she raised her children, addresses the clock she is leaving.\n\n'
+        'Thou keeper of our hours, unasked, unthanked,\nthrough vows and quarrels and the indolent years,\n'
+        'what tally wilt thou keep when we are scattered?')
+
+
+def test_literary_intro_must_be_specific():
+    stem = "Which choice best states the main purpose of the text?"
+    ch = {"A": "To convey doubt about whether the clock will remember the family",
+          "B": "To praise the old clock for keeping such accurate time for many years",
+          "C": "To express regret that the family's home was sold to strangers",
+          "D": "To describe the sound that the clock makes at the start of each hour"}
+    subj = "LITERATURE: POETRY OR DRAMA - an excerpt"
+    assert lint("text_structure_purpose", POEM, stem, ch, "A", EXPL + " [Invented work]", subject=subj).fails == []
+    vague = POEM.replace('Harriet Lowell Ames\'s 1874 poem "To the Clock in the Hall."', "a poem.")
+    assert any("specific" in x for x in lint("text_structure_purpose", vague, stem, ch, "A", EXPL + " [Invented work]",
+                                             subject=subj).fails)
+    no_ctx = POEM.split(" The speaker,")[0] + "\n\n" + POEM.split("\n\n")[1]
+    assert any("context" in x for x in lint("text_structure_purpose", no_ctx, stem, ch, "A", EXPL + " [Invented work]",
+                                            subject=subj).fails)
+    assert any("Invented work" in x for x in lint("text_structure_purpose", POEM, stem, ch, "A", EXPL, subject=subj).fails)
+
+
+def test_poetry_gets_more_vocabulary():
+    bank = meza_satgen.VocabBank(meza_satgen.VOCAB_PATH, seed=3)
+    words, need, cap = bank.passage_words("hard", poetry=True)
+    assert len(words) == 4 and need == 2 and cap == 3
+
+
+def test_trap_labels():
+    assert trap_label_problems({"B": "too_narrow", "C": "wrong_action", "D": "wrong_target"}, "A", "hard") == []
+    assert trap_label_problems(None, "A", "easy")
+    assert trap_label_problems({"B": "too_narrow", "C": "made_up", "D": "wrong_target"}, "A", "easy")
+    assert trap_label_problems({"B": "too_narrow", "C": "too_narrow", "D": "too_narrow"}, "A", "hard")
+    assert trap_label_problems({"B": "too_narrow", "C": "too_narrow", "D": "too_narrow"}, "A", "easy") == []
+
+
+def test_trap_critic_rules():
+    off = {"B": {"on_topic": False, "tempting": 1, "trap": "none", "why": "plants never mentioned"},
+           "C": {"on_topic": True, "tempting": 3, "trap": "too_narrow"},
+           "D": {"on_topic": True, "tempting": 4, "trap": "wrong_action"}}
+    assert any("never mentions" in x for x in trap_critic_problems(off, "A", "easy"))
+    one_weak = {"B": {"on_topic": True, "tempting": 2, "trap": "too_narrow"},
+                "C": {"on_topic": True, "tempting": 3, "trap": "wrong_target"},
+                "D": {"on_topic": True, "tempting": 4, "trap": "wrong_action"}}
+    assert trap_critic_problems(one_weak, "A", "easy") == []
+    assert any("too easy" in x for x in trap_critic_problems(one_weak, "A", "hard"))
+    assert trap_critic_problems({}, "A", "hard") == []  # critic unavailable: don't block
+
+
+class TrapWriter(FakeWriter):
+    """Draft 1 has off-topic distractors; the rewrite has near misses."""
+    def complete(self, prompt, system="", temperature=0.7, json_mode=False):
+        self.prompts.append(prompt)
+        fixed = "FAILED QUALITY CHECKS" in prompt
+        out = {"passage": PASSAGE, "stem": "Which choice best states the main purpose of the text?",
+               "choices": {"A": "To describe how pumice rafts can carry living organisms to distant shores",
+                           "B": "To argue that pumice rafts are the main way species reach new islands" if fixed
+                           else "To argue that volcanoes erupt more often than scientists once believed",
+                           "C": "To explain how geologists used satellite images to track one raft" if fixed
+                           else "To compare pumice rafts with the floating plastic found in oceans",
+                           "D": "To emphasize that most organisms died during the raft's long journey"},
+               "answer": "A", "explanation": EXPL,
+               "traps": {"B": "too_broad", "C": "too_narrow", "D": "misread_stance"}}
+        return json.dumps(out), 100, 100
+
+
+class Critic(FakeSolver):
+    def complete(self, prompt, system="", temperature=0.7, json_mode=False):
+        if "veteran Digital SAT item reviewer" not in system:
+            return super().complete(prompt, system, temperature, json_mode)
+        bad = "plastic" in prompt
+        return json.dumps({"B": {"on_topic": not bad, "tempting": 2 if bad else 4, "trap": "too_broad"},
+                           "C": {"on_topic": not bad, "tempting": 1 if bad else 3, "trap": "none" if bad else "too_narrow"},
+                           "D": {"on_topic": True, "tempting": 3, "trap": "misread_stance"}}), 50, 50
+
+
+def test_trap_critic_sends_off_topic_draft_back(monkeypatch):
+    monkeypatch.setattr(meza_satgen, "LOG_PATH", "")
+    monkeypatch.setattr(meza_satgen, "VOCAB_RULES", {"hard": (0, 0, 9, ())})  # isolate the critic from other checks
+    monkeypatch.setattr(meza_satgen, "TSP_BANDS", {"short": (5, 30), "long": (5, 30)})
+    writer = TrapWriter()
+    p = meza_satgen.MezaPipeline(writer, FakeSolver(), Critic(), context="rules")
+    p.plan = [5]
+    q = p.generate(0, "text_structure_purpose_hard")
+    assert "WRONG ANSWERS FOR THIS ITEM" in writer.prompts[0]
+    assert "never mentions" in writer.prompts[1]           # draft 1 was sent back by the critic
+    assert "plastic" not in q.choices["C"]                  # the near-miss rewrite is what ships
+
+
+def test_critic_requires_two_accurate_near_misses():
+    v = {"B": {"accurate_content": False, "on_topic": True, "tempting": 3, "trap": "wrong_target",
+               "why": "text never compares with other animals"},
+         "C": {"accurate_content": False, "on_topic": True, "tempting": 3, "trap": "wrong_order"},
+         "D": {"accurate_content": True, "on_topic": True, "tempting": 4, "trap": "too_narrow"}}
+    assert any("misstate" in x for x in trap_critic_problems(v, "A", "medium"))
+    v["C"]["accurate_content"] = True
+    assert trap_critic_problems(v, "A", "medium") == []
+
+
+def test_new_bank_and_meaning_targets():
+    import json
+    data = json.loads(meza_satgen.VOCAB_PATH.read_text())
+    assert meza_satgen.VOCAB_PATH.name == "meza_vocab_bank.json" and len(data["words"]) > 1900
+    assert len({w["word"] for w in data["words"]}) == len(data["words"])  # no duplicates
+    bank = meza_satgen.VocabBank(meza_satgen.VOCAB_PATH, seed=5)
+    multi = {w["word"] for w in data["words"] if w.get("multi_meaning")}
+    t = bank.targets(6)
+    assert len(t) == 6 and sum(w in multi for w in t) >= 3

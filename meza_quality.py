@@ -38,6 +38,32 @@ FIXED_STEMS = {
     "text_structure_purpose": "Which choice best states the main purpose of the text?",
     "text_structure_overall": "Which choice best describes the overall structure of the text?",
 }
+FUNCTION_STEM = re.compile(r"^Which choice best describes the function of the underlined (sentence|question|portion) "
+                           r"in the text as a whole\?$")
+TSP_TYPES = ("text_structure_function", "text_structure_overall", "text_structure_purpose")
+TSP_VERBS = ["suggest", "indicate", "emphasize", "convey", "describe", "illustrate", "summarize", "present", "reflect",
+             "represent", "introduce", "establish", "demonstrate", "provide", "discuss", "evaluate", "compare",
+             "explain", "capture"]
+TSP_OTHER_VERBS = ["argue", "challenge", "criticize", "question", "propose", "qualify", "refute", "contrast", "offer",
+                   "raise", "note", "identify", "trace", "examine", "defend", "dispute", "acknowledge", "highlight",
+                   "praise", "express", "analyze", "recount", "admire", "celebrate", "lament", "advocate", "reveal",
+                   "outline", "detail", "address", "recommend", "warn", "speculate", "consider", "pose", "give",
+                   "state", "show", "list", "assert", "wonder", "reject", "dismiss", "mock"]
+TSP_BANDS = {"short": (9, 12), "long": (15, 22)}
+
+
+def lead_verb(choice: str) -> str:
+    """'To describe how...' -> describe; 'It presents...' -> present; '' if the choice doesn't open that way."""
+    m = re.match(r"^(?:To|It)\s+([A-Za-z]+)", choice.strip())
+    if not m:
+        return ""
+    v = m.group(1).lower()
+    for base in TSP_VERBS + TSP_OTHER_VERBS:
+        if v in (base, base + "s", base + "es", base[:-1] + "ies" if base.endswith("y") else base + "s"):
+            return base
+    return v
+
+
 MEANING_STEM = re.compile(r'^As used in the text, what does the (word|phrase) "([^"]+)" most nearly mean\?$')
 SHORT_CHOICE_TYPES = ("words_in_context", "transitions", "boundaries_", "form_")
 NEEDS_BLANK = ("words_in_context_completion", "inferences", "transitions", "boundaries_", "form_")
@@ -139,7 +165,8 @@ class LintResult:
 
 
 def lint(qtype: str, passage: str, stem: str, choices: dict[str, str], answer: str,
-         explanation: str = "", subject: str = "", clue: str = "") -> LintResult:
+         explanation: str = "", subject: str = "", clue: str = "", want_kind: str = "",
+         choice_band: tuple[int, int] | None = None) -> LintResult:
     r = LintResult()
     t = base_type(qtype)
     text = reading_text(passage)
@@ -170,8 +197,29 @@ def lint(qtype: str, passage: str, stem: str, choices: dict[str, str], answer: s
     if t == "words_in_context_completion" and clue != "restatement" and re.search(re.escape(BLANK) + r"\s*[:;\u2014\u2013]|" + re.escape(BLANK) + r"\s+-", passage):
         r.fails.append("Do not follow the blank with a colon, semicolon, or dash that explains the word. Build the "
                        "passage around the required clue structure so the meaning must be inferred.")
-    if t == "text_structure_function" and len(re.findall(r"<u>", passage)) != 1:
-        r.fails.append("Underline exactly one portion of the passage with <u></u>.")
+    if t == "text_structure_function":
+        unders = re.findall(r"<u>(.*?)</u>", passage, flags=re.S)
+        m = FUNCTION_STEM.match(norm(stem))
+        if len(unders) != 1:
+            r.fails.append("Underline exactly one portion of the passage with <u></u>.")
+        if not m:
+            r.fails.append('Use the exact stem: "Which choice best describes the function of the underlined '
+                           'sentence (or question, or portion) in the text as a whole?"')
+        if len(unders) == 1 and m:
+            u = norm(unders[0]).rstrip('"\u201d')
+            kind = m.group(1)
+            is_q = u.endswith("?")
+            is_sentence = bool(re.match(r"^[A-Z\"\u201c]", u)) and u[-1:] in ".!?"
+            if kind == "question" and not is_q:
+                r.fails.append('The stem says "underlined question", but the underlined text is not a question.')
+            if kind != "question" and is_q:
+                r.fails.append('The underlined text is a question, so the stem must say "underlined question".')
+            if kind == "sentence" and not is_sentence:
+                r.fails.append('The stem says "underlined sentence"; underline one complete sentence.')
+            if kind == "portion" and is_sentence:
+                r.fails.append('The stem says "underlined portion"; underline a phrase or quotation, not a whole sentence.')
+            if want_kind and kind != want_kind:
+                r.fails.append(f'This item must underline a {want_kind} (the stem says "{kind}").')
     if t == "words_in_context_meaning":
         m = MEANING_STEM.match(norm(stem))
         unders = re.findall(r"<u>(.*?)</u>", passage, flags=re.S)
@@ -186,6 +234,27 @@ def lint(qtype: str, passage: str, stem: str, choices: dict[str, str], answer: s
             r.fails.append('Say "word" in the stem for one word and "phrase" for more than one.')
         if any(len(v.split()) > 4 for v in choices.values()):
             r.fails.append("Meaning choices must be short: a word or a phrase of at most four words.")
+
+    if t in TSP_TYPES and choices:
+        opener = "To" if t == "text_structure_purpose" else "It"
+        bad_open = [v for v in choices.values() if not v.strip().startswith(opener + " ")]
+        if bad_open:
+            r.fails.append(f'Every choice must open with "{opener} [verb]..." (for example "{opener} '
+                           f'{"describe" if opener == "To" else "describes"}...").')
+        verbs = [lead_verb(v) for v in choices.values()]
+        preferred = [v for v in verbs if v in TSP_VERBS]
+        if len(preferred) < 2:
+            r.fails.append("At least two choices should open with a verb from the preferred list (suggest, indicate, "
+                           "emphasize, convey, describe, illustrate, summarize, present, reflect, represent, introduce, "
+                           "establish, demonstrate, provide, discuss, evaluate, compare, explain, capture).")
+        if len(set(v for v in verbs if v)) < len([v for v in verbs if v]):
+            r.warns.append("Two choices open with the same verb; real items usually use four different verbs.")
+        if choice_band:
+            lo, hi = choice_band
+            off = {k: len(v.split()) for k, v in choices.items() if not lo - 1 <= len(v.split()) <= hi + 1}
+            if off:
+                r.fails.append(f"Every choice must be {lo}-{hi} words for this item; these are not: "
+                               + ", ".join(f"{k} ({n} words)" for k, n in sorted(off.items())) + ".")
 
     # --- stems ---
     want = SEC_STEM if t.startswith(("boundaries_", "form_")) else FIXED_STEMS.get(t)
@@ -206,8 +275,24 @@ def lint(qtype: str, passage: str, stem: str, choices: dict[str, str], answer: s
         if "student has taken the following notes" not in passage:
             r.fails.append('Begin with "While researching a topic, a student has taken the following notes:"')
     if "LITERATURE" in subject.upper() and "STUDIES" not in subject.upper() and "invented" not in subject:
-        if not passage.lstrip().startswith("The following text is from"):
+        intro = passage.lstrip()
+        if not intro.startswith("The following text is from"):
             r.fails.append('A literary excerpt must open with "The following text is from ..."')
+        else:
+            first = re.split(r"(?<=[.!?][\"\u201d])\s+|(?<=[.!?])\s+(?=[A-Z])", intro, maxsplit=1)
+            head = first[0]
+            if not re.search(r"\b(18[2-9]\d|19[01]\d|192[0-5])\b", head) or not re.search(r"['\u2019]s\b", head) \
+                    or not re.search(r"[\"\u201c][^\"\u201d]{3,}[\"\u201d]", head):
+                r.fails.append('Make the introduction specific: author\'s full name, year (1820-1925), form, and '
+                               'title in quotation marks, e.g. The following text is from [Author]\'s 1874 poem '
+                               '"[Title]." Author and title are invented.')
+            context = first[1] if len(first) > 1 else ""
+            context = context.split("\n")[0]
+            if len(context.split()) < 8:
+                r.fails.append("After the title, add one specific sentence of context: who the speaker or character "
+                               "is and what situation they are in.")
+        if "[Invented work]" not in explanation:
+            r.fails.append('End the explanation with "[Invented work]".')
 
     # --- tells a test-wise student can exploit (reading-style items only) ---
     if not t.startswith(SHORT_CHOICE_TYPES) and key and wrong:
@@ -333,7 +418,8 @@ def describe(f: dict) -> str:
     if f["clue"]:
         parts.append(f"clue structure: {f['clue']}")
     if f["key"]:
-        label = "tested word" if f["type"] == "words_in_context_meaning" else "answer"
+        label = ("tested word" if f["type"] == "words_in_context_meaning" else
+                 "correct answer opens with" if f["type"] in TSP_TYPES else "answer")
         parts.append(f'{label}: "{f["key"][:40]}"')
     return "; ".join(parts)
 
@@ -360,7 +446,8 @@ def rhythm_check(f: dict, recent: list[dict]) -> list[str]:
         fails.append(f"The {f.get('marker', 'blank')} is in the {f['blank']} sentence again, like your last two "
                      f"questions of this type. Put it somewhere else.")
     if f["key"] and any(f["key"].strip().lower() == r["key"].strip().lower() for r in recent):
-        what = "tested word" if t == "words_in_context_meaning" else "answer"
+        what = ("tested word" if t == "words_in_context_meaning" else
+                "opening verb of the correct answer" if t in TSP_TYPES else "answer")
         fails.append(f'"{f["key"]}" was the {what} in a recent question of this type. Use a different word.')
     return fails
 
@@ -406,7 +493,7 @@ def _bank() -> dict[str, str]:
     global _BANK
     if _BANK is None:
         _BANK = {}
-        path = Path(__file__).with_name("data") / "vocab_bank.json"
+        path = Path(__file__).with_name("data") / "meza_vocab_bank.json"
         if path.exists():
             for w in json.loads(path.read_text(encoding="utf-8"))["words"]:
                 for f in _forms(w["word"]):
@@ -446,6 +533,100 @@ def choice_mix_problems(choices: dict[str, str], answer: str, mix: dict[str, int
     if tiers[answer] and tiers[answer] != key_tier:
         out.append(f'The correct answer "{choices[answer]}" is a {tiers[answer]} word, but this item\'s correct answer '
                    f"must be the {key_tier} word.")
+    return out
+
+
+# ----------------------------------------------------------------------------- traps (Text Structure and Purpose)
+# Real wrong answers are built from the passage's own content and are wrong about its PURPOSE or SHAPE.
+# A wrong answer that brings in a topic, comparison, or claim the passage never touches is too easy to cross out.
+
+TSP_TRAPS = {
+    "too_narrow": "states the role of one detail or one sentence as if it were the purpose of the whole text",
+    "too_broad": "claims the text does more, or covers more, than it actually does",
+    "wrong_action": "right content, wrong action or strength (argues, criticizes, or proves where the text only "
+                    "describes or suggests; or the reverse)",
+    "wrong_relationship": "gets how the parts relate backwards (says a detail supports a claim it actually "
+                          "complicates, or that a view is rejected when it is only qualified)",
+    "wrong_order": "lists moves the text really makes, but in the wrong sequence",
+    "partial": "describes only some of the text's moves and leaves out a key one",
+    "wrong_target": "describes the role of a different sentence or part of the text",
+    "misread_stance": "misjudges the author's or speaker's attitude (too strong, too weak, or the wrong feeling)",
+}
+TRAP_CRITIC_SYSTEM = "You are a veteran Digital SAT item reviewer who judges how well wrong answers are built."
+TRAP_CRITIC_PROMPT = """Here is a Reading and Writing question with its correct answer marked.
+
+{question}
+
+Correct answer: {answer}
+
+Judge each WRONG answer strictly, the way a veteran Digital SAT reviewer would. On real items, most wrong answers
+are statements a student who SKIMMED the passage would accept as accurate: their facts match what the text says,
+and only the purpose, scope, order, or role is wrong. Weak wrong answers lean on a word the text barely touches,
+contradict an explicit statement, or describe something the text never does.
+
+For each wrong answer give:
+- accurate_content: true only if every fact or detail it mentions is something the passage actually says, stated
+  the way the passage states it (it may still get the purpose or role wrong). False if it adds, exaggerates, or
+  contradicts anything, or builds on a passing word (for example "compares X with other animals" when the text only
+  says "of any animal").
+- on_topic: false if it brings in a topic, comparison, event, or claim the passage never mentions.
+- tempting: 1-5 for a student who read the passage once, quickly. 1 = crossed out instantly; 2 = clearly off on a
+  second look; 3 = needs real thought; 4-5 = very hard to rule out. Be strict: anything that contradicts the text
+  or rests on a passing word is 1 or 2.
+- trap: one of: {traps}, or "none".
+
+Reply with JSON only, keyed by letter, for the three wrong answers:
+{{"<letter>": {{"accurate_content": true, "on_topic": true, "tempting": 3, "trap": "<type>", "why": "<one short sentence>"}}}}"""
+
+
+def trap_label_problems(traps: object, answer: str, level: str) -> list[str]:
+    """Checks the writer's own labels: one valid trap type per wrong answer; harder items mix types."""
+    wrong = [k for k in CHOICE_KEYS if k != answer]
+    if not isinstance(traps, dict) or any(str(traps.get(k, "")).strip() not in TSP_TRAPS for k in wrong):
+        return ['Add a "traps" field to the JSON that maps each WRONG answer\'s letter to one trap type from: '
+                + ", ".join(TSP_TRAPS) + "."]
+    kinds = {str(traps[k]).strip() for k in wrong}
+    if level in ("medium", "hard") and len(kinds) < 2:
+        return ["Use at least two different trap types among the wrong answers."]
+    return []
+
+
+def trap_critic_problems(verdict: dict, answer: str, level: str) -> list[str]:
+    """Off-topic or 'none' traps always fail. At least two wrong answers must be accurate about the passage's
+    content (wrong only in role/scope). Medium/hard: every wrong answer tempting >= 3; easy: at most one below 3."""
+    wrong = [k for k in CHOICE_KEYS if k != answer]
+    if not isinstance(verdict, dict) or not any(isinstance(verdict.get(k), dict) for k in wrong):
+        return []  # critic unavailable: don't block on it
+    off, weak, inaccurate = [], [], []
+    for k in wrong:
+        v = verdict.get(k)
+        if not isinstance(v, dict):
+            continue
+        why = str(v.get("why", "")).strip()
+        label = f"{k} ({why})" if why else k
+        if v.get("on_topic") is False or str(v.get("trap", "")).lower() == "none":
+            off.append(label)
+            continue
+        if v.get("accurate_content") is False:
+            inaccurate.append(label)
+        try:
+            t = int(v.get("tempting", 3))
+        except (TypeError, ValueError):
+            t = 3
+        if t <= 2:
+            weak.append(label)
+    out = []
+    if off:
+        out.append("These wrong answers bring in content the passage never mentions or target no real mistake, so "
+                   "students can cross them out without understanding the text: " + "; ".join(off) + ". Rebuild each "
+                   "from the passage's own content, wrong only about its purpose, structure, or the role of a part.")
+    if len(inaccurate) > 1:
+        out.append("Too many wrong answers misstate the passage's content: " + "; ".join(inaccurate) + ". At least two "
+                   "wrong answers must describe what the passage really says, accurately, and be wrong only about its "
+                   "purpose, scope, order, or role, so a student who skimmed would accept them.")
+    if weak and (level != "easy" or len(weak) > 1):
+        out.append("These wrong answers are too easy to rule out: " + "; ".join(weak) + ". Make each a near miss: an "
+                   "accurate statement about the passage with the wrong scope, action, relationship, order, or target.")
     return out
 
 
