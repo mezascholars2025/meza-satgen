@@ -147,6 +147,11 @@ def reading_text(passage: str) -> str:
     return re.sub(r"</?u>", "", text)
 
 
+def fingerprint(passage: str, stem: str) -> str:
+    """Short key that matches a question in questions.json back to its quality-log entry."""
+    return " ".join((re.sub(r"</?u>", "", passage) + " " + stem).lower().split())[:160]
+
+
 def words(text: str) -> list[str]:
     return re.findall(r"[a-zA-Z']+", text.lower())
 
@@ -490,8 +495,18 @@ def _forms(word: str) -> set[str]:
 
 
 def vocab_used(text: str, vocab: list[str]) -> list[str]:
-    tokens = set(re.findall(r"[^\W\d_]+", re.sub(r"</?u>", "", text).lower()))
-    return [w for w in vocab if _forms(w) & tokens]
+    low = re.sub(r"</?u>", "", text).lower()
+    tokens = set(re.findall(r"[^\W\d_]+", low))
+    out = []
+    for w in vocab:
+        if " " in w:  # a phrase such as "grapple with": any form of the first word, then the rest
+            first, rest = w.lower().split(" ", 1)
+            alts = "|".join(sorted((re.escape(f) for f in _forms(first)), key=len, reverse=True))
+            if re.search(r"(?<![a-z])(?:" + alts + r")\s+" + re.escape(rest) + r"(?![a-z])", low):
+                out.append(w)
+        elif _forms(w) & tokens:
+            out.append(w)
+    return out
 
 
 _BANK: dict[str, str] | None = None  # every form of every bank word -> tier

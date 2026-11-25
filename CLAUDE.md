@@ -110,6 +110,12 @@ Each rule below came from auditing output or from Sebastian's review rounds agai
     change only the flagged choices; Text Structure gets one extra rewrite; broken-JSON drafts are retried for free.
   - The quality log now records every problem in full ("problems" field).
 
+- **Second real run: 1 of 10 shipped.** Stacked judgment checks rejected nearly everything. → the reviewer-model
+  critics and the passage-free probe are now "soft": after the last rewrite, a question whose only remaining
+  problems are soft ships with a yellow Review flag in review.html (and "FLAGGED: ..." in the CSV's Review status)
+  instead of being discarded. Format, length, stems, vocabulary, and rhythm rules still block. Also fixed: bank
+  phrases like "grapple with" could never be matched in a passage.
+
 ## Source rule (Sebastian, Nov 24; do not break)
 
 Allowed as source or training material, and nothing else:

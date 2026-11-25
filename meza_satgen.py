@@ -37,7 +37,7 @@ from pathlib import Path
 
 from meza_quality import (PROBE_TYPES, base_type, describe, difficulty_of, features, lint, probe_feedback,
                           probe_votes, rhythm_check, vocab_used)
-from meza_quality import FOCUS_CRITIC_PROMPT, FOCUS_CRITIC_SYSTEM, focus_problems
+from meza_quality import FOCUS_CRITIC_PROMPT, FOCUS_CRITIC_SYSTEM, fingerprint, focus_problems
 from meza_quality import (TRAP_CRITIC_PROMPT, TRAP_CRITIC_SYSTEM, TSP_BANDS, TSP_TRAPS, TSP_TYPES, TSP_VERBS,
                           advanced_in, choice_mix_problems, lead_verb, trap_critic_problems, trap_label_problems,
                           word_tier)
@@ -506,26 +506,33 @@ class MezaPipeline(pipeline.Pipeline):
                 problems += choice_mix_problems(q.choices, q.answer, plan["mix"], plan["key_tier"])
             hits: list[bool] = []
             critic: dict = {}
+            # Judgment calls (the reviewer-model critics and the passage-free probe) are "soft": after the last rewrite
+            # they flag the question for human review instead of discarding it. Everything else must pass.
+            soft: list[str] = []
             if base_type(qtype) in TSP_TYPES:
                 problems += trap_label_problems(data.get("traps"), q.answer, level)
                 if not problems and QUALITY == "on" and TRAP_CRITIC == "on":
                     critic = self._trap_critic(q)
-                    problems += trap_critic_problems(critic, q.answer, level)
+                    soft += trap_critic_problems(critic, q.answer, level)
             focus: dict = {}
             if role == "detail" and not problems and QUALITY == "on" and FOCUS_CRITIC == "on":
                 focus = self._focus_critic(q)
-                problems += focus_problems(focus, role)
+                soft += focus_problems(focus, role)
             if not problems and QUALITY == "on" and base_type(qtype).startswith(PROBE_TYPES):
                 hits = self._probe(q, index, attempt)
                 if sum(hits) >= PROBE_FAIL:
-                    problems.append(probe_feedback(hits))
+                    soft.append(probe_feedback(hits))
+            last = attempt == repairs
+            flagged = last and not problems and bool(soft)
+            problems += soft
             log_attempt({"index": index, "qtype": qtype, "subject": subject, "clue": clue, "attempt": attempt,
                          "fails": res.fails, "warns": res.warns, "probe_hits": sum(hits),
                          "probe_runs": len(hits), "shape": shape, "underlined": want_kind,
                          "traps": data.get("traps"), "trap_critic": critic, "vocab": vocab, "vocab_used": used,
                          "choice_plan": plan, "word_role": role, "focus": focus,
-                         "problems": problems, "passed": not problems})
-            if not problems:
+                         "problems": problems, "passed": not problems or flagged,
+                         "flagged": soft if flagged else [], "fingerprint": fingerprint(q.passage, q.stem)})
+            if not problems or flagged:
                 self._recent.setdefault(base_type(qtype), []).append(shape)
                 del self._recent[base_type(qtype)][:-RECENT_KEEP]
                 return q
