@@ -312,3 +312,23 @@ def test_which_has_property_only_the_key_has_it():
         want = mm.PROPERTIES[re.match(r"Which equation has (.+)\?", item.stem).group(1)]
         for k, eq in item.choices.items():
             assert (classify(*sides(eq)) == want) == (k == item.key), (item.stem, eq)
+
+
+# --- linear functions ---
+
+
+def test_interpret_models_key_names_the_right_thing_and_role():
+    roles = set()
+    for item in gen("interpret_models", 200):
+        t = item.truth
+        asked = re.search(r"interpretation of (.+?) in this context", item.stem).group(1)
+        size = asked.lstrip(mm.MINUS)
+        assert item.stem.count(asked) >= 2  # in an equation, and in the question
+        key = item.choices[item.key]
+        assert size in key and (mm._cap(t["obj"]) in key or t["obj"] in key)
+        assert ("each" in key) == (t["role"] == "rate")
+        assert sum(size in c for c in item.choices.values()) == 4  # every choice uses the same number
+        if item.level == "hard":  # the two-model trap: the same role for the other thing
+            assert any(t["obj"] not in c and t["obj"].capitalize() not in c for c in item.choices.values())
+        roles.add(t["role"])
+    assert roles == {"rate", "start"}

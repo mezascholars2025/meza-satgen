@@ -181,6 +181,10 @@ class MathItem:
             for k, text in self.choices.items():
                 if k == self.key:
                     continue
+                if self.key_text:
+                    why = next(w for v, w in self.mistakes if v == text)
+                    lines.append(f"Choice {k}: {why}.")
+                    continue
                 show = dec if self.decimals else num
                 why = next(w for v, w in self.mistakes if (v if self.key_text else show(v)) == text)
                 lines.append(f"Choice {k} ({text}): {why}.")
@@ -1639,6 +1643,222 @@ def which_has_property(rng: random.Random, level: str, fmt: str) -> MathItem:
     )
 
 
+# ----------------------------------------------------------------------------------------- linear functions (Nov 25)
+
+FUNC_SKILL = "Linear functions"
+
+MODEL_FRAMES = [
+    dict(
+        intro="A botanist is comparing how two bean plants grow in a greenhouse. The botanist began measuring both "
+        "plants on the same day.",
+        intro1="A botanist is measuring how a bean plant, plant A, grows in a greenhouse.",
+        extra="Each plant grew at a constant rate during the study.",
+        objs=("plant A", "plant B"),
+        vars_=("a", "b"),
+        t="w",
+        t_unit="week",
+        qty="height",
+        model="the height {v}, in centimeters, of {o} {t} weeks after the botanist began measuring",
+        slopes=[0.5, 1.5, 2, 2.5, 3, 3.5, 4],
+        starts=range(5, 31),
+        sign=1,
+        rate="{O} grew {k} centimeters each week",
+        start="{O}'s height was {k} centimeters when the botanist began measuring",
+        total="{O} grew {k} centimeters in all during the weeks the botanist measured",
+        more="{O} grew {k} centimeters more each week than {o2}",
+        invert="It took {o} {k} weeks to grow 1 centimeter",
+        final="{O}'s height was {k} centimeters when the botanist finished measuring",
+    ),
+    dict(
+        intro="Two candles, a red candle and a white candle, were lit at the same time and burned at constant rates.",
+        intro1="A red candle was lit and burned at a constant rate.",
+        extra="Their heights were recorded until the first candle burned out.",
+        objs=("the red candle", "the white candle"),
+        vars_=("r", "s"),
+        t="t",
+        t_unit="hour",
+        qty="height",
+        model="the height {v}, in centimeters, of {o} {t} hours after it was lit",
+        slopes=[0.4, 0.5, 0.6, 0.8, 1.2, 1.5],
+        starts=range(12, 31),
+        sign=-1,
+        rate="{O}'s height decreased by {k} centimeters each hour",
+        start="{O}'s height was {k} centimeters when it was lit",
+        total="{O}'s height decreased by {k} centimeters in all while it burned",
+        more="{O}'s height decreased by {k} centimeters more each hour than {o2}'s height",
+        invert="It took {k} hours for {o}'s height to decrease by 1 centimeter",
+        final="{O}'s height was {k} centimeters when it burned out",
+    ),
+    dict(
+        intro="A city is draining two water tanks, tank P and tank Q, for cleaning. Both tanks began draining at "
+        "the same time.",
+        intro1="A city is draining a water tank, tank P, for cleaning.",
+        extra="The water level in each tank was recorded every minute until the tank was empty.",
+        objs=("tank P", "tank Q"),
+        vars_=("p", "q"),
+        t="m",
+        t_unit="minute",
+        qty="amount of water",
+        model="the amount of water {v}, in gallons, in {o} {t} minutes after draining began",
+        slopes=[12, 15, 18, 20, 25, 30],
+        starts=range(300, 1001, 25),
+        sign=-1,
+        rate="The amount of water in {o} decreased by {k} gallons each minute",
+        start="{O} held {k} gallons of water when draining began",
+        total="{O} lost {k} gallons of water in all while it drained",
+        more="{O} lost {k} more gallons of water each minute than {o2}",
+        invert="It took {k} minutes for 1 gallon of water to drain from {o}",
+        final="{O} held {k} gallons of water when draining ended",
+    ),
+    dict(
+        intro="Two friends, {n1} and {n2}, started saving money for a trip in the same week. Each of them adds "
+        "the same amount to a savings account every week.",
+        intro1="{n1} started saving money for a trip and adds the same amount to a savings account every week.",
+        extra="Neither friend withdrew any money during this time.",
+        objs=("{n1}", "{n2}"),
+        vars_=("j", "k"),
+        t="w",
+        t_unit="week",
+        qty="savings",
+        model="the amount of money {v}, in dollars, in {o}'s account {t} weeks after they started saving",
+        slopes=[15, 20, 25, 30, 40, 45],
+        starts=range(50, 401, 10),
+        sign=1,
+        money=True,
+        rate="{O} added ${k} to the account each week",
+        start="{O} had ${k} in the account when they started saving",
+        total="{O} saved ${k} in all during the weeks they saved",
+        more="{O} added ${k} more to the account each week than {o2}",
+        invert="It took {o} {k} weeks to save $1",
+        final="{O} had ${k} in the account when they stopped saving",
+    ),
+    dict(
+        intro="Two hikers, {n1} and {n2}, began descending a mountain at the same time, each at a steady pace.",
+        intro1="A hiker, {n1}, began descending a mountain at a steady pace.",
+        extra="Each hiker's elevation was recorded by a GPS watch.",
+        objs=("{n1}", "{n2}"),
+        vars_=("e", "f"),
+        t="t",
+        t_unit="minute",
+        qty="elevation",
+        model="the elevation {v}, in feet, of {o} {t} minutes after the descent began",
+        slopes=[20, 25, 30, 40, 50],
+        starts=range(1500, 4001, 100),
+        sign=-1,
+        rate="{O}'s elevation decreased by {k} feet each minute",
+        start="{O}'s elevation was {k} feet when the descent began",
+        total="{O} descended {k} feet in all",
+        more="{O} descended {k} more feet each minute than {o2}",
+        invert="It took {o} {k} minutes to descend 1 foot",
+        final="{O}'s elevation was {k} feet when the descent ended",
+    ),
+]
+
+
+def _cap(text: str) -> str:
+    return text[0].upper() + text[1:]
+
+
+def interpret_models(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """Real-world linear models, y = mx + b. 'What is the best interpretation of 2.5 in this context?'
+    Medium: one model. Hard: two models in about four long sentences, so the wrong answers can also mix up the two
+    things or turn the number into a comparison. Traps: slope vs. starting value, the wrong object, a comparison,
+    a total instead of a rate, the rate flipped (units per thing instead of things per unit)."""
+    f = dict(rng.choice(MODEL_FRAMES))
+    n1, n2 = rng.sample(NAMES, 2)
+    objs = [o.format(n1=n1, n2=n2) for o in f["objs"]]
+    intro = f["intro"].format(n1=n1, n2=n2)
+    intro1 = f["intro1"].format(n1=n1, n2=n2)
+    while True:
+        m = [Fraction(str(x)) for x in rng.sample(f["slopes"], 2)]
+        b = rng.sample(list(f["starts"]), 2)
+        shown = {dec(m[0]), dec(m[1]), num(b[0]), num(b[1])}
+        if len(shown) == 4:
+            break
+    sign = f["sign"]
+    two = level == "hard"
+    eqs = [f"{f['vars_'][i]} = {MINUS if sign < 0 else ''}{dec(m[i])}{f['t']} + {num(b[i])}" for i in range(2)]
+    models = [f["model"].format(v=f["vars_"][i], o=objs[i], t=f["t"]) for i in range(2)]
+    if two:
+        body = (
+            f"{intro} The equation {eqs[0]} models {models[0]}, and the equation {eqs[1]} models {models[1]}. "
+            f"{f['extra']}"
+        )
+        role, i = rng.choice(["rate", "start"]), rng.randint(0, 1)
+    else:
+        body = f"{intro1} The equation {eqs[0]} models {models[0]}."
+        role, i = rng.choice(["rate", "start"]), 0
+    j = 1 - i
+    val = m[i] if role == "rate" else Fraction(b[i])
+    k_text = f"{num(b[i])}" if role == "start" else dec(m[i])
+    asked = f"{MINUS}{dec(m[i])}" if role == "rate" and sign < 0 else k_text
+    money_k = k_text  # money frames already put the $ in their phrases
+
+    def say(kind: str, o: int, o2: int | None = None) -> str:
+        return (
+            _cap(
+                f[kind].format(
+                    O=_cap(objs[o]),
+                    o=objs[o],
+                    O2=_cap(objs[o2]) if o2 is not None else "",
+                    o2=objs[o2] if o2 is not None else "",
+                    k=money_k,
+                )
+            )
+            + "."
+        )
+
+    key = say(role, i)
+    if role == "rate":
+        pool = [
+            (
+                say("start", i),
+                f"this describes a starting amount; {asked} is the coefficient of {f['t']}, the "
+                f"change each {f['t_unit']}",
+            ),
+            (say("total", i), f"{asked} is the change each {f['t_unit']}, not the total change"),
+            (
+                say("invert", i),
+                f"this flips the rate: {asked} is the change in {f['qty']} each "
+                f"{f['t_unit']}, not the {f['t_unit']}s needed for a change of 1",
+            ),
+        ]
+        if two:
+            pool += [
+                (say("rate", j), f"{asked} is in the equation for {objs[i]}, not {objs[j]}"),
+                (
+                    say("more", i, j),
+                    f"this compares the two {'rates' if sign > 0 else 'models'}; {asked} is {objs[i]}'s own rate",
+                ),
+            ]
+    else:
+        pool = [
+            (say("rate", i), f"this describes a rate; {asked} is the constant term, the value when {f['t']} = 0"),
+            (say("final", i), f"{asked} is the value at the start ({f['t']} = 0), not at the end"),
+            (say("total", i), f"{asked} is the starting value, not a total change"),
+        ]
+        if two:
+            pool += [(say("start", j), f"{asked} is in the equation for {objs[i]}, not {objs[j]}")]
+    mistakes = rng.sample(pool, 3) if two else pool
+    if two:  # the two-model trap is the reason this is hard: always keep one wrong-object choice
+        wrong_obj = pool[3]
+        if wrong_obj not in mistakes:
+            mistakes[0] = wrong_obj
+    stem = f"{body} Which of the following is the best interpretation of {asked} in this context?"
+    what = (
+        f"the coefficient of {f['t']}, so it is the change in {f['qty']} for each {f['t_unit']}"
+        if role == "rate"
+        else f"the constant term, so it is the value when {f['t']} = 0, at the start"
+    )
+    steps = [
+        f"In {eqs[i]}, {asked} is {what}.",
+        f"So: {key}" + (f" (The {MINUS} sign means the amount decreases.)" if role == "rate" and sign < 0 else ""),
+    ]
+    item = MathItem("interpret_models", FUNC_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
+    item.truth = {"role": role, "obj": objs[i], "value": val}
+    return item
+
+
 FAMILY_LEVELS = {
     "expression_value": LEVELS,
     "linear_rate": LEVELS,
@@ -1659,6 +1879,7 @@ FAMILY_LEVELS = {
     "fraction_decimal": LEVELS,
     "word_solve": LEVELS,
     "which_has_property": ("medium", "hard"),
+    "interpret_models": ("medium", "hard"),
 }
 
 FAMILIES = {
@@ -1681,6 +1902,7 @@ FAMILIES = {
     "fraction_decimal": fraction_decimal,
     "word_solve": word_solve,
     "which_has_property": which_has_property,
+    "interpret_models": interpret_models,
 }
 
 

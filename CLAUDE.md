@@ -265,6 +265,15 @@ asking," Desmos tips) and example questions he described.
     choices that are equations or phrases put the key at the letter used least so far in the batch.
     `tests/test_meza_math.py` checks every choice by substitution: only the key solves the equation, makes the
     coefficients match, or holds for the true value in the story.
+- **Linear functions** (Sebastian, Nov 25; skill tag "Linear functions"):
+  - `interpret_models` ("Which of the following is the best interpretation of 2.5 in this context?"): real-world
+    models in y = mx + b form (two plants growing, two candles burning, two tanks draining, two friends saving, two
+    hikers descending; decreasing models print a negative slope, and the question asks about the number as printed).
+    Hard, as Sebastian described: two models in about four long sentences, so the wrong answers can also put the
+    number in the other thing's equation (always one such choice) or turn it into a comparison ("grew 2.5 cm more
+    each week than plant B"). Medium: one model. Other traps: slope vs. starting value, a total instead of a rate,
+    the rate flipped ("took 2.5 weeks to grow 1 cm"), the value at the end instead of the start. Choice explanations
+    for phrase or equation choices now give only the letter and the reason.
 - **Choices.** Numbers in ascending order, as on the SAT. A whole-number answer gets whole-number wrong choices (a
   stray fraction stands out), except medium `expression_value`, where x itself is the trap. Keys: among the letters
   the real mistakes can produce, each question takes the letter used least so far in the batch, so keys spread over
@@ -331,7 +340,7 @@ Audit decisions (Nov 24):
 
 - Math: solving a formula for one variable ("A = ½h(b + c); which equation gives h?") belongs with Advanced Math
   (equivalent expressions), per Sebastian; build it there.
-- Math: more Algebra families from Sebastian's deck (systems of equations: number of solutions; absolute value;
+- Math: more Linear functions types (Sebastian is describing them), then more Algebra from his deck (systems of equations: number of solutions; absolute value;
   function notation and composite functions; slopes, parallel and perpendicular lines; inequalities), then the other
   math domains. He describes question types; Claude builds them in code and tests offline (no API batches).
 
