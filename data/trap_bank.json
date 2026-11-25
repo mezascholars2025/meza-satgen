@@ -1,0 +1,284 @@
+{
+ "about": "Proven wrong-answer sets, shown to the writer as models. Original questions only (see the Source rule in CLAUDE.md). Grow it with `python meza_traps.py learn runs/<run>`.",
+ "examples": [
+  {
+   "id": "t001",
+   "skill": "details",
+   "level": "easy",
+   "passage": "The following text is from a short story. Mr. Penrith is a watchmaker in a small village.\n\nMr. Aldous Penrith had kept the only watchmaker's shop in Little Wenlow for forty years, and in all that time no customer had ever heard him promise a repair by a certain day. \"A watch is not a loaf of bread,\" he would say, bending over the open case with his glass fixed in one eye. \"It is done when it is done.\" The neighbors owned that he was slow, but they owned also that nothing he mended ever came back to him. He held that a quick workman was merely a man who had learned to be satisfied too soon.",
+   "stem": "Based on the text, how would Mr. Penrith most likely regard a workman who finishes repairs quickly?",
+   "choices": {
+    "A": "He would think the workman cannot be trusted to keep promises to customers.",
+    "B": "He would think the workman is content with work that could be better.",
+    "C": "He would think the workman probably lacks the training that careful repair requires.",
+    "D": "He would think the workman serves customers well by returning watches sooner."
+   },
+   "answer": "B",
+   "traps": {
+    "A": {
+     "type": "word_echo",
+     "why": "reuses the passage's word 'promise' but links quick work to broken promises, which the text never does"
+    },
+    "C": {
+     "type": "never_said",
+     "why": "a plausible reason to distrust fast work (training) that the passage never mentions"
+    },
+    "D": {
+     "type": "opposite",
+     "why": "flips his view: he sees quick workmen as satisfied too soon, not as serving customers well"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "2026-11-24_192819 #1",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t002",
+   "skill": "central_ideas",
+   "level": "medium",
+   "passage": "Invar, an alloy of iron and roughly 36 percent nickel, expands far less than most metals when heated, a property that made it valuable for surveying tapes and clock pendulums. Metallurgists attribute this behavior to magnetism: as the alloy warms, changes in its magnetic ordering tend to shrink the spacing between its atoms, offsetting the swelling caused by their growing vibrations. The effect has limits, however. Near a temperature known as the Curie point, the magnetic contribution fades, and the alloy's expansion rises sharply.",
+   "stem": "Which choice best states the main idea of the text?",
+   "choices": {
+    "A": "Invar's resistance to heat-driven expansion arises from its atoms vibrating less than those of other metals, but that resistance weakens once the alloy is heated near its Curie point.",
+    "B": "Invar's resistance to heat-driven expansion arises from magnetic effects, but that resistance is strongest near the Curie point, where the magnetic contribution reaches its peak.",
+    "C": "Invar's resistance to heat-driven expansion arises from magnetic effects, but that resistance weakens once the alloy is heated near its Curie point.",
+    "D": "Invar's resistance to heat-driven expansion arises from magnetic effects, but that resistance diminishes in versions of the alloy whose nickel content rises well above roughly 36 percent."
+   },
+   "answer": "C",
+   "traps": {
+    "A": {
+     "type": "mix_up",
+     "why": "keeps the key's structure but swaps the cause (less vibration) for the passage's cause (magnetism)"
+    },
+    "B": {
+     "type": "opposite",
+     "why": "same frame, but says resistance peaks near the Curie point, where the text says it fades"
+    },
+    "D": {
+     "type": "never_said",
+     "why": "same frame, but invents a limit based on nickel content; the 36 percent figure is background"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "2026-11-24_192819 #2",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t003",
+   "skill": "inferences",
+   "level": "medium",
+   "passage": "For generations, historians gauged the spread of printing in fifteenth-century Germany by counting the books that survive in libraries, and they concluded that print served mainly scholars and clergy. An exhaustive review of surviving printers' account books, however, shows that a large share of shop income came from single-sheet items such as calendars, indulgence forms, and public announcements. Such sheets were usually thrown away after use, so few remain in any collection. These findings suggest that ______.",
+   "stem": "Which choice most logically completes the text?",
+   "choices": {
+    "A": "a count of surviving books probably leaves out many books made for scholars and clergy that were later discarded",
+    "B": "a count of surviving books probably overstates how many books printers actually sold to scholars and clergy",
+    "C": "a count of surviving single sheets probably shows that printers earned more from public announcements than from any other product",
+    "D": "a count of surviving books probably leaves out much of the printing that reached a wider public"
+   },
+   "answer": "D",
+   "traps": {
+    "A": {
+     "type": "twin",
+     "why": "same structure as the key, but the lost items become scholarly books instead of single sheets"
+    },
+    "B": {
+     "type": "never_said",
+     "why": "the passage gives no figures on books sold to scholars and clergy"
+    },
+    "C": {
+     "type": "overreach",
+     "why": "'more than from any other product' goes past 'a large share of shop income'"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "2026-11-24_192819 #3",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t004",
+   "skill": "command_of_evidence_claim",
+   "level": "hard",
+   "passage": "In some languages, a speaker cannot report an event without attaching a verb suffix indicating whether the information was witnessed directly or merely heard from someone else. Although many linguists have misgivings about claims that grammar shapes habitual thought, a team of psychologists tested adult speakers of one such language alongside adult speakers of a language lacking the suffixes. Each group watched staged events and also heard secondhand accounts of others, and a week later each participant was asked how every piece of information had been acquired. Speakers of the suffixed language identified sources far more accurately, and the team concluded that the grammatical requirement to specify a source trains speakers to monitor sources as they first take in information.",
+   "stem": "Which finding, if true, would most directly support the team's conclusion?",
+   "choices": {
+    "A": "People who know in advance that they will have to state a particular kind of detail tend to notice and store that detail more reliably while an event is unfolding.",
+    "B": "Communities whose languages mark the source of information tend to give greater weight to eyewitness testimony in settling disputes than communities whose languages do not.",
+    "C": "Speakers of the suffixed language judged statements marked as secondhand to be less trustworthy than statements marked as firsthand, regardless of which person had actually made those statements.",
+    "D": "Children in communities that use the suffixes begin marking the source of information in their own speech at around the age of four."
+   },
+   "answer": "A",
+   "traps": {
+    "B": {
+     "type": "true_but_irrelevant",
+     "why": "an accurate-sounding cultural difference that says nothing about how sources are monitored"
+    },
+    "C": {
+     "type": "wrong_part",
+     "why": "about trusting marked statements, not about noticing sources while taking in information"
+    },
+    "D": {
+     "type": "true_but_irrelevant",
+     "why": "when children learn the suffixes is on topic but does not link grammar to attention"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "2026-11-24_192819 #4",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t005",
+   "skill": "command_of_evidence_quantitative",
+   "level": "medium",
+   "passage": "Germination of seeds from four annual wildflower species, with and without smoke exposure\n\n| Species | Untreated seeds germinating (%) | Smoke-treated seeds germinating (%) |\n|---|---|---|\n| Species A | 8 | 71 |\n| Species B | 45 | 52 |\n| Species C | 12 | 64 |\n| Species D | 5 | 38 |\n\nMany annual wildflowers of fire-prone grasslands survive as dormant seeds in the soil. A team of botanists exposed seeds from four species to smoke water, which mimics a grassland fire, and compared them with untreated seeds. The team proposed that a species has a fire-cued germination trait only if fewer than 20% of its untreated seeds germinate and more than 60% of its smoke-treated seeds germinate. The table shows that two of the four species meet both conditions: ______.",
+   "stem": "Which choice most effectively uses data from the table to complete the statement?",
+   "choices": {
+    "A": "Species A, with 8% of untreated seeds and 71% of smoke-treated seeds germinating, and Species D, with 5% and 38%",
+    "B": "Species B, with 45% of untreated seeds and 52% of smoke-treated seeds germinating, and Species C, with 12% and 64%",
+    "C": "Species A, with 8% of untreated seeds and 71% of smoke-treated seeds germinating, and Species C, with 12% and 64%",
+    "D": "Species C, with 12% of untreated seeds and 64% of smoke-treated seeds germinating, and Species D, with 5% and 38%"
+   },
+   "answer": "C",
+   "traps": {
+    "A": {
+     "type": "misread_data",
+     "why": "Species A qualifies, but Species D's 38% misses the 60% smoke threshold"
+    },
+    "B": {
+     "type": "half_right",
+     "why": "Species C qualifies, but Species B's 45% untreated rate is far above 20%"
+    },
+    "D": {
+     "type": "misread_data",
+     "why": "pairs a qualifying species with one that fails the smoke condition"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "2026-11-24_192819 #5",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t006",
+   "skill": "words_in_context_completion",
+   "level": "medium",
+   "passage": "When the city first proposed closing Harlan Street to cars on weekends, shop owners on the block predicted ruin. Two summers later, their sales records tell a different story: weekend revenue rose at nearly every store, and several owners who had led the opposition now ______ the plan at council meetings, urging that it be extended to weekdays.",
+   "stem": "Which choice completes the text with the most logical and precise word or phrase?",
+   "choices": {
+    "A": "tolerate",
+    "B": "question",
+    "C": "champion",
+    "D": "reconsider"
+   },
+   "answer": "C",
+   "traps": {
+    "A": {
+     "type": "wrong_degree",
+     "why": "right direction, but 'urging that it be extended' calls for active support, not mere acceptance"
+    },
+    "B": {
+     "type": "reversal",
+     "why": "fits the owners' earlier opposition, tempting a reader who misses the shift in the second sentence"
+    },
+    "D": {
+     "type": "imprecise_fit",
+     "why": "they have already changed their minds; the sentence needs what they now do at meetings"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "hand-written seed (Claude, Nov 24)",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t007",
+   "skill": "words_in_context_meaning",
+   "level": "medium",
+   "passage": "Although the committee had admired the architect's earlier libraries, it found her design for the new museum too <u>busy</u>: the front combined arches, columns, glass panels, and a copper frieze, leaving the eye no place to rest.",
+   "stem": "As used in the text, what does the word \"busy\" most nearly mean?",
+   "choices": {
+    "A": "occupied",
+    "B": "hectic",
+    "C": "lively",
+    "D": "cluttered"
+   },
+   "answer": "D",
+   "traps": {
+    "A": {
+     "type": "most_common_meaning",
+     "why": "the everyday sense (busy = occupied), which does not fit a building's design"
+    },
+    "B": {
+     "type": "other_real_meaning",
+     "why": "a real sense of busy (a busy schedule) that a hurried reader could force into the sentence"
+    },
+    "C": {
+     "type": "wrong_connotation",
+     "why": "close in meaning but positive, while 'too busy' and 'no place to rest' are criticism"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "hand-written seed (Claude, Nov 24)",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t008",
+   "skill": "text_structure_function",
+   "level": "medium",
+   "passage": "Biologists long assumed that once a male sparrow of one common species learned its song as a young bird, the song stayed fixed for life. <u>When a highway beside a nature reserve closed for six months of repairs, a team of biologists recorded males there singing softer songs with a wider range of notes.</u> After traffic returned, many of the same birds shifted back toward louder, narrower songs. Such changes suggest that adult birds keep adjusting their songs to the sounds around them.",
+   "stem": "Which choice best describes the function of the underlined sentence in the text as a whole?",
+   "choices": {
+    "A": "It describes the long-held view of how the sparrows' songs develop.",
+    "B": "It presents an observation that the text later uses to challenge a long-held view.",
+    "C": "It explains why traffic noise causes the sparrows to sing louder songs.",
+    "D": "It states the conclusion that adult birds keep adjusting their songs."
+   },
+   "answer": "B",
+   "traps": {
+    "A": {
+     "type": "wrong_target",
+     "why": "accurately describes the first sentence's role, not the underlined one"
+    },
+    "C": {
+     "type": "wrong_action",
+     "why": "the sentence reports what was recorded; it does not explain a cause"
+    },
+    "D": {
+     "type": "wrong_relationship",
+     "why": "treats the evidence as the conclusion it leads to in the last sentence"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "hand-written seed (Claude, Nov 24)",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t009",
+   "skill": "text_structure_purpose",
+   "level": "easy",
+   "passage": "Tide pools look calm at low tide, but for the animals in them, the hours before the sea returns can be the hardest of the day. As the sun warms the shallow water, its oxygen level drops; as the water evaporates, it grows saltier. A sea star caught in a small pool may face conditions far harsher than those of the open ocean only a few meters away.",
+   "stem": "Which choice best states the main purpose of the text?",
+   "choices": {
+    "A": "To describe the conditions a sea star faces in a small pool at low tide",
+    "B": "To argue that tide pools are more dangerous for animals than the open ocean is",
+    "C": "To explain that tide pools can be harsh places for animals despite how calm they appear",
+    "D": "To explain how sunlight and evaporation change ocean water in general"
+   },
+   "answer": "C",
+   "traps": {
+    "A": {
+     "type": "too_narrow",
+     "why": "accurate, but it covers only the last sentence's example"
+    },
+    "B": {
+     "type": "wrong_action",
+     "why": "the text describes and says conditions 'may' be harsher; it does not argue a ranking"
+    },
+    "D": {
+     "type": "too_broad",
+     "why": "the text is about tide pools at low tide, not ocean water in general"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "hand-written seed (Claude, Nov 24)",
+   "added": "2026-11-24"
+  }
+ ]
+}

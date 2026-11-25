@@ -23,6 +23,8 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from meza_traps import TRAPS  # trap lists per skill
+
 BLANK = "______"
 CHOICE_KEYS = ("A", "B", "C", "D")
 DIFFICULTIES = ("easy", "medium", "hard")
@@ -734,18 +736,7 @@ def choice_mix_problems(choices: dict[str, str], answer: str, mix: dict[str, int
 # Real wrong answers are built from the passage's own content and are wrong about its PURPOSE or SHAPE.
 # A wrong answer that brings in a topic, comparison, or claim the passage never touches is too easy to cross out.
 
-TSP_TRAPS = {
-    "too_narrow": "states the role of one detail or one sentence as if it were the purpose of the whole text",
-    "too_broad": "claims the text does more, or covers more, than it actually does",
-    "wrong_action": "right content, wrong action or strength (argues, criticizes, or proves where the text only "
-                    "describes or suggests; or the reverse)",
-    "wrong_relationship": "gets how the parts relate backwards (says a detail supports a claim it actually "
-                          "complicates, or that a view is rejected when it is only qualified)",
-    "wrong_order": "lists moves the text really makes, but in the wrong sequence",
-    "partial": "describes only some of the text's moves and leaves out a key one",
-    "wrong_target": "describes the role of a different sentence or part of the text",
-    "misread_stance": "misjudges the author's or speaker's attitude (too strong, too weak, or the wrong feeling)",
-}
+TSP_TRAPS = TRAPS["tsp"]  # kept for older imports; every skill's list lives in meza_traps.py
 TRAP_CRITIC_SYSTEM = "You are a veteran Digital SAT item reviewer who judges how well wrong answers are built."
 TRAP_CRITIC_PROMPT = """Here is a Reading and Writing question with its correct answer marked.
 
@@ -773,21 +764,23 @@ Reply with JSON only, keyed by letter, for the three wrong answers:
 {{"<letter>": {{"accurate_content": true, "on_topic": true, "tempting": 3, "trap": "<type>", "why": "<one short sentence>"}}}}"""
 
 
-def trap_label_problems(traps: object, answer: str, level: str) -> list[str]:
+def trap_label_problems(traps: object, answer: str, level: str, family: str = "tsp") -> list[str]:
     """Checks the writer's own labels: one valid trap type per wrong answer; harder items mix types."""
+    taxonomy = TRAPS[family]
     wrong = [k for k in CHOICE_KEYS if k != answer]
-    if not isinstance(traps, dict) or any(str(traps.get(k, "")).strip() not in TSP_TRAPS for k in wrong):
+    if not isinstance(traps, dict) or any(str(traps.get(k, "")).strip() not in taxonomy for k in wrong):
         return ['Add a "traps" field to the JSON that maps each WRONG answer\'s letter to one trap type from: '
-                + ", ".join(TSP_TRAPS) + "."]
+                + ", ".join(taxonomy) + "."]
     kinds = {str(traps[k]).strip() for k in wrong}
     if level in ("medium", "hard") and len(kinds) < 2:
         return ["Use at least two different trap types among the wrong answers."]
     return []
 
 
-def trap_critic_problems(verdict: dict, answer: str, level: str) -> list[str]:
-    """Off-topic or 'none' traps always fail. At least two wrong answers must be accurate about the passage's
-    content (wrong only in role/scope). Medium/hard: every wrong answer tempting >= 3; easy: at most one below 3."""
+def trap_critic_problems(verdict: dict, answer: str, level: str, family: str = "tsp") -> list[str]:
+    """Off-topic or 'none' (filler) traps always fail. Text Structure only: at least two wrong answers must be accurate
+    about the passage (other skills' wrong answers are often unsupported by design). Medium/hard: every wrong answer
+    tempting >= 3 (medium may keep one 2); easy: at most one below 3."""
     wrong = [k for k in CHOICE_KEYS if k != answer]
     if not isinstance(verdict, dict) or not any(isinstance(verdict.get(k), dict) for k in wrong):
         return []  # critic unavailable: don't block on it
@@ -798,10 +791,10 @@ def trap_critic_problems(verdict: dict, answer: str, level: str) -> list[str]:
             continue
         why = str(v.get("why", "")).strip()
         label = f"{k} ({why})" if why else k
-        if v.get("on_topic") is False or str(v.get("trap", "")).lower() == "none":
+        if (v.get("on_topic") is False and family != "wic") or str(v.get("trap", "")).lower() == "none":
             off.append(label)
             continue
-        if v.get("accurate_content") is False:
+        if v.get("accurate_content") is False and family == "tsp":
             inaccurate.append(label)
         try:
             t = int(v.get("tempting", 3))
@@ -812,18 +805,25 @@ def trap_critic_problems(verdict: dict, answer: str, level: str) -> list[str]:
             if t <= 1:
                 very_weak.append(label)
     out = []
+    rebuild = {
+        "tsp": "Rebuild each from the passage's own content, wrong only about its purpose, structure, or the role of a "
+               "part.",
+        "wic": "Replace each with a word a student who half-knows the vocabulary could pick: the everyday meaning, "
+               "another real meaning, a near-synonym with the wrong connotation or strength, or a word that fits "
+               "another idea in the passage.",
+    }.get(family, "Rebuild each on the passage's own topic and details, built on one of the trap types.")
     if off:
-        out.append("These wrong answers bring in content the passage never mentions or target no real mistake, so "
-                   "students can cross them out without understanding the text: " + "; ".join(off) + ". Rebuild each "
-                   "from the passage's own content, wrong only about its purpose, structure, or the role of a part.")
+        out.append("These wrong answers bring in content the passage never mentions or target no real mistake (filler), "
+                   "so students can cross them out without understanding the text: " + "; ".join(off) + ". " + rebuild)
     if len(inaccurate) > 1:
         out.append("Too many wrong answers misstate the passage's content: " + "; ".join(inaccurate) + ". At least two "
                    "wrong answers must describe what the passage really says, accurately, and be wrong only about its "
                    "purpose, scope, order, or role, so a student who skimmed would accept them.")
     allowed = {"easy": 1, "medium": 1, "hard": 0}.get(level, 0)
     if len(weak) > allowed or (level != "easy" and very_weak):
-        out.append("These wrong answers are too easy to rule out: " + "; ".join(weak) + ". Make each a near miss: an "
-                   "accurate statement about the passage with the wrong scope, action, relationship, order, or target.")
+        near = ("an accurate statement about the passage with the wrong scope, action, relationship, order, or target"
+                if family == "tsp" else "built on one of the trap types so a careful student would still consider it")
+        out.append("These wrong answers are too easy to rule out: " + "; ".join(weak) + f". Make each a near miss: {near}.")
     return out
 
 

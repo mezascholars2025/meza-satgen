@@ -114,7 +114,14 @@ class FakeWriter:
     def complete(self, prompt, system="", temperature=0.7, json_mode=False):
         self.prompts.append(prompt)
         choices = GOOD if "FAILED QUALITY CHECKS" in prompt else TELL
-        out = {"passage": PASSAGE, "stem": STEM, "choices": choices, "answer": "B", "explanation": EXPL}
+        out = {
+            "passage": PASSAGE,
+            "stem": STEM,
+            "choices": choices,
+            "answer": "B",
+            "explanation": EXPL,
+            "traps": {"A": "never_said", "C": "opposite", "D": "half_right"},
+        }
         return json.dumps(out), 100, 100
 
 
@@ -1031,3 +1038,116 @@ def test_hard_quotation_slot_is_written_as_medium(monkeypatch):
     first = writer.prompts[0]
     assert "command_of_evidence_quotation_medium" in first and "REQUIRED VARIATION FOR THIS EVIDENCE ITEM" in first
     assert "an invented literary work" in first
+
+
+# --- trap types for every skill, the bank of model wrong answers, and the learning loop ---
+
+import csv  # noqa: E402
+
+import meza_traps  # noqa: E402
+
+
+def test_every_reading_skill_has_a_trap_list():
+    fam = meza_traps.family_of
+    assert fam("text_structure_function") == "tsp" and fam("words_in_context_meaning") == "wic"
+    assert fam("details") == fam("central_ideas") == "cid" and fam("inferences") == "inf"
+    assert fam("command_of_evidence_quantitative") == "coe" and fam("transitions") is None
+    assert set(meza_traps.TRAPS) == set(meza_traps.CRITIC_GUIDANCE)
+    assert "never_said" in meza_traps.critic_prompt("cid", "Q", "B")
+
+
+def test_trap_labels_use_the_skills_own_list():
+    from meza_quality import trap_critic_problems, trap_label_problems
+
+    assert (
+        trap_label_problems({"A": "most_common_meaning", "B": "reversal", "D": "wrong_degree"}, "C", "medium", "wic")
+        == []
+    )
+    tsp_labels = {"A": "too_narrow", "B": "wrong_target", "D": "partial"}
+    assert trap_label_problems(tsp_labels, "C", "medium", "wic")  # Text Structure labels don't count for vocabulary
+    # Central Ideas wrong answers are often unsupported on purpose: no accuracy rule there, but filler still fails
+    unsupported = {k: {"accurate_content": False, "on_topic": True, "tempting": 4, "trap": "never_said"} for k in "ABD"}
+    assert trap_critic_problems(unsupported, "C", "hard", "cid") == []
+    assert trap_critic_problems(unsupported, "C", "hard", "tsp")
+    filler = dict(unsupported, B={"on_topic": True, "tempting": 1, "trap": "none"})
+    assert any("filler" in x for x in trap_critic_problems(filler, "C", "medium", "cid"))
+
+
+def test_trap_bank_is_valid_and_original():
+    bank = meza_traps.load_bank()
+    assert len(bank) >= 9 and len({e["id"] for e in bank}) == len(bank)
+    for e in bank:
+        fam = meza_traps.family_of(e["skill"])
+        assert fam and e["level"] in meza_traps.DIFFICULTIES and set(e["choices"]) == set("ABCD")
+        assert set(e["traps"]) == set("ABCD") - {e["answer"]}
+        assert all(t["type"] in meza_traps.TRAPS[fam] and t["why"] for t in e["traps"].values())
+        assert "college board" not in json.dumps(e).lower()  # Source rule: original questions only
+    assert {meza_traps.family_of(e["skill"]) for e in bank} == set(meza_traps.TRAPS)
+
+
+def test_examples_prefer_same_skill_level_and_approved():
+    bank = [
+        {"id": "t1", "skill": "details", "level": "hard", "status": "seed"},
+        {"id": "t2", "skill": "details", "level": "easy", "status": "seed"},
+        {"id": "t3", "skill": "details", "level": "easy", "status": "approved (Sebastian)"},
+        {"id": "t4", "skill": "central_ideas", "level": "easy", "status": "approved (Sebastian)"},
+    ]
+    picked = meza_traps.pick_examples(bank, "details", "easy", n=2, seed="1")
+    assert [e["id"] for e in picked] == ["t3", "t2"]
+    assert [e["id"] for e in meza_traps.pick_examples(bank, "central_ideas", "hard", n=1)] == ["t4"]
+    assert meza_traps.pick_examples(bank, "inferences", "easy") == []  # no same-family examples: show none
+    shown = meza_traps.format_examples(meza_traps.load_bank()[:1])
+    assert "Never reuse" in shown and "Correct:" in shown
+
+
+def test_writer_sees_trap_types_and_model_examples(monkeypatch):
+    monkeypatch.setattr(meza_satgen, "LOG_PATH", "")
+    writer = FakeWriter()
+    p = meza_satgen.MezaPipeline(writer, FakeSolver(), FakeSolver(), context="rules")
+    p.plan = [5]
+    p.generate(0, "central_ideas_easy")
+    assert "never_said" in writer.prompts[0] and "MODEL WRONG ANSWERS" in writer.prompts[0]
+    monkeypatch.setattr(meza_satgen, "TRAP_EXAMPLES", 0)
+    writer2 = FakeWriter()
+    p2 = meza_satgen.MezaPipeline(writer2, FakeSolver(), FakeSolver(), context="rules")
+    p2.plan = [5]
+    p2.generate(0, "central_ideas_easy")
+    assert "MODEL WRONG ANSWERS" not in writer2.prompts[0]
+
+
+def test_learn_adds_marked_questions_with_traps_on_final_letters(tmp_path):
+    run = tmp_path / "run"
+    run.mkdir()
+    final = {
+        "passage": "P one.",
+        "stem": "S?",
+        "choices": {"A": "w3", "B": "key", "C": "w1", "D": "w2"},
+        "answer": "B",
+        "type": "details_hard",
+    }
+    other = dict(final, passage="P two.")
+    (run / "questions.json").write_text(json.dumps([final, other]))
+    entry = {
+        "qtype": "details_hard",
+        "passed": True,
+        "fingerprint": meza_quality.fingerprint("P one.", "S?"),
+        "choices": {"A": "key", "B": "w1", "C": "w2", "D": "w3"},
+        "answer": "A",  # before the shuffle
+        "traps": {"B": "never_said", "C": "twin", "D": "opposite"},
+        "trap_critic": {"C": {"tempting": 5, "why": "one element swapped"}},
+    }
+    (run / "quality.jsonl").write_text(json.dumps(entry) + "\n")
+    with open(run / "questions.csv", "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["#", "Review status", "Reviewer notes"])
+        w.writerows([[1, "GOOD TRAPS", ""], [2, "ok", ""]])
+    bank_path = tmp_path / "bank.json"
+    assert meza_traps.learn(run, bank_path) == ["t001"]
+    ex = meza_traps.load_bank(bank_path)[0]
+    assert ex["skill"] == "details" and ex["level"] == "hard" and ex["status"].startswith("approved")
+    assert ex["traps"] == {
+        "A": {"type": "opposite", "why": ""},
+        "C": {"type": "never_said", "why": ""},
+        "D": {"type": "twin", "why": "one element swapped"},
+    }
+    assert meza_traps.learn(run, bank_path) == []  # already in the bank

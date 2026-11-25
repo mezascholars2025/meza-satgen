@@ -47,6 +47,8 @@ PART 1 - RULES FOR EVERY QUESTION
   * Tone: if the key is hedged or balanced ("can," "may," "partly"), at least one wrong answer must be hedged or balanced too.
   * Plausibility: even at Easy, every wrong answer should sound reasonable to someone who has not read the passage. Wrong answers are wrong because of the passage, not because they sound silly.
 - Every wrong answer should use the passage's topic and vocabulary. A choice about an unrelated topic is too easy to eliminate.
+- TRAP TYPES: for Words in Context, Text Structure and Purpose, Central Ideas and Details, Inferences, and Command of Evidence, the prompt lists this skill's trap types. Build every wrong answer on one of them and label it in a "traps" field (letter -> type). No filler.
+- MODEL WRONG ANSWERS: some prompts end with one or two reviewed questions whose wrong answers are strong. Study how each wrong answer is built (which mistake it targets and why a careful student might still choose it). Never reuse their topics, passages, sentences, or choices.
 
 4. DIFFICULTY
 If the type name ends in _easy, _medium, or _hard, write the question at exactly that difficulty, and treat the rest of the name as the type (for example, details_easy means an easy details question). Otherwise, divide the Variation number by 3 and use the remainder: 0 = easy, 1 = medium, 2 = hard.

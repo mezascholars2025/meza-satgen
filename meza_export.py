@@ -13,6 +13,8 @@ import re
 import sys
 from pathlib import Path
 
+import meza_traps
+
 NAVY, GOLD = "#3F60A1", "#E9A921"
 TAG = re.compile(r"\[(Domain|Skill|Difficulty|Subject):\s*([^\]]+)\]")
 
@@ -82,6 +84,29 @@ def slide_block(q: dict, with_answer: bool) -> str:
     return out + "</div>"
 
 
+def trap_notes(run: Path, qs: list[dict]) -> dict:
+    """Each question's wrong-answer trap types (and the critic's score), keyed by question number."""
+    try:
+        _, log = meza_traps._final_entries(run)
+    except (OSError, ValueError):
+        return {}
+    out = {}
+    for i, q in enumerate(qs, 1):
+        entry = log.get(fingerprint(q))
+        traps = meza_traps._traps_for(q, entry)
+        if not traps:
+            continue
+        critic = (entry or {}).get("trap_critic") or {}
+        by_text = {v: k for k, v in (entry or {}).get("choices", {}).items()}
+        notes = []
+        for k in sorted(traps):
+            score = (critic.get(by_text.get(q["choices"][k], "")) or {})
+            score = score.get("tempting") if isinstance(score, dict) else None
+            notes.append((k, traps[k]["type"], score, traps[k]["why"]))
+        out[i] = notes
+    return out
+
+
 def review_flags(run: Path) -> dict:
     """Questions the quality gate let through with a judgment-call problem still open, keyed by fingerprint."""
     flags = {}
@@ -102,6 +127,7 @@ def fingerprint(q: dict) -> str:
 def build(run: Path) -> None:
     qs = json.loads((run / "questions.json").read_text(encoding="utf-8"))
     flags = review_flags(run)
+    traps = trap_notes(run, qs)
     report = {}
     if (run / "report.json").exists():
         report = json.loads((run / "report.json").read_text(encoding="utf-8"))
@@ -130,6 +156,14 @@ def build(run: Path) -> None:
             for k, v in q.get("choices", {}).items())
         words = len(q.get("passage", "").split())
         expl = "".join(f"<p>{esc(p)}</p>" for p in t["body"].splitlines() if p.strip())
+        trap_html = ""
+        if traps.get(i):
+            rows = "".join(
+                f"<li><b>{k}</b>: {esc(kind.replace('_', ' '))}"
+                + (f" <span class=\"score\">tempting {score}/5</span>" if score else "")
+                + (f" · {esc(why)}" if why else "") + "</li>"
+                for k, kind, score, why in traps[i])
+            trap_html = f'<p class="traps-h">Wrong answers (trap types):</p><ul class="traps">{rows}</ul>'
         flag = flags.get(fingerprint(q))
         flag_html = ('<div class="flag"><b>Review flag</b> (shipped after the last rewrite; check this first):'
                      + "".join(f"<p>{esc(x)}</p>" for x in flag) + "</div>") if flag else ""
@@ -150,7 +184,7 @@ def build(run: Path) -> None:
   <p class="stem">{esc(q.get('stem',''))}</p>
   <ol class="choices">{choices}</ol>
   <details><summary>Answer &amp; explanation</summary>
-    <p class="ans">Correct answer: <b>{esc(q.get('answer',''))}</b></p>{expl}</details>
+    <p class="ans">Correct answer: <b>{esc(q.get('answer',''))}</b></p>{expl}{trap_html}</details>
 </article>""")
 
     summary = f"{len(qs)} questions" + (f" · cost ${cost:.2f}" if cost is not None else "")
@@ -169,6 +203,7 @@ main{{max-width:820px;margin:0 auto;padding:20px 16px 60px}}
 .num{{background:var(--navy);color:#fff;border-radius:50%;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-weight:700}}
 .chip{{background:var(--cream);border-radius:999px;padding:2px 10px;color:var(--ink)}} .diff.easy{{background:#e3f1e3}} .diff.medium{{background:#fbefd2}} .diff.hard{{background:#f7dcdc}} .subj{{background:#e6ecf7;color:var(--navy)}}
 .wc{{margin-left:auto;color:var(--muted)}}
+.howto{{font-size:14px;color:var(--muted);margin:0 0 10px}} .traps-h{{margin:10px 0 2px;font-weight:700}} .traps{{margin:0;padding-left:20px;font-size:14px}} .score{{color:var(--muted)}}
 .flag{{background:#fff4cc;border:1px solid var(--gold);border-radius:8px;padding:8px 12px;margin:0 0 12px;font-size:14px}} .flag p{{margin:4px 0 0}} .card.flagged{{border-color:var(--gold)}}
 .copy{{background:#fff;border:1px solid var(--navy);color:var(--navy);padding:4px 10px;font-size:13px}} .copy.done{{background:var(--navy);color:#fff}}
 .src{{position:fixed;left:0;top:0;width:900px;opacity:0;pointer-events:none;z-index:-1;background:#fff;color:#000}}
@@ -181,7 +216,9 @@ body.reveal .choices li.right{{background:#e3f1e3}}
 @media print{{.copy,.src{{display:none}} header{{-webkit-print-color-adjust:exact;print-color-adjust:exact}} .tools{{display:none}} details{{display:none}} body.reveal details{{display:block}}}}
 </style></head><body>
 <header><div class="brand">MEZA SCHOLARS</div><h1>Question Review</h1><p>{run.name} · {summary}</p></header>
-<main><div class="tools"><button onclick="toggle()">Show all answers</button></div>
+<main><p class="howto">Strong wrong answers teach the generator: write <b>GOOD TRAPS</b> in a question's Review status
+in questions.csv, then run <code>python meza_traps.py learn runs/{run.name}</code>.</p>
+<div class="tools"><button onclick="toggle()">Show all answers</button></div>
 {''.join(cards)}
 </main>
 <script>
