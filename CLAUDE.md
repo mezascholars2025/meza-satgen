@@ -377,6 +377,20 @@ asking," Desmos tips) and example questions he described.
   and eight families rarely put the key at D because their real mistakes almost all make the number bigger.
   how_many_solutions keeps its fixed list (Zero / Exactly one / Exactly two / Infinitely many). Tests: every family
   uses all four letters (20%+ each) in random mode, and at least three letters in ascending mode.
+- **No guessing from the choices alone (Sebastian, Nov 25; the math version of the Reading passage-free probe).** A
+  free test tried to pick the key from the four choices without the question, using patterns a test-wise student
+  might use: the choice most like the others, the odd one out, the longest or shortest, the number the others are a
+  slip away from (sign, flip, ±1, ×/÷2, ×/÷10), the middle, smallest, or largest number. About 15 of 62 types beat
+  chance (25%) by a lot: graph_slope and rate_total_function 100%, table_equation 98%, unit_conversion_function
+  74%, ineq_fence_range 69%, because each wrong answer was the key with one thing changed, so the key sat in the
+  middle of the group. Fixes: (1) `least_telling` picks, from all the real mistakes, the three that give the key away
+  least (`tell_score`); (2) `grid2` builds the choices as a 2x2 of two decisions (direction x amount, slope x
+  intercept, divide x swap, this object x the other, ...), so every choice shares one part with two others; (3)
+  when a real mistake is a plain slip of the answer (sign, decimal point, factor of 2, flip), the same slip on top of
+  another mistake is offered as a double mistake, so the wrong answers pair up with each other. Result: every type
+  at 50% or less on every rule (most about 25-35%). `test_answers_cannot_be_guessed_from_the_choices_alone` keeps it
+  there (55% limit for sampling noise). Also found by this work: a payment item could have equal one-time and
+  repeated amounts, which made the swapped choice true (fixed).
 - **Fractions print vertically (Sebastian, Nov 25)**, as on the SAT and because they are easier to read. The data
   (questions.json, CSV) keeps plain text ("−1/3", "(2/3)x", "(3w + 42)/12"); `meza_export.stack_fractions` draws
   them stacked in review.html and the copy-for-slides block, for Math questions only. The slash and any parentheses

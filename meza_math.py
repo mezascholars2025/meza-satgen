@@ -85,6 +85,89 @@ def spr_answer(n) -> str:
 # ----------------------------------------------------------------------------- the item
 
 
+def _share(cands: list, key: int, score: list) -> float:
+    """The chance a student using this rule lands on the key: 1 / (number of choices tied for the rule's pick)."""
+    best = [i for i, v in enumerate(score) if v == cands]
+    return (key in best) / len(best) if best else 0.0
+
+
+def _parts(t: str):
+    import collections
+
+    return collections.Counter(re.findall(r"\d+(?:[.,/]\d+)*|[A-Za-z]+|[=<>≤≥+()−-]", t))
+
+
+def _slip(a, b) -> bool:
+    near = {-a, a + 1, a - 1, a * 2, a / 2, a * 10, a / 10}
+    if a:
+        near |= {1 / a, -1 / a}
+    return b in near
+
+
+def tell_score(
+    texts: list[str], key: int, values: list[Fraction] | None = None, parts: list | None = None, related=None
+) -> float:
+    """How well the four choices alone point to the key (Sebastian, Nov 25: like the Reading passage-free probe).
+    Rules a student might use without reading the question: pick the choice that shares the most parts with the
+    others (or the fewest), the longest or shortest, and for numbers the one most others are a simple slip away from
+    (sign, flip, ±1, ×/÷2, ×/÷10), the one nearest the middle, the smallest, or the largest. Returns the best of
+    these rules' chances of landing on the key (0.25 is pure guessing)."""
+    P = parts or [_parts(t) for t in texts]
+    shared = [sum(sum((P[i] & P[j]).values()) for j in range(4) if j != i) for i in range(4)]
+    length = [len(t) for t in texts]
+    rules = [(max(shared), shared), (min(shared), shared), (max(length), length), (min(length), length)]
+    if values is not None:
+        if related is None:
+            related = [
+                sum(_slip(values[i], values[j]) + _slip(values[j], values[i]) for j in range(4) if j != i)
+                for i in range(4)
+            ]
+        mean = sum(values) / 4
+        middle = [-abs(v - mean) for v in values]
+        rules += [(max(related), related), (max(middle), middle), (min(values), values), (max(values), values)]
+    return max(_share(best, key, score) for best, score in rules)
+
+
+def grid2(render, right1, wrong1, why1: str, right2, wrong2, why2: str) -> list[tuple[str, str]]:
+    """Wrong choices from two decisions, each with a right option and one tempting wrong one (Sebastian, Nov 25):
+    the four choices are then equally alike (each shares one part with two others), so 'pick the choice most like
+    the others' no longer finds the key. Returns the three wrong choices with their reasons."""
+    return [
+        (render(wrong1, right2), why1),
+        (render(right1, wrong2), why2),
+        (render(wrong1, wrong2), f"{why1}; also, {why2[0].lower() + why2[1:]}"),
+    ]
+
+
+def least_telling(key_text: str, options: list, show=str, key_value=None) -> list:
+    """From the real wrong answers (most common first), the three that let the choices alone give the key away the
+    least; ties go to the more common mistakes."""
+    import itertools
+
+    pool = options[:7]
+    shown = [show(v) for v, _ in pool]
+    parts = [_parts(t) for t in shown]
+    key_parts = _parts(key_text)
+    rel = None
+    if key_value is not None:  # slips between every pair, worked out once
+        vals = [key_value] + [v for v, _ in pool]
+        rel = [[_slip(a, b) + _slip(b, a) for b in vals] for a in vals]
+    best, best_rank = None, None
+    for combo in itertools.combinations(range(len(pool)), 3):
+        picked = [pool[i] for i in combo]
+        texts = [key_text] + [shown[i] for i in combo]
+        values = [key_value] + [v for v, _ in picked] if key_value is not None else None
+        related = None
+        if rel is not None:
+            idx = [0] + [i + 1 for i in combo]
+            related = [sum(rel[a][b] for b in idx if b != a) for a in idx]
+        tell = tell_score(texts, 0, values, [key_parts] + [parts[i] for i in combo], related)
+        rank = (round(tell, 6), sum(combo))
+        if best_rank is None or rank < best_rank:
+            best, best_rank = picked, rank
+    return best
+
+
 @dataclass
 class MathItem:
     family: str
@@ -132,7 +215,8 @@ class MathItem:
                 real.append((value, why))
         show = dec if self.decimals else num
         if order == "random":
-            wrong = list(real[:3])
+            pool = real + self._double_slips(real, seen, whole)
+            wrong = least_telling(show(self.answer), pool, show, self.answer) if len(pool) > 3 else list(pool[:3])
             step = max(1, abs(int(self.answer)) // 10)
             for v in (self.answer + o * step for n in range(1, 60) for o in (n, -n)):
                 if len(wrong) >= 3:
@@ -175,9 +259,45 @@ class MathItem:
         if used is not None:
             used[self.key] = used.get(self.key, 0) + 1
 
+    def _double_slips(self, real: list, seen: set, whole: bool) -> list:
+        """When a real mistake is a plain slip of the answer (the sign, the decimal point, a factor of 2, the
+        fraction flipped), the same slip made on top of another real mistake is also a real (double) mistake. Adding
+        those lets the wrong answers pair up with each other, so the answer stops being the one every other choice is
+        a slip away from (Sebastian, Nov 25: answers must not be guessable from the choices alone)."""
+        a = self.answer
+        slips = []
+        for v, why in real:
+            for _slip, f in (
+                ("sign", lambda t: -t),
+                ("x10", lambda t: t * 10),
+                ("/10", lambda t: t / 10),
+                ("x2", lambda t: t * 2),
+                ("/2", lambda t: t / 2),
+                ("flip", lambda t: 1 / t if t else None),
+            ):
+                if a and v == f(a):
+                    slips.append((f, why))
+        extra = []
+        for f, why_slip in slips:
+            for v, why in real:
+                if v == f(self.answer):
+                    continue
+                d = f(v)
+                ok_sign = d is not None and (d > 0 if self.positive_only else d != 0)
+                if (
+                    ok_sign
+                    and d not in seen
+                    and (d.denominator == 1 or not whole)
+                    and (terminating(d) or not self.decimals)
+                ):
+                    seen.add(d)
+                    tail = why_slip[5:] if why_slip.startswith("this ") else why_slip
+                    extra.append((d, f"{why}; it also {tail}"))
+        return extra
+
     def _build_text_choices(self, rng: random.Random, used: dict[str, int] | None) -> None:
-        """Equations or phrases: the key goes to the letter used least so far; the three most common mistakes fill
-        the other letters in random order."""
+        """Equations or phrases: the key goes to the letter used least so far; of the real mistakes, the three that
+        give the key away least from the choices alone (see tell_score) fill the other letters in random order."""
         if self.fixed_choices:  # a set list in a set order; the key's letter follows from the list
             self.choices = dict(zip("ABCD", self.fixed_choices, strict=True))
             self.key = next(k for k, v in self.choices.items() if v == self.key_text)
@@ -192,7 +312,7 @@ class MathItem:
                 seen.add(text)
                 wrong.append((text, why))
         assert len(wrong) >= 3, f"{self.family}: needs three distinct wrong choices"
-        wrong = rng.sample(wrong, 3)
+        wrong = least_telling(self.key_text, wrong) if len(wrong) > 3 else wrong
         used = used if used is not None else {}
         key = min("ABCD", key=lambda k: (used.get(k, 0), rng.random()))
         rng.shuffle(wrong)
@@ -1044,7 +1164,7 @@ PLANS = [
 def _plan_numbers(rng: random.Random) -> tuple[dict, str, int, int, int, int]:
     f, n = rng.choice(PLANS), rng.choice(NAMES)
     D = rng.choice(range(50, 1001, 25))
-    M = rng.choice(range(15, 301, 5))
+    M = rng.choice([v for v in range(15, 301, 5) if v != D])  # equal amounts would make the swapped choice true
     k = rng.randint(4, 24)
     return f, n, D, M, k, D + M * k
 
@@ -2029,11 +2149,19 @@ def interpret_models(rng: random.Random, level: str, fmt: str) -> MathItem:
         ]
         if two:
             pool += [(say("start", j), f"{asked} is in the equation for {objs[i]}, not {objs[j]}")]
-    mistakes = rng.sample(pool, 3) if two else pool
-    if two:  # the two-model trap is the reason this is hard: always keep one wrong-object choice
-        wrong_obj = pool[3]
-        if wrong_obj not in mistakes:
-            mistakes[0] = wrong_obj
+    mistakes = pool
+    if two:  # a 2x2 of (this object or the other) x (the right role or its twin), so no choice is the "middle" one
+        twin = "more" if role == "rate" else "final"
+        twin_why = (
+            f"this compares the two {'rates' if sign > 0 else 'models'}; {asked} is {objs[i]}'s own rate"
+            if role == "rate"
+            else f"{asked} is the value at the start ({f['t']} = 0), not at the end"
+        )
+
+        def cell(obj: int, kind: str) -> str:
+            return say(kind, obj, 1 - obj) if kind == "more" else say(kind, obj)
+
+        mistakes = grid2(cell, i, j, f"{asked} is in the equation for {objs[i]}, not {objs[j]}", role, twin, twin_why)
     stem = f"{body} Which of the following is the best interpretation of {asked} in this context?"
     what = (
         f"the coefficient of {f['t']}, so it is the change in {f['qty']} for each {f['t_unit']}"
@@ -2268,31 +2396,31 @@ def graph_slope(rng: random.Random, level: str, fmt: str) -> MathItem:
 
     key = say(word, change)
     x_end = min(xs * x_n, (-b / m) if m < 0 else xs * x_n)
-    pool = [
-        (say(other, change), f"the line goes {'up' if m > 0 else 'down'} from left to right, so it {word}"),
-        (say(word, b), f"{dec(b)} is the value when x = 0, not the change for each {f['xu'][0]}"),
-        (say(word, abs(m * x_end)), f"this is the change over the whole graph, not for each {per}"),
+    amounts = []  # the tempting wrong amounts, most common first
+    if terminating(1 / abs(m)):
+        amounts.append((1 / abs(m), f"this flips the rate: {dec(1 / abs(m))} {f['xu'][1]} for each {f['yu'][0]}"))
+    if xs * dx != k:
+        amounts.append(
+            (abs(m) * xs * dx, f"this is the change for each {dec(xs * dx)} {f['xu'][1]}, not for each {per}")
+        )
+    if k != 1:
+        amounts.append((abs(m), f"this is the change for each single {f['xu'][0]}, not for each {per}"))
+    amounts += [
+        (abs(m * x_end), f"this is the change over the whole graph, not for each {per}"),
+        (abs(b), f"{dec(b)} is the value when x = 0, not the change for each {f['xu'][0]}"),
+        (change * 2, f"this doubles the change for each {per}"),
     ]
-    if terminating(1 / abs(m)) and 1 / abs(m) != change:
-        pool.insert(
-            1, (say(word, 1 / abs(m)), f"this flips the rate: {dec(1 / abs(m))} {f['xu'][1]} for each {f['yu'][0]}")
-        )
-    if xs * dx != k:  # the change over one marked step of the line instead of one unit
-        pool.append(
-            (
-                say(word, abs(m) * xs * dx),
-                f"this is the change for each {dec(xs * dx)} {f['xu'][1]}, not for each {per}",
-            )
-        )
-    if k != 1:  # hard: the change for one unit instead of the block asked about
-        pool.append((say(word, abs(m)), f"this is the change for each single {f['xu'][0]}, not for each {per}"))
-    pool.append((say(word, change * 2), f"this doubles the change for each {per}"))
-    seen, mistakes = {key}, []
-    for text, why in pool:
-        if text not in seen and " by 0 " not in text:
-            seen.add(text)
-            mistakes.append((text, why))
-    mistakes = mistakes[:3]
+    amounts = [(v, w) for v, w in amounts if v != change and v != 0]
+    wrong_amount, why_amount = amounts[0] if rng.random() < 0.7 or len(amounts) == 1 else amounts[1]
+    mistakes = grid2(
+        say,
+        word,
+        other,
+        f"the line goes {'up' if m > 0 else 'down'} from left to right, so it {word}",
+        change,
+        wrong_amount,
+        why_amount,
+    )
     steps = [
         f"Pick two points on the line where it crosses grid lines, such as (0, {dec(b)}) and "
         f"({dec(xs * dx)}, {dec(b + m * xs * dx)}).",
@@ -2339,23 +2467,27 @@ def rate_total_function(rng: random.Random, level: str, fmt: str) -> MathItem:
     """'... earns $18 per hour ... babysat for 6 hours on Saturday and x hours on Sunday. Which function f gives the
     total amount earned on the two days?'  f(x) = 18x + 108 (or 18(x + 6), the form chosen at random). Traps add the
     hours instead of the earnings, multiply the hours into the rate, or leave out the first day."""
-    f, n = rng.choice(RATE_JOBS), rng.choice(NAMES)
-    r, a = rng.choice(f["rates"]), rng.randint(2, 9)
-    factored = level == "hard" or rng.random() < 0.3
+    n = rng.choice(NAMES)
+    while True:  # two-digit numbers throughout, so no choice is longer than the others
+        f = rng.choice(RATE_JOBS)
+        r = rng.choice(f["rates"])
+        a = rng.randint(2, 9)
+        if 10 <= r * a <= 99 and r + a <= 99:
+            break
     stem = f"{f['text'].format(n=n, r=r, a=a)} Which function f gives {f['total'].format(n=n)}?"
-    key = f"f(x) = {r}(x + {a})" if factored else f"f(x) = {r}x + {num(r * a)}"
-    mistakes = [
-        (f"f(x) = {r}x + {a}", f"this adds the {a} hours instead of what was done in them ({r} × {a})"),
-        (f"f(x) = {r + a}x" if not factored else f"f(x) = {r}x + {a}", f"this adds {a} to the rate"),
-        (f"f(x) = {r}x", f"this leaves out the first {a} hours"),
-        (
-            f"f(x) = {num(r * a)}x" if not factored else f"f(x) = {r}({a}x)",
-            f"this multiplies the {a} hours into the rate instead of adding",
-        ),
-    ]
+    key = f"f(x) = {r}x + {num(r * a)}"
+    mistakes = grid2(
+        lambda c, k_: f"f(x) = {c}x + {k_}",
+        r,
+        r + a,
+        f"this adds the {a} hours to the rate",
+        r * a,
+        r + a,
+        f"for the first day this adds {r} and {a} instead of multiplying them",
+    )
     steps = [
         f"The first day gives {r} × {a} = {num(r * a)}; the second gives {r}x.",
-        f"Together: f(x) = {r}x + {num(r * a)}" + (f" = {r}(x + {a})." if factored else "."),
+        f"Together: f(x) = {r}x + {num(r * a)}.",
     ]
     item = MathItem("rate_total_function", FUNC_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
     item.truth = {"r": r, "a": a}
@@ -2800,17 +2932,25 @@ def table_equation(rng: random.Random, level: str, fmt: str) -> MathItem:
         f"Which equation represents this relationship?"
     )
     key = f"y = {linf(m, b)}"
-    mistakes = [
-        (
-            f"y = {linf(m * dx, b)}",
+    if dx > 1:
+        m_wrong, why_m = (
+            m * dx,
             f"this uses the change between rows ({num(m * dx)}) as the slope; the rows are {dx} apart",
         )
-        if dx > 1
-        else (f"y = {linf(m, b + m)}", "this finds the starting value one row too early"),
-        (f"y = {linf(m, rows[0][1])}", f"this uses {num(rows[0][1])}, the y-value at x = {xs[0]}, as the y-intercept"),
-        (f"y = {linf(Fraction(1, m), b)}", "this flips the slope"),
-        (f"y = {linf(-m, rows[0][1] + m * xs[0])}", "this uses the slope with the wrong sign"),
-    ]
+    elif terminating(Fraction(1) / m) and Fraction(1) / m != m:
+        m_wrong, why_m = Fraction(1) / m, "this flips the slope"
+    else:
+        m_wrong, why_m = -m, "this uses the slope with the wrong sign"
+    b_wrong = rows[0][1] if rows[0][1] != b else b + m
+    mistakes = grid2(
+        lambda mm_, bb: f"y = {linf(mm_, bb)}",
+        m,
+        m_wrong,
+        why_m,
+        b,
+        b_wrong,
+        f"this uses {num(b_wrong)}, the y-value at x = {xs[0]}, as the y-intercept",
+    )
     steps = [
         f"Slope: ({num(rows[1][1])} {MINUS} {num(rows[0][1])}) ÷ ({xs[1]} {MINUS} {xs[0]}) = {num(m)}.",
         f"y-intercept: {num(rows[0][1])} = {num(m)}({xs[0]}) + b, so b = {num(b)}.",
@@ -3174,24 +3314,33 @@ def unit_conversion_function(rng: random.Random, level: str, fmt: str) -> MathIt
     dividing."""
     f = rng.choice(CONVERSIONS)
     k, r, s = f["k"], rng.choice(f["rs"]), rng.choice(f["ss"])
+    while s == r:  # the swapped choice must differ
+        s = rng.choice(f["ss"])
     v, fn = f["var"], f["f"]
     stem = f"{f['text'].format(s=s, r=r)} Which function {fn} gives {f['q']}?"
     if level == "medium":
-        key = f"{fn}({v}) = ({coef(r, v)} + {s})/{k}"
-        mistakes = [
-            (f"{fn}({v}) = {coef(r, v)} + {s}", f"this leaves the answer in {f['u']}"),
-            (f"{fn}({v}) = {coef(r, v)}/{k} + {s}", f"this converts only the {r} {f['u']} each {f['per']}"),
-            (f"{fn}({v}) = {k}({coef(r, v)} + {s})", f"this multiplies by {k} instead of dividing"),
-            (f"{fn}({v}) = {coef(r, v)} + {s}/{k}", f"this converts only the starting {s} {f['u']}"),
-        ]
+
+        def show(conv: str, order: bool) -> str:
+            inner = f"{coef(r, v)} + {s}" if order else f"{coef(s, v)} + {r}"
+            return f"{fn}({v}) = ({inner})/{k}" if conv == "div" else f"{fn}({v}) = {k}({inner})"
     else:
-        key = f"{fn}({v}) = {linf(Fraction(r, k), Fraction(s, k), v)}"
-        mistakes = [
-            (f"{fn}({v}) = {linf(r, s, v)}", f"this leaves the answer in {f['u']}"),
-            (f"{fn}({v}) = {linf(Fraction(r, k), s, v)}", f"this converts only the {r} {f['u']} each {f['per']}"),
-            (f"{fn}({v}) = {linf(r * k, s * k, v)}", f"this multiplies by {k} instead of dividing"),
-            (f"{fn}({v}) = {linf(r, Fraction(s, k), v)}", f"this converts only the starting {s} {f['u']}"),
-        ]
+
+        def show(conv: str, order: bool) -> str:
+            rate, start = (Fraction(r), Fraction(s)) if order else (Fraction(s), Fraction(r))
+            if conv == "div":
+                return f"{fn}({v}) = {linf(rate / k, start / k, v)}"
+            return f"{fn}({v}) = {linf(rate * k, start * k, v)}"
+
+    key = show("div", True)
+    mistakes = grid2(
+        show,
+        "div",
+        "mul",
+        f"this multiplies by {k} instead of dividing",
+        True,
+        False,
+        f"this swaps the {r} {f['u']} each {f['per']} and the starting {s} {f['u']}",
+    )
     steps = [
         f"In {f['u']}, the amount after {v} {f['per']}s is {coef(r, v)} + {s}.",
         f"There are {k} {f['u']} in each new unit, so divide by {k}: {key}.",
@@ -5394,12 +5543,15 @@ def ineq_fence_range(rng: random.Random, level: str, fmt: str) -> MathItem:
             f"other side of the pen?"
         )
         key = f"0 < x ≤ {h}"
-        mistakes = [
-            (f"0 < x ≤ {Fence - 2 * s_}", f"this counts the unknown side once but both {s_}-yard sides"),
-            (f"0 < x ≤ {Fence - s_}", "this counts each side only once"),
-            (f"x ≥ {h}", "this has the inequality sign backward"),
-            (f"0 < x ≤ {num(Fraction(Fence - s_, 2))}", f"this counts the {s_}-yard side only once"),
-        ]
+        mistakes = grid2(
+            lambda lo_rel, hi: f"0 {lo_rel} x ≤ {hi}",
+            "<",
+            "≤",
+            "a side of length 0 does not make a pen, so x must be more than 0",
+            h,
+            Fence - 2 * s_,
+            f"this counts the unknown side once but both {s_}-yard sides",
+        )
         steps = [
             f"Perimeter: 2({s_}) + 2x ≤ {Fence}, so 2x ≤ {Fence - 2 * s_} and x ≤ {h}.",
             f"A length must be positive, so {key}.",
@@ -5419,15 +5571,25 @@ def ineq_fence_range(rng: random.Random, level: str, fmt: str) -> MathItem:
             f"inequality represents the possible lengths x, in yards, of the other side of the pen?"
         )
         key = f"{dec(lo)} {lo_rel} x ≤ {h}"
-        mistakes = [
-            (f"{dec(lo)} {lo_rel} x ≤ {Fence - 2 * s_}", "this counts the unknown side once in the fencing"),
-            (f"{dec(lo)} {LOOSE[lo_rel]} x ≤ {h}", "this has the wrong kind of inequality at the area limit"),
+        hi_wrong = Fence - 2 * s_ if rng.random() < 0.5 else num(Fraction(Fence - s_, 2))
+        why_hi = (
+            "this counts the unknown side once in the fencing"
+            if hi_wrong == Fence - 2 * s_
+            else f"this counts the {s_}-yard side only once in the fencing"
+        )
+        mistakes = grid2(
+            lambda r_, hi: f"{dec(lo)} {r_} x ≤ {hi}",
+            lo_rel,
+            LOOSE[lo_rel],
             (
-                f"{dec(lo)} {lo_rel} x ≤ {num(Fraction(Fence - s_, 2))}",
-                f"this counts the {s_}-yard side only once in the fencing",
+                "'more than' leaves out the area limit itself, so the sign must be <"
+                if strict
+                else "'at least' includes the area limit itself, so the sign must be ≤"
             ),
-            (f"{h} {lo_rel} x ≤ {dec(lo)}" if lo > h else f"x ≤ {h}", "this leaves out the area limit"),
-        ]
+            h,
+            hi_wrong,
+            why_hi,
+        )
         steps = [
             f"Fencing: 2({s_}) + 2x ≤ {Fence}, so x ≤ {h}.",
             f"Area: {s_}x {'>' if strict else '≥'} {num(A)}, so x {'>' if strict else '≥'} {dec(lo)}.",
@@ -5465,6 +5627,8 @@ def intercepts_std(rng: random.Random, level: str, fmt: str) -> MathItem:
     eq = axby(A, B, C)
     if level == "hard":
         k_ = A
+        if rng.random() < 0.5:  # a negative x-intercept makes k negative
+            A, xi, k_ = -A, -xi, -A
         stem = (
             f"In the xy-plane, the graph of kx {'+' if B > 0 else MINUS} {coef(abs(B), 'y')} = {num(C)}, where k "
             f"is a constant, has an x-intercept at {_pt(xi, 0)}. What is the value of k?"
@@ -5477,7 +5641,7 @@ def intercepts_std(rng: random.Random, level: str, fmt: str) -> MathItem:
             (Fraction(C) * xi, "this multiplies instead of dividing"),
         ]
         steps = [f"At {_pt(xi, 0)}, y = 0, so k({num(xi)}) = {num(C)}.", f"So k = {num(C)} ÷ {num(xi)} = {num(ans)}."]
-        item = MathItem("intercepts_std", TWO_SKILL, level, fmt, stem, ans, steps, mistakes)
+        item = MathItem("intercepts_std", TWO_SKILL, level, fmt, stem, ans, steps, mistakes, positive_only=False)
         item.truth = {"A": A, "B": B, "C": C}
         return item
     ask_x = level == "easy"

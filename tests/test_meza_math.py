@@ -758,10 +758,10 @@ def test_fence_range_key_matches_the_constraints():
         side = int(re.search(r"One side of the pen is (\d+) yards", item.stem).group(1))
         fence = int(re.search(r"at most (\d+) yards of fencing", item.stem).group(1))
         area = re.search(r"(at least|more than) ([\d,]+) square yards", item.stem)
-        grid = [Fraction(n, 4) for n in range(1, 4 * 80)]
+        grid = [Fraction(n, 4) for n in range(0, 4 * 80)]
 
         def allowed(x, side=side, fence=fence, area=area):
-            ok = 2 * side + 2 * x <= fence
+            ok = 0 < x and 2 * side + 2 * x <= fence
             if area:
                 a = value(area.group(2))
                 ok &= side * x >= a if area.group(1) == "at least" else side * x > a
@@ -917,3 +917,58 @@ def test_fractions_are_stacked_on_the_review_page():
     finally:
         me._MATH[0] = False
     assert me.esc("and/or 1/2") == "and/or 1/2"  # reading questions are left alone
+
+
+def test_answers_cannot_be_guessed_from_the_choices_alone():
+    """Sebastian (Nov 25): no Reading-style giveaway in math. A student who never reads the question and uses a
+    pattern on the four choices (the one most like the others, the odd one out, the longest or shortest, the one
+    the others are a slip away from, the middle, smallest, or largest number) must stay near chance (25%) in every
+    question type; 55% allows for sampling noise around the generator's 50% ceiling."""
+    import collections
+
+    def parts(s):
+        return collections.Counter(re.findall(r"\d+(?:[.,/]\d+)*|[A-Za-z]+|[=<>≤≥+()\-]", s.replace(mm.MINUS, "-")))
+
+    def num_or_none(s):
+        try:
+            return value(s)
+        except (ValueError, ZeroDivisionError):
+            return None
+
+    def picks(ch):
+        out = {}
+        P = {k: parts(v) for k, v in ch.items()}
+        sh = {k: sum(sum((P[k] & P[o]).values()) for o in ch if o != k) for k in ch}
+        L = {k: len(v) for k, v in ch.items()}
+        out["most alike"] = [k for k in ch if sh[k] == max(sh.values())]
+        out["odd one out"] = [k for k in ch if sh[k] == min(sh.values())]
+        out["longest"] = [k for k in ch if L[k] == max(L.values())]
+        out["shortest"] = [k for k in ch if L[k] == min(L.values())]
+        V = {k: num_or_none(v) for k, v in ch.items()}
+        if all(v is not None for v in V.values()):
+
+            def slip(a, b):
+                near = {-a, a + 1, a - 1, a * 2, a / 2, a * 10, a / 10} | ({1 / a, -1 / a} if a else set())
+                return b in near
+
+            r = {k: sum(slip(V[k], V[o]) + slip(V[o], V[k]) for o in V if o != k) for k in V}
+            mean = sum(V.values()) / 4
+            out["slip hub"] = [k for k in V if r[k] == max(r.values())]
+            out["middle"] = [k for k in V if abs(V[k] - mean) == min(abs(v - mean) for v in V.values())]
+            out["smallest"] = [k for k in V if V[k] == min(V.values())]
+            out["largest"] = [k for k in V if V[k] == max(V.values())]
+        return out
+
+    for name, fam in mm.FAMILIES.items():
+        hits = collections.defaultdict(list)
+        for seed in range(500, 560):
+            rng = random.Random(seed)
+            for level in mm.FAMILY_LEVELS[name]:
+                item = fam(rng, level, "mcq")
+                item.build_choices(rng, {})
+                if item.fixed_choices:
+                    continue
+                for rule, chosen in picks(item.choices).items():
+                    hits[rule].append((item.key in chosen) / len(chosen))
+        for rule, h in hits.items():
+            assert sum(h) / len(h) <= 0.55, (name, rule, round(sum(h) / len(h), 2))
