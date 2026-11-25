@@ -24,9 +24,48 @@ def tags(explanation: str) -> dict:
             "difficulty": found.get("difficulty", ""), "subject": found.get("subject", ""), "body": body}
 
 
+_MATH = [False]  # set while a Math question is drawn: fractions are then stacked (numerator over denominator)
+
+
 def esc(text: str) -> str:
     out = html.escape(text)
-    return out.replace("&lt;u&gt;", "<u>").replace("&lt;/u&gt;", "</u>")
+    out = out.replace("&lt;u&gt;", "<u>").replace("&lt;/u&gt;", "</u>")
+    return stack_fractions(out) if _MATH[0] else out
+
+
+# A fraction part: a number (1,000 / 2.5), a number with a letter (3w), or one letter (x).
+_ATOM = r"(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]+)?[a-z]?|[a-z]"
+
+
+def frac_html(top: str, bottom: str) -> str:
+    """A vertical fraction, as the SAT prints it (Sebastian, Nov 25). Inline styles only, so it survives being
+    copied into slides; the slash and any parentheses are hidden, so if a program drops the styles the text still
+    reads "(3w + 42)/12" instead of running the numbers together."""
+    def part(x: str) -> str:
+        return f'<span style="display:none">(</span>{x}<span style="display:none">)</span>' if " " in x else x
+    return ('<span class="frac" style="display:inline-flex;flex-direction:column;align-items:center;'
+            'vertical-align:middle;line-height:1.15;margin:0 .12em;font-size:.88em">'
+            f'<span style="border-bottom:1.4px solid currentColor;padding:0 .18em">{part(top)}</span>'
+            '<span style="display:none">/</span>'
+            f'<span style="padding:0 .18em">{part(bottom)}</span></span>')
+
+
+def stack_fractions(text: str) -> str:
+    """'−1/3' -> −(1 over 3); '(2/3)x' -> (2 over 3)x; '(3w + 42)/12' -> (3w + 42 over 12); 'x/5' -> (x over 5);
+    '(17 − 9) / (3 − 1)' in an explanation -> stacked too. Plain-text data (JSON, CSV) keeps the slash."""
+    saved: list[str] = []
+
+    def keep(html_: str) -> str:
+        saved.append(html_)
+        return f"\x00{len(saved) - 1}\x00"
+
+    text = re.sub(r"\(([^()/]+)\) / \(([^()/]+)\)", lambda m: keep(frac_html(m[1], m[2])), text)
+    text = re.sub(rf"\(([^()/]+)\)/({_ATOM})(?![\w/])", lambda m: keep(frac_html(m[1], m[2])), text)
+    hide = '<span style="display:none">{}</span>'
+    text = re.sub(rf"\(({_ATOM})/({_ATOM})\)(?=[a-z(])",  # a coefficient, (2/3)x: the parentheses only show unstyled
+                  lambda m: keep(hide.format("(") + frac_html(m[1], m[2]) + hide.format(")")), text)
+    text = re.sub(rf"(?<![\w.,/])({_ATOM})/(−?(?:{_ATOM}))(?![\w/])", lambda m: keep(frac_html(m[1], m[2])), text)
+    return re.sub("\x00(\\d+)\x00", lambda m: saved[int(m[1])], text)
 
 
 def render_passage(text: str) -> str:
@@ -133,6 +172,7 @@ def build(run: Path) -> None:
     cards = []
     for i, q in enumerate(qs, 1):
         t = tags(q.get("explanation", ""))
+        _MATH[0] = t["subject"] == "Math"  # stacked fractions for math questions only
         diff = t["difficulty"].lower()
         choices = "".join(
             f'<li class="{"right" if k == q.get("answer") else ""}"><b>{k})</b> {show_choice(v)}</li>'
@@ -162,6 +202,7 @@ def build(run: Path) -> None:
     <p class="ans">Correct answer: <b>{esc(q.get('answer',''))}</b></p>{expl}</details>
 </article>""")
 
+    _MATH[0] = False
     summary = f"{len(qs)} questions" + (f" · cost ${cost:.2f}" if cost is not None else "")
     page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">

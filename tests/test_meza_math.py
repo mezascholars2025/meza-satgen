@@ -886,3 +886,34 @@ def test_random_order_puts_the_answer_on_any_letter():
         shares = [used.get(k, 0) / sum(used.values()) for k in "ABCD"]
         assert min(shares) >= 0.2, (name, used)
     assert filler / total < 0.05
+
+
+def test_fractions_are_stacked_on_the_review_page():
+    """Sebastian (Nov 25): fractions print vertically, as on the SAT. The data keeps the slash; the export stacks it,
+    and with the styles stripped (pasted somewhere plain) the text still reads the same as the original."""
+    import meza_export as me
+
+    def plain(html_: str) -> str:
+        return re.sub(r"<[^>]+>", "", re.sub(r'<span style="display:none">([^<]*)</span>', r"\1", html_))
+
+    cases = {
+        "a slope of −1/3 and": 1,
+        "y = −(2/3)x − 5": 1,
+        "h(w) = (3w + 42)/12": 1,
+        "x/3 + x/4 = 7": 2,
+        "(x + 4)/3 = (x − 2)/5": 2,
+        "Choice B (5): this is the value of x/5, not 11/x.": 2,
+        "Slope: (17 − 9) / (3 − 1) = 4.": 1,
+        "1,500/1,000": 1,
+        "0.04x + 0.07y = 295 and 3,000 tickets": 0,
+    }
+    me._MATH[0] = True
+    try:
+        for text, n in cases.items():
+            out = me.esc(text)
+            assert out.count('class="frac"') == n, text
+            assert plain(out).replace(" / ", "/") == text.replace(" / ", "/"), (text, plain(out))
+        assert "5," not in re.findall(r'padding:0 \.18em">([^<]*)<', me.esc("value of x/5, not"))
+    finally:
+        me._MATH[0] = False
+    assert me.esc("and/or 1/2") == "and/or 1/2"  # reading questions are left alone

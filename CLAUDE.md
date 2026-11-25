@@ -377,6 +377,11 @@ asking," Desmos tips) and example questions he described.
   and eight families rarely put the key at D because their real mistakes almost all make the number bigger.
   how_many_solutions keeps its fixed list (Zero / Exactly one / Exactly two / Infinitely many). Tests: every family
   uses all four letters (20%+ each) in random mode, and at least three letters in ascending mode.
+- **Fractions print vertically (Sebastian, Nov 25)**, as on the SAT and because they are easier to read. The data
+  (questions.json, CSV) keeps plain text ("−1/3", "(2/3)x", "(3w + 42)/12"); `meza_export.stack_fractions` draws
+  them stacked in review.html and the copy-for-slides block, for Math questions only. The slash and any parentheses
+  are kept as hidden text, so a program that drops the styles still shows "(3w + 42)/12", never "3w + 4212". The
+  portal will need the same treatment (for example KaTeX) when the questions move there.
 - **Choices.** A whole-number answer gets whole-number wrong choices (a stray fraction stands out), except medium
   `expression_value`, where x itself is the trap. The three most common real mistakes are shown; a labeled near miss
   fills in only when fewer than three real mistakes exist (under 5% of questions). About 1 in 4 questions is grid-in
@@ -447,7 +452,8 @@ Audit decisions (Nov 24):
 
 - Math: solving a formula for one variable ("A = ½h(b + c); which equation gives h?") belongs with Advanced Math
   (equivalent expressions), per Sebastian; build it there.
-- Math: graphs need image support in the portal when questions move there (the review page shows the SVG).
+- Math: graphs need image support in the portal when questions move there (the review page shows the SVG), and
+  fractions need to be stacked there too (the data stores them as "a/b").
 - Math: the rest of Algebra from his deck (absolute value, function notation and composite functions), then the
   other math domains. He describes question types; Claude builds them in code and tests offline
   (no API batches).
