@@ -234,6 +234,18 @@ Each rule below came from auditing output or from Sebastian's review rounds agai
   choices (each wrong answer varies it in a different direction; true for 15 of 28 Sonnet keys, about twice chance);
   (3) the key is the only balanced or concessive choice. Runs: `runs/opus-tsp`, `runs/opus-cid`, `runs/opus-inf`.
 
+- **Read between the lines (Sebastian, Nov 25).** Asked that the correct answer be something you have to read between
+  the lines to see, not a direct summary. → for Central Ideas and Details and Inferences at medium/hard, the writer
+  picks two sentences that together prove the answer, writes the tempting word-matching or common-sense trap first,
+  then writes the key as a conclusion in new words (`BETWEEN_LINES`); a "proof" field must quote both excerpts word
+  for word from two different sentences (`proof_problems`); a Central Ideas key may not copy the passage more than
+  every wrong answer (`key_echo_problems`); the probe's rewrite message now lets the writer change what the key
+  says. Test (10 slots per model, same judges as before): blind solver found the key 60% of the time for Opus
+  (Inferences 48%) vs 88% for Opus last night; Sonnet 80% vs 74%. Opus shipped 9 of 10 with 2 flagged, Sonnet 7 of
+  10 with 6 flagged (Sonnet follows the multi-step recipe less reliably). Cost about $0.44 vs $0.35 per shipped
+  question, but about $0.57 vs $2.45 per question shipped without a flag. Small samples (7-9 graded each).
+  Runs: `runs/btl-sonnet-*`, `runs/btl-opus-*`.
+
 - **Second real run: 1 of 10 shipped.** Stacked judgment checks rejected nearly everything. → the reviewer-model
   critics and the passage-free probe are now "soft": after the last rewrite, a question whose only remaining
   problems are soft ships with a yellow Review flag in review.html (and "FLAGGED: ..." in the CSV's Review status)
@@ -291,6 +303,8 @@ Audit decisions (Nov 24):
 
 ## Open next steps
 
+- Writer model: Opus + between the lines did best for Central Ideas and Inferences; confirm with a larger run (20+)
+  before making Opus the default, and try the same recipe on Text Structure.
 - Guessable keys (see Opus vs Sonnet): (1) topics whose finding is not common knowledge, or where the popular belief
   is the trap; the probe's rewrite message should allow changing the finding, not only the wrong answers; (2) a code
   check for the "center" key; (3) the critic checks that at least one wrong answer is as balanced as the key.

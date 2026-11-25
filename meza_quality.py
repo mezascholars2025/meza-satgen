@@ -210,6 +210,50 @@ def common_core_problems(choices: dict, answer: str) -> list[str]:
     return out
 
 
+def _norm(text: str) -> str:
+    text = re.sub(r"</?u>", "", text).replace("\u2019", "'").replace("\u2018", "'")
+    text = text.replace("\u201c", '"').replace("\u201d", '"').replace("\u2014", " - ").replace("\u2013", "-")
+    return " ".join(text.lower().split())
+
+
+def proof_problems(passage: str, proof: object, level: str) -> list[str]:
+    """Read between the lines (Sebastian, Nov 25): at medium/hard, the writer names two exact excerpts from different
+    sentences that together prove the correct answer, so the key has to connect them rather than restate one."""
+    if level == "easy":
+        return []
+    ask = ('Add a "proof" field: a list of two excerpts copied word for word from the passage, from two different '
+           "sentences, that together prove the correct answer (no single sentence should say it).")
+    if not isinstance(proof, list) or len([p for p in proof if isinstance(p, str) and p.strip()]) < 2:
+        return [ask]
+    sentences = [_norm(x) for x in re.split(r"(?<=[.!?])\s+", strip_intro(passage)) if x.strip()]
+    whole = _norm(passage)
+    found = []
+    for ex in proof[:4]:
+        e = _norm(str(ex)).strip(" .\"'")
+        if len(e.split()) < 3 or e not in whole:
+            return [f'The proof excerpt "{str(ex)[:60]}" is not copied word for word from the passage. ' + ask]
+        found.append(next((i for i, x in enumerate(sentences) if e in x), -1))
+    if len({i for i in found if i >= 0}) < 2:
+        return ["Both proof excerpts come from the same sentence, so the correct answer only restates it. Base the "
+                "correct answer on two different sentences that a student must connect."]
+    return []
+
+
+def key_echo_problems(passage: str, choices: dict, answer: str) -> list[str]:
+    """At medium/hard, the correct answer should not copy the passage's wording more than every wrong answer does:
+    the word-matching choice should be a trap (Reiteration), and the key a conclusion in new words."""
+    def cw(text: str) -> list[str]:
+        return [w for w in words(re.sub(r"</?u>", "", text)) if w not in STOP]
+
+    ps = {w[:5] for w in cw(passage)}
+    echo = {k: sum(w[:5] in ps for w in cw(v)) / max(1, len(cw(v))) for k, v in choices.items()}
+    if answer in echo and len(echo) == 4 and echo[answer] > max(v for k, v in echo.items() if k != answer):
+        return ["The correct answer copies the passage's wording more than any wrong answer, so a student can match "
+                "words instead of reading. Reword the correct answer as a conclusion in new words, and let a wrong "
+                "answer (Reiteration) borrow the passage's wording instead."]
+    return []
+
+
 def fingerprint(passage: str, stem: str) -> str:
     """Short key that matches a question in questions.json back to its quality-log entry."""
     return " ".join((re.sub(r"</?u>", "", passage) + " " + stem).lower().split())[:160]
@@ -933,9 +977,12 @@ def probe_votes(ask, stem: str, choices: dict[str, str], answer: str, runs: int 
 
 def probe_feedback(hits: list[bool]) -> str:
     return (f"A test-taker who could NOT see the passage still picked the correct answer {sum(hits)} of "
-            f"{len(hits)} times, using only the choices. The key stands out on its own (it may be the most "
-            f"balanced, the most hedged, the most complete, or the only one that sounds reasonable). Rewrite "
-            f"the wrong answers so each one sounds just as reasonable as the key until you check the passage.")
+            f"{len(hits)} times, using only the choices. The key stands out on its own: it may say what students "
+            f"already believe about the topic, be the most balanced or complete choice, or be the choice the others "
+            f"are variations of. You may change what the correct answer says, not only the wrong answers: make it a "
+            f"less obvious conclusion that only the passage supports (connect two of its sentences), and give the "
+            f"common-sense or word-matching answer to a trap. Each wrong answer must sound just as reasonable as the "
+            f"key until you check the passage.")
 
 
 # ----------------------------------------------------------------------------- CLI

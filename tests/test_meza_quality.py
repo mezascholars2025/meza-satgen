@@ -1237,3 +1237,51 @@ def test_critic_flags_wrong_answers_that_are_obvious_without_the_passage():
     v["C"] = dict(v["C"], obvious=True)
     assert any("wording alone" in x for x in trap_critic_problems(v, "A", "hard", "inf"))
     assert trap_critic_problems(v, "A", "easy", "inf") == []  # easy may keep one plain trap
+
+
+# --- read between the lines (Sebastian, Nov 25) ---
+
+BRIDGE = (
+    "Early wind tests showed that the new footbridge swayed only slightly. Even so, the engineers fitted "
+    "heavy dampers beneath the deck before opening day."
+)
+
+
+def test_proof_must_quote_two_different_sentences():
+    from meza_quality import proof_problems
+
+    good = ["the new footbridge swayed only slightly", "the engineers fitted heavy dampers"]
+    assert proof_problems(BRIDGE, good, "medium") == []
+    assert proof_problems(BRIDGE, None, "easy") == []  # easy may restate one sentence
+    assert proof_problems(BRIDGE, None, "hard")
+    assert any(
+        "same sentence" in x
+        for x in proof_problems(BRIDGE, ["Early wind tests showed", "swayed only slightly"], "hard")
+    )
+    assert any("word for word" in x for x in proof_problems(BRIDGE, ["the bridge barely moved", good[1]], "medium"))
+
+
+def test_key_should_not_copy_the_passage_most():
+    from meza_quality import key_echo_problems
+
+    copying = {
+        "A": "The engineers fitted heavy dampers beneath the deck before opening day.",
+        "B": "The engineers trusted the early wind tests completely.",
+        "C": "The footbridge was closed after opening day.",
+        "D": "The dampers were removed once the sway stopped.",
+    }
+    assert key_echo_problems(BRIDGE, copying, "A")
+    between = dict(copying, B="The engineers were not fully convinced by what the early tests showed.")
+    assert key_echo_problems(BRIDGE, between, "B") == []
+
+
+def test_writer_gets_between_the_lines_steps_at_medium_only(monkeypatch):
+    monkeypatch.setattr(meza_satgen, "LOG_PATH", "")
+    assert '"proof" field' in meza_satgen.BETWEEN_LINES["medium"]
+    assert "never stated" in meza_satgen.BETWEEN_LINES["hard"]
+    assert "proof" not in meza_satgen.BETWEEN_LINES["easy"]
+    writer = FakeWriter()
+    p = meza_satgen.MezaPipeline(writer, FakeSolver(), FakeSolver(), context="rules")
+    p.plan = [5]
+    p.generate(0, "central_ideas_easy")
+    assert "CORRECT ANSWER: at the easy level" in writer.prompts[0]
