@@ -230,6 +230,22 @@ asking," Desmos tips) and example questions he described.
       for k directly, or solve for x and add. Medium: the left group is 2(x + c); hard: 2 or 3 times, c and the
       answer can be negative. Traps: the value of x (the golden rule), the value of 2x + 10, forgetting the factor
       of 2, a sign slip on a constant, the opposite sign.
+    - `reciprocal_ratio` ("If x/4 = 6, what is the value of 4/x?"; medium asks c/x with a different numerator, so
+      the flip alone is not enough): traps are the value of x/4, the value of x, flipping when it doesn't apply.
+      Fraction choices are natural here.
+    - `same_product` ("If 6(4x) = 72, what is the value of 4x?"; medium adds a constant): no need to find x; traps
+      are x itself, dividing by the wrong number, multiplying again, not dividing.
+    - `no_solution_parens` ("(r − 4)x = 9 ... no solution ... value of r?"; medium "(r + 3)x = 7x + 5"): the
+      x-coefficient must be 0 (or match the other side); traps are the wrong sign, setting the coefficient equal to
+      the constant or to 1, ignoring the number in the parentheses.
+    - `no_solution_k` ("3(kx − 2) = 5x + 1 ... no solution ... value of k?"): set the x-coefficients equal, 3k = 5;
+      medium k is a whole number, hard a fraction; traps forget the 3, flip the fraction, multiply, or flip the sign.
+    - `how_many_solutions` (both sides built up; "How many solutions does the given equation have?"): choices are
+      always Zero / Exactly one / Exactly two / Infinitely many in that order; the key is decided by whether the
+      x-coefficients and constants match. Hard adds an x-term to each side.
+    - `infinite_two_constants` ("a(2x + 3) + 4x = 14x + b ... infinitely many solutions ... value of b / a / a + b?"):
+      match the x-terms to find a, then the constants to find b. Medium has no extra x-term; hard adds it and can
+      ask for a + b.
   - Equations are shown on their own line above the question (the `passage` field), as on the SAT. Families with
     choices that are equations or phrases put the key at the letter used least so far in the batch.
     `tests/test_meza_math.py` checks every choice by substitution: only the key solves the equation, makes the

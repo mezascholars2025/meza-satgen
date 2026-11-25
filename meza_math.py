@@ -82,6 +82,9 @@ class MathItem:
     passage: str = ""  # the equation, shown on its own line above the question (as on the SAT)
     positive_only: bool = True  # numeric choices: keep wrong answers positive (word problems, counts)
     key_text: str = ""  # for choices that are equations or phrases instead of numbers
+    fractions_ok: bool = False  # fraction wrong choices are natural here (fraction answers)
+    fixed_choices: list[str] | None = None  # text choices in a set order ("Zero", "Exactly one", ...)
+    truth: dict | None = None  # values of the constants behind the question (for tests)
 
     def build_choices(self, rng: random.Random, used: dict[str, int] | None = None) -> None:
         """Four numeric choices in ascending order (as on the SAT): the answer plus three distinct real mistakes. The
@@ -93,7 +96,8 @@ class MathItem:
         if self.key_text:
             self._build_text_choices(rng, used)
             return
-        whole = not (self.family == "expression_value" and self.level == "medium")  # there, x itself is the trap
+        # there, x itself is the trap
+        whole = not (self.fractions_ok or self.family == "expression_value" and self.level == "medium")
         seen, real = {self.answer}, []
         for value, why in self.mistakes:
             ok_sign = value > 0 if self.positive_only else value != 0 or self.answer == 0
@@ -129,6 +133,14 @@ class MathItem:
     def _build_text_choices(self, rng: random.Random, used: dict[str, int] | None) -> None:
         """Equations or phrases: the key goes to the letter used least so far; the three most common mistakes fill
         the other letters in random order."""
+        if self.fixed_choices:  # a set list in a set order; the key's letter follows from the list
+            self.choices = dict(zip("ABCD", self.fixed_choices, strict=True))
+            self.key = next(k for k, v in self.choices.items() if v == self.key_text)
+            why = dict(self.mistakes)
+            self.mistakes = [(v, why[v]) for v in self.fixed_choices if v != self.key_text]
+            if used is not None:
+                used[self.key] = used.get(self.key, 0) + 1
+            return
         wrong, seen = [], {self.key_text}
         for text, why in self.mistakes:
             if text not in seen:
@@ -953,6 +965,306 @@ def in_terms_of(rng: random.Random, level: str, fmt: str) -> MathItem:
     )
 
 
+def nz(lo: int, hi: int) -> list[int]:
+    """The nonzero integers from lo to hi."""
+    return [n for n in range(lo, hi + 1) if n]
+
+
+def reciprocal_ratio(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'If x/4 = 6, what is the value of 4/x?' (easy: the flip shortcut gives 1/6). Medium asks for c/x with a different
+    numerator, so the flip alone is not enough."""
+    while True:
+        a, b = rng.randint(2, 12), rng.randint(2, 12)
+        x = a * b
+        c = a if level == "easy" else rng.choice([n for n in range(2, 31) if n != a])
+        ans = Fraction(c, x)
+        if level == "easy" or (ans != Fraction(1, b) and ans.denominator != 1):
+            break
+    stem = f"If x/{a} = {b}, what is the value of {c}/x?"
+    mistakes = [
+        (Fraction(b), f"this is the value of x/{a}, not {c}/x"),
+        (Fraction(x), f"this is the value of x; the question asks for {c}/x"),
+        (Fraction(a, b), f"this divides {a} by {b} instead of finding x first"),
+        (Fraction(b, a), f"this divides {b} by {a}, as if x/{a} = {b} meant x = {b}/{a}"),
+        (Fraction(c * b, a) if c != a else Fraction(c, b * b), "this mixes up which number to divide by"),
+    ]
+    if c != a:
+        mistakes.insert(0, (Fraction(1, b), f"this flips x/{a} = {b}, which gives {a}/x, not {c}/x"))
+        mistakes.insert(2, (Fraction(c, b), f"this divides {c} by {b} instead of by x"))
+    steps = [f"Multiply both sides by {a}: x = {a}({b}) = {x}.", f"So {c}/x = {c}/{x} = {num(ans)}."]
+    if c == a:
+        steps.append(f"Shortcut: {a}/x is x/{a} flipped, so it equals 1/{b}.")
+    return MathItem("reciprocal_ratio", SKILL, level, fmt, stem, ans, steps, mistakes, fractions_ok=True)
+
+
+def same_product(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'If 6(4x) = 72, what is the value of 4x?'  No need to find x. Medium adds a constant: '6(4x) − 9 = 63'."""
+    while True:
+        a, b, x = rng.randint(2, 9), rng.randint(2, 9), rng.randint(2, 12)
+        d = rng.choice(nz(-20, 20)) if level == "medium" else 0
+        u = b * x
+        c = a * u + d
+        if a != b and c > 0 and abs(d) != a:
+            break
+    left = f"{a}({b}x)" + (plus(d) if d else "")
+    stem = f"If {left} = {c}, what is the value of {b}x?"
+    mistakes = [
+        (Fraction(x), f"this is the value of x; the question asks for {b}x"),
+        (Fraction(c - d, b), f"this divides by {b} instead of by {a}"),
+        (Fraction(u * b), f"this multiplies by {b} again"),
+        (
+            Fraction(c - a) if not d else Fraction(c + d, a),
+            "this subtracts instead of dividing"
+            if not d
+            else f"this {'adds' if d > 0 else 'subtracts'} {num(abs(d))} instead of "
+            f"{'subtracting' if d > 0 else 'adding'} it",
+        ),
+        (Fraction(c - d), f"this stops before dividing by {a}"),
+    ]
+    steps = ([f"{'Subtract' if d > 0 else 'Add'} {num(abs(d))}: {a}({b}x) = {num(c - d)}."] if d else []) + [
+        f"Divide both sides by {a}: {b}x = {num(c - d)} ÷ {a} = {u}. There is no need to find x."
+    ]
+    return MathItem("same_product", SKILL, level, fmt, stem, Fraction(u), steps, mistakes)
+
+
+def no_solution_parens(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'(r − 4)x = 9 ... r is a constant ... no solution ... value of r?'  No solution means the x-coefficient is 0
+    (and the constant is not). Medium has x on both sides: '(r + 3)x = 7x + 5' means r + 3 = 7."""
+    r = rng.choice(["r", "k", "a", "m", "c"])
+    while True:
+        a = rng.choice(nz(-12, 12))
+        b = rng.choice(nz(-20, 30))
+        cc = rng.randint(2, 12) if level == "medium" else 0
+        ans = cc - a
+        if ans and abs(a) >= 2 and len({ans, -ans, b, cc}) == 4:
+            break
+    inner = f"{r}{plus(a)}"
+    if level == "easy":
+        passage = f"({inner})x = {num(b)}"
+        mistakes = [
+            (Fraction(-ans), "this has the right size but the wrong sign"),
+            (Fraction(b), "this is the right side of the equation"),
+            (Fraction(b - a), f"this sets {inner} equal to {num(b)} instead of 0"),
+            (Fraction(1 - a), f"this sets {inner} equal to 1 instead of 0"),
+        ]
+        steps = [
+            f"If {inner} = 0, the left side is 0 for every x, but the right side is {num(b)}, so there is no "
+            f"solution. Any other value of {r} gives exactly one solution.",
+            f"{inner} = 0 means {r} = {num(ans)}.",
+        ]
+    else:
+        passage = f"({inner})x = {lin(cc, b)}"
+        mistakes = [
+            (Fraction(cc), f"this sets {r} equal to {cc}, ignoring the {num(a)}"),
+            (Fraction(cc + a), f"this moves the {num(a)} without changing its sign"),
+            (Fraction(-ans), "this has the right size but the wrong sign"),
+            (Fraction(b), "this is the constant on the right side"),
+        ]
+        steps = [
+            f"No solution means the x-terms must cancel while the constants differ (0 = {num(b)}).",
+            f"The x-coefficients are equal when {inner} = {cc}, so {r} = {num(ans)}.",
+        ]
+    stem = f"In the given equation, {r} is a constant. If the equation has no solution, what is the value of {r}?"
+    return MathItem(
+        "no_solution_parens",
+        SKILL,
+        level,
+        fmt,
+        stem,
+        Fraction(ans),
+        steps,
+        mistakes,
+        passage=passage,
+        positive_only=False,
+    )
+
+
+def no_solution_k(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'3(kx − 2) = 5x + 1 ... k is a constant ... no solution ... value of k?'  Set the x-coefficients equal:
+    3k = 5, so k = 5/3. Medium: k is a whole number. Hard: k is a fraction."""
+    k = rng.choice(["k", "a", "b", "p"])
+    while True:
+        a, b = rng.randint(2, 7), rng.choice(nz(-12, 12))
+        cc = a * rng.randint(1, 6) if level == "medium" else rng.choice([n for n in range(2, 20) if n % a])
+        d = rng.choice(nz(-20, 20))
+        ans = Fraction(cc, a)
+        if d != -a * b and ans not in (cc, a * cc):
+            break
+    passage = f"{a}({k}x{plus(-b)}) = {lin(cc, d)}"
+    stem = f"In the given equation, {k} is a constant. The equation has no solution. What is the value of {k}?"
+    mistakes = [
+        (Fraction(cc), f"this forgets that {k}x is multiplied by {a}"),
+        (Fraction(a, cc), f"this divides {a} by {cc} instead of {cc} by {a}"),
+        (Fraction(a * cc), f"this multiplies {cc} by {a} instead of dividing"),
+        (Fraction(cc - a), f"this subtracts {a} instead of dividing by {a}"),
+        (-ans, "this has the right size but the wrong sign"),
+    ]
+    steps = [
+        f"Distribute: {a}{k}x{plus(-a * b)} = {lin(cc, d)}.",
+        f"No solution means the x-terms cancel but the constants differ ({num(-a * b)} ≠ {num(d)}), so the "
+        f"x-coefficients are equal: {a}{k} = {cc}.",
+        f"So {k} = {num(ans)}.",
+    ]
+    return MathItem(
+        "no_solution_k",
+        SKILL,
+        level,
+        fmt,
+        stem,
+        ans,
+        steps,
+        mistakes,
+        passage=passage,
+        positive_only=False,
+        fractions_ok=ans.denominator != 1,
+    )
+
+
+SOLUTION_COUNTS = ["Zero", "Exactly one", "Exactly two", "Infinitely many"]
+
+
+def how_many_solutions(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """Both sides built up; 'How many solutions does the given equation have?'  The answer is zero, exactly one, or
+    infinitely many, depending on whether the x-coefficients and the constants match. Hard adds an x-term to each
+    side, so more simplifying is needed."""
+    case = rng.choice(["Zero", "Exactly one", "Infinitely many"])
+    while True:
+        a, p_, q = rng.randint(2, 6), rng.randint(1, 4), rng.choice(nz(-9, 9))
+        r_ = rng.choice(nz(-5, 5)) if level == "hard" else 0
+        s_ = rng.choice(nz(-12, 12))
+        A, B = a * p_ + r_, a * q + s_
+        A2 = A + rng.choice(nz(-4, 4)) if case == "Exactly one" else A
+        B2 = B + rng.choice(nz(-9, 9)) if case == "Zero" else (B if case == "Infinitely many" else rng.randint(-20, 20))
+        t, u = rng.randint(2, 5), rng.randint(1, 3)
+        w = A2 - t * u if level == "hard" else 0
+        v = rng.choice(nz(-9, 9))
+        z = B2 - t * v
+        if A and A2 and (level != "hard" or w) and z and (level == "hard" or A2 % t == 0):
+            if level != "hard":
+                u = A2 // t
+            if u:
+                break
+    left = f"{a}({lin(p_, q)})" + (f" + {term(r_)}" if r_ > 0 else f" {MINUS} {term(-r_)}" if r_ else "") + plus(s_)
+    right = f"{t}({lin(u, v)})" + (f" + {term(w)}" if w > 0 else f" {MINUS} {term(-w)}" if w else "") + plus(z)
+    passage = f"{left} = {right}"
+    why = {
+        "Zero": (
+            f"the x-coefficients ({A} and {A2}) are different, so there is a solution"
+            if A != A2
+            else "the constants match too, so every x works"
+        ),
+        "Exactly one": (f"the x-terms cancel ({A}x on both sides), so x can't be solved for" if A == A2 else ""),
+        "Exactly two": "an equation like this, with no x², can't have exactly two solutions",
+        "Infinitely many": (
+            f"the x-coefficients ({A} and {A2}) are different"
+            if A != A2
+            else f"the constants are different ({num(B)} and {num(B2)})"
+        ),
+    }
+    mistakes = [(c, why[c]) for c in SOLUTION_COUNTS if c != case]
+    simple = f"{lin(A, B)} = {lin(A2, B2)}"
+    verdict = {
+        "Exactly one": f"The x-coefficients differ ({A} and {A2}), so there is exactly one solution.",
+        "Zero": f"The x-terms cancel, leaving {num(B)} = {num(B2)}, which is false: no solution.",
+        "Infinitely many": "Both sides are the same expression, so every x is a solution.",
+    }[case]
+    steps = [f"Simplify each side: {simple}.", verdict]
+    return MathItem(
+        "how_many_solutions",
+        SKILL,
+        level,
+        "mcq",
+        "How many solutions does the given equation have?",
+        Fraction(0),
+        steps,
+        mistakes,
+        passage=passage,
+        key_text=case,
+        fixed_choices=SOLUTION_COUNTS,
+    )
+
+
+PAIRS = [("a", "b"), ("h", "k"), ("m", "n"), ("p", "q")]
+
+
+def infinite_two_constants(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'a(2x + 3) + 4x = 14x + b ... a and b are constants ... infinitely many solutions ... value of b?'  Match the
+    x-terms (2a + 4 = 14, so a = 5), then the constants (b = 3a = 15). Medium has no extra x-term and asks for a or
+    b; hard adds the x-term and can ask for a + b."""
+    c1, c2 = rng.choice(PAIRS)
+    while True:
+        a_, p_, q = rng.randint(2, 9), rng.randint(1, 4), rng.choice(nz(-9, 9))
+        r_ = rng.choice(nz(-6, 6)) if level == "hard" else 0
+        C = p_ * a_ + r_
+        b_ = q * a_
+        if C > 0:
+            break
+    ask = rng.choice([c1, c2]) if level != "hard" else rng.choice([c2, f"{c1} + {c2}"])
+    value = {c1: a_, c2: b_, f"{c1} + {c2}": a_ + b_}[ask]
+    left = f"{c1}({lin(p_, q)})" + (f" + {term(r_)}" if r_ > 0 else f" {MINUS} {term(-r_)}" if r_ else "")
+    passage = f"{left} = {lin(C, 0)} + {c2}"
+    stem = (
+        f"In the given equation, {c1} and {c2} are constants. If the equation has infinitely many solutions, "
+        f"what is the value of {ask}?"
+    )
+    a_wrong = Fraction(C, p_)  # leaves out the r term
+    mistakes = {
+        c1: [
+            (Fraction(b_), f"this is the value of {c2}, not {c1}"),
+            (
+                a_wrong if r_ else Fraction(C),
+                f"this leaves out the {term(r_)} term" if r_ else f"this forgets to divide by {p_}",
+            ),
+            (
+                Fraction(C + r_, p_) if r_ else Fraction(C - p_),
+                f"this moves the {term(r_)} with the wrong sign" if r_ else f"this subtracts {p_} instead of dividing",
+            ),
+            (Fraction(-a_), "this has the right size but the wrong sign"),
+        ],
+        c2: [
+            (Fraction(a_), f"this is the value of {c1}, not {c2}"),
+            (Fraction(q), f"this matches the constants before multiplying by {c1}"),
+            (
+                q * a_wrong if r_ else Fraction(q * C),
+                f"this finds {c1} without the {term(r_)} term"
+                if r_
+                else f"this multiplies {num(q)} by {C} instead of by {c1}",
+            ),
+            (Fraction(-b_), "this has the right size but the wrong sign"),
+        ],
+    }
+    mistakes[f"{c1} + {c2}"] = [
+        (Fraction(a_), f"this is only {c1}"),
+        (Fraction(b_), f"this is only {c2}"),
+        (Fraction(a_ * b_), f"this multiplies {c1} and {c2} instead of adding"),
+        (Fraction(a_ - b_), f"this subtracts {c2} instead of adding it"),
+    ]
+    xr = f" + {term(r_)}" if r_ > 0 else f" {MINUS} {term(-r_)}" if r_ else ""
+    const = f" + {num(q)}{c1}" if q > 0 else f" {MINUS} {num(-q)}{c1}"
+    steps = [
+        f"Distribute: {p_ if p_ != 1 else ''}{c1}x{const}{xr} = {lin(C, 0)} + {c2}.",
+        f"Infinitely many solutions means the x-terms match: {p_ if p_ != 1 else ''}{c1}{plus(r_) if r_ else ''} "
+        f"= {C}, so {c1} = {a_}.",
+        f"The constants match too: {c2} = {num(q)}{c1} = {num(q)}({a_}) = {num(b_)}.",
+    ]
+    if ask == f"{c1} + {c2}":
+        steps.append(f"So {c1} + {c2} = {a_} + {num(b_)} = {num(a_ + b_)}.")
+    item = MathItem(
+        "infinite_two_constants",
+        SKILL,
+        level,
+        fmt,
+        stem,
+        Fraction(value),
+        steps,
+        mistakes[ask],
+        passage=passage,
+        positive_only=False,
+    )
+    item.truth = {c1: a_, c2: b_}
+    return item
+
+
 FAMILY_LEVELS = {
     "expression_value": LEVELS,
     "linear_rate": LEVELS,
@@ -964,6 +1276,12 @@ FAMILY_LEVELS = {
     "payment_equation": ("easy", "medium"),
     "interpret_parts": ("easy", "medium"),
     "in_terms_of": ("medium", "hard"),
+    "reciprocal_ratio": ("easy", "medium"),
+    "same_product": ("easy", "medium"),
+    "no_solution_parens": ("easy", "medium"),
+    "no_solution_k": ("medium", "hard"),
+    "how_many_solutions": ("medium", "hard"),
+    "infinite_two_constants": ("medium", "hard"),
 }
 
 FAMILIES = {
@@ -977,6 +1295,12 @@ FAMILIES = {
     "payment_equation": payment_equation,
     "interpret_parts": interpret_parts,
     "in_terms_of": in_terms_of,
+    "reciprocal_ratio": reciprocal_ratio,
+    "same_product": same_product,
+    "no_solution_parens": no_solution_parens,
+    "no_solution_k": no_solution_k,
+    "how_many_solutions": how_many_solutions,
+    "infinite_two_constants": infinite_two_constants,
 }
 
 

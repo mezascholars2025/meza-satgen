@@ -81,7 +81,7 @@ def test_choices_are_four_real_mistakes_in_ascending_order():
                 vals = [value(v) for v in item.choices.values()]
                 assert vals == sorted(vals) and (min(vals) > 0 or not item.positive_only)
                 filler += sum("arithmetic slip" in w for _, w in item.mistakes)
-                if level != "medium" or item.family != "expression_value":
+                if not item.fractions_ok and (level != "medium" or item.family != "expression_value"):
                     assert all(v.denominator == 1 for v in vals)  # no stray fraction among whole numbers
     assert filler / total < 0.05
     assert min(used.values()) / max(used.values()) > 0.8  # keys spread over A-D across a mixed batch
@@ -231,3 +231,51 @@ def test_in_terms_of_only_the_key_gives_a_solution():
         for k, text in item.choices.items():
             x = value(text) - c  # this choice as the value of the group means x = choice − c
             assert (evaluate(left, x=x) == evaluate(right, x=x)) == (k == item.key), (item.passage, text)
+
+
+def classify(left: str, right: str, **consts) -> str:
+    """'Zero', 'Exactly one', or 'Infinitely many' for a linear equation in x."""
+    f0 = evaluate(left, x=0, **consts) - evaluate(right, x=0, **consts)
+    slope = evaluate(left, x=1, **consts) - evaluate(right, x=1, **consts) - f0
+    return "Exactly one" if slope else ("Infinitely many" if f0 == 0 else "Zero")
+
+
+def test_reciprocal_and_same_product_keys():
+    for item in gen("reciprocal_ratio"):
+        a, b, c = map(int, re.match(r"If x/(\d+) = (\d+), what is the value of (\d+)/x\?", item.stem).groups())
+        for k, text in item.choices.items():
+            assert (value(text) == Fraction(c, a * b)) == (k == item.key)
+    for item in gen("same_product"):
+        left, c = re.match(r"If (.+) = (\d+), what is the value of", item.stem).groups()
+        b = int(re.search(r"\((\d+)x\)", left).group(1))
+        x = next(Fraction(x) for x in range(1, 200) if evaluate(left, x=x) == int(c))
+        for k, text in item.choices.items():
+            assert (value(text) == b * x) == (k == item.key)
+
+
+def test_no_solution_keys_are_the_only_choices_with_no_solution():
+    for family in ("no_solution_parens", "no_solution_k"):
+        for item in gen(family):
+            const = re.search(r"equation, (\w) is a constant", item.stem).group(1)
+            left, right = sides(item.passage)
+            for k, text in item.choices.items():
+                got = classify(left, right, **{const: value(text)})
+                assert (got == "Zero") == (k == item.key), (item.passage, text, got)
+
+
+def test_how_many_solutions_key_matches_the_equation():
+    seen = set()
+    for item in gen("how_many_solutions"):
+        assert classify(*sides(item.passage)) == item.choices[item.key]
+        assert list(item.choices.values()) == mm.SOLUTION_COUNTS
+        seen.add(item.choices[item.key])
+    assert seen == {"Zero", "Exactly one", "Infinitely many"}
+
+
+def test_infinite_two_constants_truth_makes_both_sides_identical():
+    for item in gen("infinite_two_constants"):
+        left, right = sides(item.passage)
+        assert classify(left, right, **item.truth) == "Infinitely many"
+        asked = re.search(r"value of (.+)\?", item.stem).group(1)
+        assert value(item.choices[item.key]) == evaluate(asked, **item.truth)
+        assert sum(value(t) == evaluate(asked, **item.truth) for t in item.choices.values()) == 1
