@@ -72,7 +72,7 @@ def test_choices_are_four_real_mistakes_in_ascending_order():
         for name, fam in mm.FAMILIES.items():
             for level in mm.FAMILY_LEVELS[name]:
                 item = fam(rng, level, "mcq")
-                item.build_choices(rng, used)
+                item.build_choices(rng, used, order="ascending")
                 assert len(set(item.choices.values())) == 4
                 assert len(item.mistakes) == 3 and all(w for _, w in item.mistakes)
                 total += 1
@@ -858,3 +858,31 @@ def test_every_family_spreads_its_key_over_at_least_three_letters():
         total = sum(used.values())
         shares = sorted(used.get(k, 0) / total for k in "ABCD")
         assert shares[1] >= 0.1, (name, used)  # three letters at 10% or more each
+
+
+def test_random_order_puts_the_answer_on_any_letter():
+    """The default (Sebastian, Nov 25): number choices in random order, so every family uses all four letters."""
+    assert mm.CHOICE_ORDER == "random"
+    filler = total = 0
+    for name, fam in mm.FAMILIES.items():
+        used: dict[str, int] = {}
+        for seed in range(120):
+            rng = random.Random(seed)
+            for level in mm.FAMILY_LEVELS[name]:
+                item = fam(rng, level, "mcq")
+                item.build_choices(rng, used)
+                assert len(set(item.choices.values())) == 4 and len(item.mistakes) == 3
+                if item.key_text or item.fixed_choices:
+                    continue
+                show = mm.dec if item.decimals else mm.num
+                assert item.choices[item.key] == show(item.answer)
+                assert sorted(v for k, v in item.choices.items() if k != item.key) == sorted(
+                    show(v) for v, _ in item.mistakes
+                )
+                total += 1
+                filler += sum("arithmetic slip" in w for _, w in item.mistakes)
+        if name == "how_many_solutions":  # a fixed list: Zero / Exactly one / Exactly two / Infinitely many
+            continue
+        shares = [used.get(k, 0) / sum(used.values()) for k in "ABCD"]
+        assert min(shares) >= 0.2, (name, used)
+    assert filler / total < 0.05

@@ -369,19 +369,18 @@ asking," Desmos tips) and example questions he described.
   - Graphs now also come in the full xy-plane (axes through the origin, −8 to 8, "x"/"y" and O), and two lines on a
     real-world graph get a key below it (solid and dashed). A choice that is a table or a system renders as one in
     review.html. Tests solve every system and check every choice independently.
-- **Where the answer lands (Sebastian, Nov 25).** Equation, phrase, table, and system choices: the key goes to the
-  letter used least so far in the batch (random among ties), so it is evenly spread. Number choices are listed in
-  ascending order, as on the SAT, so the letter follows from the values: the generator picks which real mistakes to
-  show so the key lands on the least-used letter it can reach. A test requires every family to use at least three
-  letters (10%+ each). Eight families still rarely put the key at D (ineq_max_word, tradeoff, word_solve,
-  system_cancel_letters, reciprocal_ratio, same_product, no_solution_k, system_times_more) because their real
-  mistakes almost all make the number bigger; how_many_solutions never uses C because "Exactly two" is never right.
-  A mixed batch is still even overall.
-- **Choices.** Numbers in ascending order, as on the SAT. A whole-number answer gets whole-number wrong choices (a
-  stray fraction stands out), except medium `expression_value`, where x itself is the trap. Keys: among the letters
-  the real mistakes can produce, each question takes the letter used least so far in the batch, so keys spread over
-  A-D without filler; a labeled near miss fills in only when fewer than three real mistakes exist (under 6% of
-  questions). About 1 in 4 questions is grid-in (student-produced response).
+- **Where the answer lands (Sebastian, Nov 25): random by default.** Every question's answer goes to the letter
+  used least so far in the batch (ties broken at random) and the wrong answers fill the other letters in random
+  order, so any letter can be the answer and a batch is evenly spread. Sebastian chose this over the SAT's habit of
+  listing numbers from least to greatest. `--order ascending` (or `CHOICE_ORDER = "ascending"`) brings back SAT order
+  for full mock tests and for practicing plugging in the choices; in that mode the letter follows from the values,
+  and eight families rarely put the key at D because their real mistakes almost all make the number bigger.
+  how_many_solutions keeps its fixed list (Zero / Exactly one / Exactly two / Infinitely many). Tests: every family
+  uses all four letters (20%+ each) in random mode, and at least three letters in ascending mode.
+- **Choices.** A whole-number answer gets whole-number wrong choices (a stray fraction stands out), except medium
+  `expression_value`, where x itself is the trap. The three most common real mistakes are shown; a labeled near miss
+  fills in only when fewer than three real mistakes exist (under 5% of questions). About 1 in 4 questions is grid-in
+  (student-produced response).
 - **Stories.** Word problems get 4-5 sentences about a named person in a rotating setting (trucker, food bank
   volunteer, print shop, warehouse, baker, farmworker; a batch uses every setting before repeating). The writer model
   (Sonnet; MEZA_MATH_WRITER) wraps the fixed numbers; code checks that every planned number appears exactly once, in

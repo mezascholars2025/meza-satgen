@@ -9,6 +9,8 @@ solver must reach the computed answer, or the plain template story is used inste
     python meza_math.py run --count 8                          # free: no API calls, template stories
     python meza_math.py run --count 8 --ai-stories             # the writer model words the word problems (uses credits)
     python meza_math.py run --count 6 --families linear_rate   # one family only
+    python meza_math.py run --count 20 --order ascending       # number choices least to greatest, as on the SAT
+                                                               # (default: random, so the answer can be any letter)
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ from pathlib import Path
 
 LEVELS = ("easy", "medium", "hard")
 MINUS = "−"  # the SAT prints a true minus sign
+CHOICE_ORDER = "random"  # number choices: "random" (any letter can be the answer) or "ascending" (as on the SAT)
 
 
 # ----------------------------------------------------------------------------- formatting
@@ -104,16 +107,21 @@ class MathItem:
     decimals: bool = False  # show numeric choices as decimals (0.4) instead of fractions (2/5)
     figure: str = ""  # an SVG graph shown between the passage and the question
 
-    def build_choices(self, rng: random.Random, used: dict[str, int] | None = None) -> None:
-        """Four numeric choices in ascending order (as on the SAT): the answer plus three distinct real mistakes. The
-        key's letter follows from where the mistakes fall; among the letters the real mistakes can produce, take the
-        one used least so far in the batch (`used`), so keys spread over A-D without filler. A labeled near miss
-        fills in only when a question has fewer than three real mistakes."""
+    def build_choices(self, rng: random.Random, used: dict[str, int] | None = None, order: str | None = None) -> None:
+        """Four numeric choices: the answer plus three distinct real mistakes (the most common ones). A labeled near
+        miss fills in only when a question has fewer than three real mistakes.
+
+        order="random" (the default, Sebastian, Nov 25): the key goes to the letter used least so far in the batch
+        (`used`, ties broken at random), and the wrong answers fill the other letters in random order, so the answer
+        can land on any letter. order="ascending": numbers from least to greatest, as on the SAT (better for full
+        mock tests and for plugging in the choices); the key's letter then follows from the values, and among the
+        letters the real mistakes can produce, the least-used one is taken."""
         if self.fmt != "mcq":
             return
         if self.key_text:
             self._build_text_choices(rng, used)
             return
+        order = order or CHOICE_ORDER
         # there, x itself is the trap
         whole = not (self.fractions_ok or self.family == "expression_value" and self.level == "medium")
         seen, real = {self.answer}, []
@@ -122,6 +130,25 @@ class MathItem:
             if value not in seen and ok_sign and (value.denominator == 1 or not whole):
                 seen.add(value)
                 real.append((value, why))
+        show = dec if self.decimals else num
+        if order == "random":
+            wrong = list(real[:3])
+            step = max(1, abs(int(self.answer)) // 10)
+            for v in (self.answer + o * step for n in range(1, 60) for o in (n, -n)):
+                if len(wrong) >= 3:
+                    break
+                if v not in seen and (v > 0 or not self.positive_only):
+                    seen.add(v)
+                    wrong.append((v, "an arithmetic slip near the correct value"))
+            used = used if used is not None else {}
+            key = min("ABCD", key=lambda k: (used.get(k, 0), rng.random()))
+            rng.shuffle(wrong)
+            others = iter(wrong)
+            self.choices = {k: show(self.answer) if k == key else show(next(others)[0]) for k in "ABCD"}
+            self.key = key
+            self.mistakes = wrong
+            used[key] = used.get(key, 0) + 1
+            return
         below = sorted([m for m in real if m[0] < self.answer], key=lambda m: m[0])
         above = sorted([m for m in real if m[0] > self.answer], key=lambda m: m[0])
         reachable = [k for k in range(4) if k <= len(below) and 3 - k <= len(above)]
@@ -142,7 +169,6 @@ class MathItem:
                     seen.add(v)
                     wrong.append((v, "an arithmetic slip near the correct value"))
         values = sorted([(self.answer, "")] + wrong[:3], key=lambda v: v[0])
-        show = dec if self.decimals else num
         self.choices = {k: show(v) for k, (v, _) in zip("ABCD", values, strict=True)}
         self.key = next(k for k, (v, _) in zip("ABCD", values, strict=True) if v == self.answer)
         self.mistakes = list(wrong[:3])
@@ -6006,14 +6032,16 @@ def plan(count: int, families: list[str], rng: random.Random) -> list[tuple[str,
     return slots
 
 
-def generate(count: int, families: list[str], seed: int, story: Story | None = None) -> list[MathItem]:
+def generate(
+    count: int, families: list[str], seed: int, story: Story | None = None, order: str | None = None
+) -> list[MathItem]:
     rng = random.Random(seed)
     _FRAME_DECK.clear()
     items = []
     used: dict[str, int] = {}
     for fam, level, fmt in plan(count, families, rng):
         item = FAMILIES[fam](rng, level, fmt)
-        item.build_choices(rng, used)
+        item.build_choices(rng, used, order)
         if story:
             story.tell(item)
         items.append(item)
@@ -6032,6 +6060,13 @@ def main(argv: list[str]) -> int:
         action="store_true",
         help="let the writer model word the word problems (uses API credits); default: free templates",
     )
+    run.add_argument(
+        "--order",
+        choices=("random", "ascending"),
+        default=CHOICE_ORDER,
+        help="number choices: random (any letter can be the answer; default) or ascending (least to greatest, as on "
+        "the SAT)",
+    )
     run.add_argument("--offline", action="store_true", help="kept for old commands; runs are offline by default")
     run.add_argument("--out", type=Path, default=None)
     args = ap.parse_args(argv)
@@ -6044,7 +6079,7 @@ def main(argv: list[str]) -> int:
             claude_caller(os.environ.get("MEZA_MATH_WRITER", "claude-sonnet-5-5")),
             claude_caller(os.environ.get("MEZA_MATH_SOLVER", "claude-haiku-5-5"), temperature=0.0),
         )
-    items = generate(args.count, args.families.split(","), seed, story)
+    items = generate(args.count, args.families.split(","), seed, story, args.order)
     (out / "questions.json").write_text(
         json.dumps([i.to_record() for i in items], indent=2, ensure_ascii=False), encoding="utf-8"
     )
