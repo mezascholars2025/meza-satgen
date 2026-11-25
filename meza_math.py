@@ -2395,6 +2395,7 @@ INTERCEPT_FRAMES = [
         rate="The battery charge decreases by {k} percentage points each hour.",
         slopes=[4, 5, 8, 10],
         xs=range(8, 26),
+        max_b=100,  # a battery starts at 100% or less
     ),
 ]
 
@@ -2408,7 +2409,7 @@ def intercept_meaning(rng: random.Random, level: str, fmt: str) -> MathItem:
         m = Fraction(rng.choice(f["slopes"]))
         x0 = rng.choice(list(f["xs"]))
         b = m * x0
-        if b.denominator == 1 and b != x0:
+        if b.denominator == 1 and b != x0 and b <= f.get("max_b", b):
             break
     which = rng.choice(["x", "y"]) if level == "hard" else "y"
     decimal = m.denominator != 1
@@ -3365,7 +3366,7 @@ TWO_VAR_FRAMES = [
         setup="A freight elevator carries boxes of books that weigh {a} pounds each and boxes of tools that weigh "
         "{b} pounds each.",
         eq="On one trip, the elevator carried x boxes of books and y boxes of tools with a total weight of {c} pounds.",
-        ineq="The elevator can safely carry {dir} {c} pounds of boxes: x boxes of books and y boxes of tools.",
+        ineq="On one trip, the elevator can safely carry {dir} {c} pounds of x boxes of books and y boxes of tools.",
         dirs=("at most", "≤"),
         a=(30, 50),
         b=(55, 80),
@@ -4234,6 +4235,10 @@ def system_coordinate(rng: random.Random, level: str, fmt: str) -> MathItem:
             a1, b1, a2, b2 = (rng.choice(nz(-7, 7)) for _ in range(4))
             if a1 * b2 - a2 * b1 and abs(a1) != abs(a2) and abs(b1) != abs(b2) and min(map(abs, (a1, b1, a2, b2))) > 1:
                 break
+        if a1 < 0 and b1 < 0:  # write −2x − 4y = −46 as 2x + 4y = 46
+            a1, b1 = -a1, -b1
+        if a2 < 0 and b2 < 0:
+            a2, b2 = -a2, -b2
         c1, c2 = a1 * x0 + b1 * y0, a2 * x0 + b2 * y0
         passage = f"{axby(a1, b1, c1)}\n{axby(a2, b2, c2)}"
         steps = [
@@ -6005,14 +6010,36 @@ class Story:
                 return
 
 
+# API list prices in US dollars per million tokens (input, output), Nov 2026; Haiku 5.5: prompts up to 100,000 tokens
+PRICES = {"claude-sonnet-5-5": (2.00, 10.00), "claude-haiku-5-5": (0.10, 0.50), "claude-opus-5-5": (4.00, 20.00)}
+USAGE: dict[str, list[int]] = {}  # model -> [calls, input tokens, output tokens] for this run
+
+
+def usage_report() -> dict:
+    """Tokens and dollars spent on model calls in this run (stories only; the math itself makes no calls)."""
+    out, total = {}, 0.0
+    for model, (calls, tin, tout) in USAGE.items():
+        pin, pout = PRICES.get(model, (0.0, 0.0))
+        cost = tin / 1e6 * pin + tout / 1e6 * pout
+        total += cost
+        out[model] = {"calls": calls, "input_tokens": tin, "output_tokens": tout, "usd": round(cost, 4)}
+    return {"models": out, "total_usd": round(total, 4)}
+
+
 def claude_caller(model: str, temperature: float = 1.0):
-    """A prompt -> text function using satgen's client (it handles models that fix their own sampling)."""
+    """A prompt -> text function using satgen's client (it handles models that fix their own sampling). Every call's
+    tokens are added to USAGE, so a run can report what it cost."""
     from satgen.llm import call_with_retry, make_client
 
     client = make_client(model)
 
     def call(prompt: str) -> str:
-        return call_with_retry(client, prompt, temperature=temperature, json_mode=True)[0]
+        text, tin, tout = call_with_retry(client, prompt, temperature=temperature, json_mode=True)
+        row = USAGE.setdefault(model, [0, 0, 0])
+        row[0] += 1
+        row[1] += tin
+        row[2] += tout
+        return text
 
     return call
 
@@ -6021,12 +6048,17 @@ def claude_caller(model: str, temperature: float = 1.0):
 
 
 def plan(count: int, families: list[str], rng: random.Random) -> list[tuple[str, str, str]]:
-    """Spread families and levels evenly; about 3 in 4 multiple choice (the rest grid-in), as on the test."""
+    """Spread families and levels evenly; about 3 in 4 multiple choice (the rest grid-in), as on the test. The
+    family order is shuffled per run, so a batch smaller than the number of families samples every topic instead of
+    taking the first ones in the list."""
+    families = list(families)
+    rng.shuffle(families)
+    start = {f: rng.randrange(len(FAMILY_LEVELS.get(f, LEVELS))) for f in families}  # small batches mix levels too
     slots = []
     for i in range(count):
         fam = families[i % len(families)]
         levels = FAMILY_LEVELS.get(fam, LEVELS)
-        level = levels[(i // len(families)) % len(levels)]
+        level = levels[(i // len(families) + start[fam]) % len(levels)]
         fmt = "spr" if rng.random() < 0.25 else "mcq"
         slots.append((fam, level, fmt))
     return slots
@@ -6087,6 +6119,14 @@ def main(argv: list[str]) -> int:
         (out / "stories.jsonl").write_text(
             "".join(json.dumps(x, ensure_ascii=False) + "\n" for x in story.log), encoding="utf-8"
         )
+        report = usage_report()
+        (out / "usage.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+        for model, row in report["models"].items():
+            print(
+                f"{model}: {row['calls']} calls, {row['input_tokens']:,} in / {row['output_tokens']:,} out tokens, "
+                f"${row['usd']:.4f}"
+            )
+        print(f"API cost for this run: ${report['total_usd']:.4f}")
     print(f"wrote {len(items)} questions to {out} (seed {seed})")
     import meza_export
 

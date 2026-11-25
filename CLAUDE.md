@@ -390,6 +390,11 @@ asking," Desmos tips) and example questions he described.
   no API calls); AI stories only with `--ai-stories` (Sebastian, Nov 25: work on the generator, not on generating
   batches, to save API credits; test changes offline). First runs: 15 of 16 stories passed on the
   first try. Runs: `runs/math-first`, `runs/math-stories`.
+  Cost (Nov 25 test, 30 questions spread over every topic, 4 of them word problems): 4 Sonnet calls and 12 Haiku
+  calls, $0.0154 in all; all 4 AI stories passed on the first try. A run with `--ai-stories` prints its token use and
+  dollar cost and writes `usage.json` (prices in `PRICES`, per million tokens: Sonnet 5.5 $2 in / $10 out, Haiku 5.5
+  $0.10 / $0.50). Batches shuffle the family order and start each family at a random level, so a 30-question run
+  samples every topic and mixes easy, medium, and hard instead of taking the first 30 families at their first level.
 
 ## Source rule (Sebastian, Nov 24; do not break)
 
