@@ -5938,6 +5938,537 @@ def ineq_system_graph(rng: random.Random, level: str, fmt: str) -> MathItem:
     return item
 
 
+# -------------------------------------------------------- closing out Algebra (Sebastian, Nov 25): six more types
+
+
+def ineq_solve(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """Solve a linear inequality. Easy: '4x − 8 > 12' (x > 5). Medium: a negative coefficient, '−3x + 6 > 21', where
+    dividing by −3 flips the sign (x < −5). Hard: a compound inequality with a negative coefficient,
+    '−11 ≤ −3x + 1 < 7' (−2 < x ≤ 4), where the flip also moves which end is strict. Choices are a 2x2: the right
+    or flipped direction (or strict end) x the right or wrong value."""
+    if level != "hard":
+        a = rng.randint(2, 6) * (1 if level == "easy" else -1)
+        p_, q = rng.choice(nz(-6, 6)), rng.choice(nz(-6, 6))
+        while p_ == 0 or q - p_ == 0 or q + p_ == 0 or q - p_ == -(q + p_):
+            p_, q = rng.choice(nz(-6, 6)), rng.choice(nz(-6, 6))
+        b, c = a * p_, a * q
+        rel = rng.choice(["<", ">", "≤", "≥"])
+        ans, trap = q - p_, q + p_  # x rel' (c − b)/a ; moving b with the wrong sign gives (c + b)/a
+        rel_x = FLIP[rel] if a < 0 else rel
+        stem = f"Which inequality represents all solutions to {linf(a, b)} {rel} {num(c)}?"
+        why_dir = (
+            "dividing by a negative number reverses the inequality sign"
+            if a < 0
+            else "this has the inequality sign backward"
+        )
+        mistakes = grid2(
+            lambda r_, v: f"x {r_} {num(v)}",
+            rel_x,
+            FLIP[rel_x],
+            why_dir,
+            ans,
+            trap,
+            f"this {'adds' if b > 0 else 'subtracts'} {num(abs(b))} instead of "
+            f"{'subtracting' if b > 0 else 'adding'} it",
+        )
+        key = f"x {rel_x} {num(ans)}"
+        steps = [
+            f"{'Subtract' if b > 0 else 'Add'} {num(abs(b))}: {coef(a)} {rel} {num(c - b)}.",
+            f"Divide by {num(a)}" + (" and reverse the sign, because it is negative" if a < 0 else "") + f": {key}.",
+        ]
+        truth = {"a": a, "b": b, "c": c, "rel": rel}
+    else:
+        a = -rng.randint(2, 5)
+        b = rng.choice(nz(-9, 9))
+        while True:
+            lo, hi = sorted(rng.sample(range(-8, 9), 2))
+            if lo + hi != 0 and hi - lo >= 2:
+                break
+        r1, r2 = rng.sample(["<", "≤"], 2)  # different, so the flip visibly moves the strict end
+        L, R = a * hi + b, a * lo + b  # a < 0, so x = hi gives the left (smaller) end
+        stem = f"Which inequality represents all solutions to {num(L)} {r1} {linf(a, b)} {r2} {num(R)}?"
+        key = f"{num(lo)} {r2} x {r1} {num(hi)}"
+        mistakes = grid2(
+            lambda ends, vals: f"{num(vals[0])} {ends[0]} x {ends[1]} {num(vals[1])}",
+            (r2, r1),
+            (r1, r2),
+            "this keeps each sign on its original side; dividing by a negative number reverses "
+            "the inequality, so the ends trade places",
+            (lo, hi),
+            (-hi, -lo),
+            f"this divides by {num(-a)} instead of {num(a)}",
+        )
+        steps = [
+            f"Subtract {num(b)} from all three parts: {num(L - b)} {r1} {coef(a)} {r2} {num(R - b)}."
+            if b > 0
+            else f"Add {num(-b)} to all three parts: {num(L - b)} {r1} {coef(a)} {r2} {num(R - b)}.",
+            f"Divide by {num(a)} and reverse both signs: {num(hi)} {FLIP[r1]} x {FLIP[r2]} {num(lo)}, that is, {key}.",
+        ]
+        truth = {"a": a, "b": b, "L": L, "R": R, "r1": r1, "r2": r2}
+    item = MathItem("ineq_solve", INEQ_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
+    item.truth = truth
+    return item
+
+
+SYS_INEQ_FRAMES = [
+    dict(
+        text="{n} is buying shirts that cost ${a} each and hats that cost ${b} each. {n} wants to buy {cw} {c} "
+        "items and spend {mw} ${M}. Which system of inequalities represents the numbers of shirts, x, and hats, "
+        "y, that {n} could buy?",
+        cw="at least",
+        mw="at most",
+        a=(12, 25),
+        b=(6, 11),
+        c=(5, 12),
+        unit="dollars",
+    ),
+    dict(
+        text="A school club sells adult tickets for ${a} each and student tickets for ${b} each for a show in a room "
+        "that holds {cw} {c} people. The club wants to earn {mw} ${M}. Which system of inequalities represents "
+        "the numbers of adult tickets, x, and student tickets, y, the club could sell?",
+        cw="at most",
+        mw="at least",
+        a=(10, 18),
+        b=(4, 8),
+        c=(80, 150),
+        unit="dollars",
+    ),
+    dict(
+        text="A farmer plans to plant corn and beans on {cw} {c} acres. Each acre of corn needs {a} hours of work, and "
+        "each acre of beans needs {b} hours of work. The farmer has {mw} {M} hours of work available. Which "
+        "system of inequalities represents the numbers of acres of corn, x, and beans, y, the farmer could "
+        "plant?",
+        cw="at most",
+        mw="at most",
+        a=(6, 12),
+        b=(2, 5),
+        c=(20, 60),
+        unit="hours",
+    ),
+]
+SYS_INEQ_HARD = [
+    dict(
+        text="A volunteer is packing food boxes and hygiene kits. Each food box takes {a} minutes to pack, and each "
+        "hygiene kit takes {b} minutes. The volunteer wants to pack more than {c} items in all and has at most "
+        "{H} hours to work. Which system of inequalities represents the numbers of food boxes, x, and hygiene "
+        "kits, y, the volunteer could pack?",
+        crel=">",
+        mrel="≤",
+        a=(8, 15),
+        b=(3, 6),
+        c=(10, 30),
+        H=(4, 8),
+        k=60,
+        small="minutes",
+        big="hours",
+    ),
+    dict(
+        text="A bakery makes loaves of bread and trays of rolls. Each loaf uses {a} ounces of flour, and each tray "
+        "uses {b} ounces. The bakery wants to make fewer than {c} items and has at most {H} pounds of flour "
+        "(1 pound = 16 ounces). Which system of inequalities represents the numbers of loaves, x, and trays, y, "
+        "the bakery could make?",
+        crel="<",
+        mrel="≤",
+        a=(14, 20),
+        b=(6, 10),
+        c=(30, 60),
+        H=(20, 40),
+        k=16,
+        small="ounces",
+        big="pounds",
+    ),
+]
+WORD_REL = {"at least": "≥", "at most": "≤"}
+
+
+def ineq_system_setup(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """A word problem with two conditions: 'at least 10 items' and 'at most $150'. 'Which system of inequalities
+    represents the situation?' (x + y ≥ 10 and 12x + 8y ≤ 150). Hard: 'more than' / 'fewer than' and a limit in a
+    bigger unit (hours, pounds) that must be converted. Choices are a 2x2: the count condition's sign right or
+    flipped x the amount condition right or wrong (prices swapped, or the limit not converted)."""
+    n = rng.choice(NAMES)
+    if level != "hard":
+        f = rng.choice(SYS_INEQ_FRAMES)
+        a, b = rng.randint(*f["a"]), rng.randint(*f["b"])
+        c = rng.randint(*f["c"])
+        M = (a + b) * c // 2 // 10 * 10 or 100
+        crel, mrel = WORD_REL[f["cw"]], WORD_REL[f["mw"]]
+        stem = f["text"].format(n=n, a=a, b=b, c=c, M=num(M), cw=f["cw"], mw=f["mw"])
+        right2, wrong2 = (a, b, M), (b, a, M)
+        why2 = "this swaps the two amounts"
+    else:
+        f = rng.choice(SYS_INEQ_HARD)
+        a, b = rng.randint(*f["a"]), rng.randint(*f["b"])
+        c, H = rng.randint(*f["c"]), rng.randint(*f["H"])
+        M = H * f["k"]
+        crel, mrel = f["crel"], f["mrel"]
+        stem = f["text"].format(a=a, b=b, c=c, H=H)
+        right2, wrong2 = (a, b, M), (a, b, H)
+        why2 = f"this leaves the limit in {f['big']}; the amounts for each item are in {f['small']}"
+
+    def sys_(cr, amt) -> str:
+        p_, q_, lim = amt
+        return f"x + y {cr} {num(c)}\n{coef(p_)} + {coef(q_, 'y')} {mrel} {num(lim)}"
+
+    key = sys_(crel, right2)
+    mistakes = grid2(
+        sys_, crel, FLIP[crel], f"the count condition has the sign backward; it should be {crel}", right2, wrong2, why2
+    )
+    steps = [
+        f"The number of items: x + y {crel} {num(c)}.",
+        f"The total amount: {coef(a)} + {coef(b, 'y')} {mrel} {num(M)}"
+        + (f" ({H} {f['big']} = {num(M)} {f['small']})." if level == "hard" else "."),
+    ]
+    item = MathItem("ineq_system_setup", INEQ_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
+    item.truth = {"c": c, "crel": crel, "a": a, "b": b, "M": M, "mrel": mrel}
+    return item
+
+
+def small_graph(m, b, side: str | None = None, dashed: bool = False) -> str:
+    """A small xy-plane graph (−6 to 6) for answer choices: a line, or a shaded half-plane."""
+    m, b = Fraction(m), Fraction(b)
+    svg = graph_svg(
+        "x",
+        "y",
+        1,
+        6,
+        1,
+        6,
+        lines=[(m, b)],
+        label_every=(2, 2),
+        x_lo=6,
+        y_lo=6,
+        plane=True,
+        shade=[(m, b, side)] if side else (),
+        dashed=(0,) if dashed else (),
+    )
+    return re.sub(r'width="\d+" height="\d+"', 'width="200" height="183"', svg, count=1)
+
+
+def graph_choices(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """The answer choices are graphs. Easy: 'Which graph shows y = −2x + 3?' Medium: the line is given in standard
+    form (2x + 3y = 6). Hard: 'Which graph shows the solutions to y ≤ (1/2)x − 2?' (a shaded region; solid or dashed
+    line). Choices are a 2x2: slope sign x intercept sign (lines), or shaded side x solid/dashed (regions)."""
+    while True:
+        m = Fraction(rng.choice(nz(-3, 3)), 1 if level == "easy" else rng.choice([1, 2]))
+        b = rng.choice(nz(-4, 4))
+        if abs(m) != 1 and abs(b) >= 1 and m.denominator <= 2:
+            break
+    if level != "hard":
+        given = f"y = {linf(m, b)}" if level == "easy" else std_form(m.numerator, m.denominator, b)
+        stem = f"Which graph shows the line {given} in the xy-plane?"
+        cell = {}
+
+        def draw(mm_, bb):
+            g = small_graph(mm_, bb)
+            cell[g] = (mm_, bb)
+            return g
+
+        key = draw(m, b)
+        mistakes = grid2(
+            draw,
+            m,
+            -m,
+            "this line has the slope with the wrong sign",
+            b,
+            -b,
+            "this line crosses the y-axis at the wrong point (the y-intercept's sign is wrong)",
+        )
+        steps = [
+            (f"Solve for y: y = {linf(m, b)}. " if level == "medium" else "")
+            + f"The line crosses the y-axis at (0, {num(b)}) and has slope {num(m)}.",
+            f"So it {'rises' if m > 0 else 'falls'} from left to right through (0, {num(b)}).",
+        ]
+        truth = {"m": m, "b": b}
+    else:
+        above, strict = rng.random() < 0.5, rng.random() < 0.5
+        rel = (">" if strict else "≥") if above else ("<" if strict else "≤")
+        stem = f"Which graph shows the solutions to y {rel} {linf(m, b)} in the xy-plane?"
+        cell = {}
+
+        def draw(side, dash):
+            g = small_graph(m, b, side, dash)
+            cell[g] = (side, dash)
+            return g
+
+        sd, other = ("above", "below") if above else ("below", "above")
+        key = draw(sd, strict)
+        mistakes = grid2(
+            draw,
+            sd,
+            other,
+            f"the shading should be {sd} the line for y {rel}",
+            strict,
+            not strict,
+            "a dashed line is for < or >, and a solid line is for ≤ or ≥",
+        )
+        steps = [
+            f"The boundary is y = {linf(m, b)}.",
+            f"{'Strict' if strict else 'Not strict'}, so the line is {'dashed' if strict else 'solid'}; "
+            f"y {rel} means shading {sd} the line.",
+        ]
+        truth = {"m": m, "b": b, "side": sd, "dashed": strict}
+    item = MathItem(
+        "graph_choices",
+        FUNC_SKILL if level != "hard" else INEQ_SKILL,
+        level,
+        "mcq",
+        stem,
+        Fraction(0),
+        steps,
+        mistakes,
+        key_text=key,
+    )
+    item.truth = {**truth, "cells": cell}
+    return item
+
+
+def function_notation(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """Easy: 'f(x) = 3x − 5. Which expression is equal to f(x + 2)?' (3x + 1). Medium: 'g(x) = 2f(x) − 1. Which
+    equation defines g?' (6x − 11). Hard: 'f(x) = 2x + 1 and g(x) = x − 4. What is the value of f(g(5))?' Traps: adding
+    outside instead of inside, forgetting to multiply the constant, the functions in the wrong order, the product or
+    sum of the two values."""
+    a = rng.choice([v for v in nz(-6, 7) if abs(v) > 1])
+    b = rng.choice(nz(-9, 9))
+    letter = rng.choice(["f", "h", "p"])
+    if level == "easy":
+        while True:
+            c = rng.choice(nz(-5, 5))
+            key = linf(a, a * c + b)
+            pool = [
+                (
+                    linf(a, b + c),
+                    f"this {'adds' if c > 0 else 'subtracts'} {num(abs(c))} "
+                    f"{'to' if c > 0 else 'from'} the output instead of putting x {plus(c).strip()} in "
+                    "for x",
+                ),
+                (linf(a, b - a * c), f"this uses x {plus(-c).strip()}: the sign of {num(abs(c))} is wrong"),
+                (linf(a, a * c), f"this leaves out the {num(b)}"),
+                (linf(a, a * c - b), f"this changes the sign of the {num(b)}"),
+            ]
+            if len({t for t, _ in pool} - {key}) >= 3:
+                break
+        arg = f"x + {c}" if c > 0 else f"x {MINUS} {-c}"
+        stem = (
+            f"The function {letter} is defined by {letter}(x) = {linf(a, b)}. Which expression is equal to "
+            f"{letter}({arg})?"
+        )
+        steps = [
+            f"{letter}({arg}) = {num(a)}({arg}) {plus(b).strip()} = {coef(a)} {plus(a * c).strip()} "
+            f"{plus(b).strip()} = {key}."
+        ]
+        mistakes = [(t, w) for t, w in pool if t != key]
+        item = MathItem("function_notation", FUNC_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
+        item.truth = {"kind": "shift", "a": a, "b": b, "c": c}
+        return item
+    if level == "medium":
+        k = rng.choice([v for v in nz(-4, 4) if abs(v) > 1])
+        d = rng.choice(nz(-9, 9))
+        g = "g" if letter != "g" else "q"
+        stem = (
+            f"The function {letter} is defined by {letter}(x) = {linf(a, b)}, and the function {g} is defined by "
+            f"{g}(x) = {num(k)}{letter}(x) {plus(d).strip()}. Which equation defines {g}?"
+        )
+        key = f"{g}(x) = {linf(k * a, k * b + d)}"
+        pool = [
+            (
+                f"{g}(x) = {linf(k * a, b + d)}",
+                f"this multiplies only the x-term by {num(k)}, not the constant {num(b)}",
+            ),
+            (f"{g}(x) = {linf(k * a, k * b)}", f"this leaves out the {num(d)}"),
+            (f"{g}(x) = {linf(k * a, k * (b + d))}", f"this multiplies the {num(d)} by {num(k)} too"),
+            (f"{g}(x) = {linf(a, k * b + d)}", f"this multiplies only the constant by {num(k)}"),
+        ]
+        steps = [
+            f"{g}(x) = {num(k)}({linf(a, b)}) {plus(d).strip()} = {linf(k * a, k * b)} {plus(d).strip()} = "
+            f"{key.split(' = ')[1]}."
+        ]
+        mistakes = [(t, w) for t, w in pool if t != key]
+        item = MathItem("function_notation", FUNC_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
+        item.truth = {"kind": "scale", "a": a, "b": b, "k": k, "d": d}
+        return item
+    a2, b2 = rng.choice([v for v in nz(-4, 4) if abs(v) > 1]), rng.choice(nz(-6, 6))
+    n0 = rng.choice(nz(-5, 6))
+    f_, g_ = (lambda x: a * x + b), (lambda x: a2 * x + b2)
+    ans = Fraction(f_(g_(n0)))
+    stem = (
+        f"The functions f and g are defined by f(x) = {linf(a, b)} and g(x) = {linf(a2, b2)}. What is the value of "
+        f"f(g({num(n0)}))?"
+    )
+    mistakes = [
+        (Fraction(g_(f_(n0))), "this is g(f(" + num(n0) + ")): the functions are in the wrong order"),
+        (Fraction(f_(n0) * g_(n0)), "this multiplies f(" + num(n0) + ") and g(" + num(n0) + ")"),
+        (Fraction(f_(n0) + g_(n0)), "this adds f(" + num(n0) + ") and g(" + num(n0) + ")"),
+        (Fraction(g_(n0)), "this is g(" + num(n0) + "), only the first step"),
+    ]
+    steps = [
+        f"g({num(n0)}) = {num(a2)}({num(n0)}) {plus(b2).strip()} = {num(g_(n0))}.",
+        f"f({num(g_(n0))}) = {num(a)}({num(g_(n0))}) {plus(b).strip()} = {num(ans)}.",
+    ]
+    item = MathItem("function_notation", FUNC_SKILL, level, fmt, stem, ans, steps, mistakes, positive_only=False)
+    item.truth = {"kind": "compose", "f": (a, b), "g": (a2, b2), "n": n0}
+    return item
+
+
+def abs_value(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """Absolute value (Sebastian's deck). Easy: '|x − 4| = 7. What is the sum of the solutions?' (11 + (−3) = 8).
+    Medium: '|2x + 3| = 9. What is the greater solution?' Hard: '|x − 5| < 3. Which inequality represents all
+    solutions?' (2 < x < 8), a 2x2 of between/outside x strict/not strict. Traps: only one solution, adding the
+    distances, the other solution, not dividing."""
+    if level == "easy":
+        h, r = rng.choice(nz(-9, 9)), rng.randint(2, 12)
+        while abs(h) == r or 2 * h in (2 * r, h + r, h - r) or r == abs(2 * h):
+            h, r = rng.choice(nz(-9, 9)), rng.randint(2, 12)
+        inner = f"x {MINUS} {num(h)}" if h > 0 else f"x + {num(-h)}"
+        stem = f"What is the sum of the solutions to |{inner}| = {r}?"
+        ans = Fraction(2 * h)
+        mistakes = [
+            (Fraction(h + r), f"this is only one solution, {num(h + r)}; the other is {num(h - r)}"),
+            (Fraction(2 * r), f"this adds the two distances, {r} + {r}, instead of the two solutions"),
+            (Fraction(h - r), "this is only the other solution"),
+            (-ans, "this has the wrong sign"),
+        ]
+        steps = [
+            f"{inner} = {r} or {inner} = {MINUS}{r}, so x = {num(h + r)} or x = {num(h - r)}.",
+            f"The sum is {num(h + r)} + {par(h - r)} = {num(ans)}.",
+        ]
+        item = MathItem("abs_value", SKILL, level, fmt, stem, ans, steps, mistakes, positive_only=False)
+        item.truth = {"h": h, "r": r}
+        return item
+    if level == "medium":
+        while True:
+            a = rng.randint(2, 5)
+            p_, q = rng.sample(range(-9, 10), 2)
+            if (a * (p_ + q)) % 2 == 0:
+                c = -a * (p_ + q) // 2
+                r = a * p_ + c
+                if r > 0 and c != 0 and p_ != q:
+                    break
+        hi, lo = max(p_, q), min(p_, q)
+        inner = linf(a, c)
+        stem = f"What is the greater solution to |{inner}| = {r}?"
+        ans = Fraction(hi)
+        mistakes = [
+            (Fraction(lo), "this is the smaller solution"),
+            (Fraction(r - c), f"this stops before dividing by {a}"),
+            (Fraction(r, a), f"this leaves out the {num(c)}"),
+            (Fraction(r + c, a), f"this moves the {num(c)} with the wrong sign"),
+        ]
+        steps = [
+            f"{inner} = {r} or {inner} = {MINUS}{r}.",
+            f"So x = {num(Fraction(r - c, a))} or x = {num(Fraction(-r - c, a))}; the greater is {num(ans)}.",
+        ]
+        item = MathItem("abs_value", SKILL, level, fmt, stem, ans, steps, mistakes, positive_only=False)
+        item.truth = {"a": a, "c": c, "r": r}
+        return item
+    h, r = rng.choice(nz(-6, 9)), rng.randint(2, 7)
+    rel = rng.choice(["<", "≤", ">", "≥"])
+    inner = f"x {MINUS} {num(h)}" if h > 0 else f"x + {num(-h)}"
+    stem = f"Which inequality represents all solutions to |{inner}| {rel} {r}?"
+    between = rel in ("<", "≤")
+    strict = rel in ("<", ">")
+
+    def show(btw: bool, st: bool) -> str:
+        if btw:
+            s_ = "<" if st else "≤"
+            return f"{num(h - r)} {s_} x {s_} {num(h + r)}"
+        lo_s, hi_s = ("<", ">") if st else ("≤", "≥")
+        return f"x {lo_s} {num(h - r)} or x {hi_s} {num(h + r)}"
+
+    key = show(between, strict)
+    mistakes = grid2(
+        show,
+        between,
+        not between,
+        (
+            "'less than' a distance means between the two values"
+            if between
+            else "'greater than' a distance means outside the two values"
+        ),
+        strict,
+        not strict,
+        "this has the wrong kind of inequality at the ends",
+    )
+    steps = [
+        f"|{inner}| {rel} {r} means x is {'within' if between else 'more than'} {r} of {num(h)}"
+        + ("" if strict else " (or exactly that far)")
+        + ".",
+        f"So {key}.",
+    ]
+    item = MathItem("abs_value", INEQ_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
+    item.truth = {"h": h, "r": r, "rel": rel}
+    return item
+
+
+POINT_FRAMES = [
+    dict(
+        text="The function f(x) = {m}x + {b} gives the amount of money, in dollars, in {n}'s savings account x weeks "
+        "after {n} started saving.",
+        ms=(15, 20, 25, 30, 40),
+        bs=(50, 80, 100, 120, 150),
+        at="{n} had ${y} in the account {x} weeks after starting to save.",
+        rate="The amount in the account increased by ${y} every {x} weeks.",
+    ),
+    dict(
+        text="The function f(x) = {m}x + {b} gives the height, in centimeters, of a sunflower x weeks after it was "
+        "planted.",
+        ms=(4, 5, 6, 8),
+        bs=(10, 12, 15, 20),
+        at="The sunflower was {y} centimeters tall {x} weeks after it was planted.",
+        rate="The sunflower grew {y} centimeters every {x} weeks.",
+    ),
+    dict(
+        text="The function f(x) = {m}x + {b} gives the total cost, in dollars, of a gym membership for x months, "
+        "including a one-time sign-up fee.",
+        ms=(25, 30, 35, 45),
+        bs=(40, 50, 60, 75),
+        at="The total cost of the membership for {x} months is ${y}.",
+        rate="The cost of the membership increases by ${y} every {x} months.",
+    ),
+]
+
+
+def point_meaning(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'The function f(x) = 25x + 150 gives the money in Kai's account x weeks after he started saving. The point
+    (4, 250) lies on the graph of y = f(x). Which is the best interpretation of the point?' Hard says 'f(6) = 330'
+    instead. Choices are a 2x2: x and y in the right roles or swapped x a value at one time or a change over time."""
+    f = rng.choice(POINT_FRAMES)
+    n = rng.choice(NAMES)
+    m, b = rng.choice(f["ms"]), rng.choice(f["bs"])
+    x0 = rng.randint(3, 12)
+    y0 = m * x0 + b
+    intro = f["text"].format(m=m, b=b, n=n)
+    if level == "hard":
+        stem = f"{intro} Which of the following is the best interpretation of the statement f({x0}) = {num(y0)}?"
+    else:
+        stem = (
+            f"{intro} The point ({x0}, {num(y0)}) lies on the graph of y = f(x) in the xy-plane. Which of the "
+            f"following is the best interpretation of this point?"
+        )
+
+    def say(roles: bool, kind: str) -> str:
+        xs, ys = (x0, num(y0)) if roles else (num(y0), x0)
+        return f[kind].format(n=n, x=xs, y=ys)
+
+    key = say(True, "at")
+    mistakes = grid2(
+        say,
+        True,
+        False,
+        "this swaps the input (time) and the output",
+        "at",
+        "rate",
+        f"the point gives one value of f at x = {x0}, not a change over time",
+    )
+    steps = [
+        f"The point ({x0}, {num(y0)}) means f({x0}) = {num(y0)}: when x = {x0}, the value is {num(y0)}.",
+        f"So: {key}",
+    ]
+    item = MathItem("point_meaning", FUNC_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
+    item.truth = {"m": m, "b": b, "x0": x0, "y0": y0}
+    return item
+
+
 FAMILY_LEVELS = {
     "expression_value": LEVELS,
     "linear_rate": LEVELS,
@@ -6002,6 +6533,12 @@ FAMILY_LEVELS = {
     "line_two_points": LEVELS,
     "parallel_lines": LEVELS,
     "ineq_system_graph": LEVELS,
+    "ineq_solve": LEVELS,
+    "ineq_system_setup": ("medium", "hard"),
+    "graph_choices": LEVELS,
+    "function_notation": LEVELS,
+    "abs_value": LEVELS,
+    "point_meaning": ("medium", "hard"),
 }
 
 FAMILIES = {
@@ -6068,6 +6605,12 @@ FAMILIES = {
     "line_two_points": line_two_points,
     "parallel_lines": parallel_lines,
     "ineq_system_graph": ineq_system_graph,
+    "ineq_solve": ineq_solve,
+    "ineq_system_setup": ineq_system_setup,
+    "graph_choices": graph_choices,
+    "function_notation": function_notation,
+    "abs_value": abs_value,
+    "point_meaning": point_meaning,
 }
 
 

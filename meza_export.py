@@ -102,7 +102,10 @@ def render_passage(text: str) -> str:
 
 
 def show_choice(v: str) -> str:
-    """A choice that is a small Markdown table (math: "Which table gives values of x and y?") renders as a table."""
+    """A choice that is a small Markdown table (math: "Which table gives values of x and y?") renders as a table; a
+    choice that is a graph (math: "Which graph shows ...?") is an SVG drawn by meza_math and is shown as is."""
+    if v.startswith("<svg"):
+        return f'<span style="display:inline-block;vertical-align:top">{v}</span>'
     if "\n|" in v or v.startswith("|"):
         return render_passage(v).replace('<table class="data">', '<table class="data choice-table">')
     if "\n" in v:  # a system of equations: one equation per line, lined up after the letter
@@ -224,7 +227,7 @@ main{{max-width:820px;margin:0 auto;padding:20px 16px 60px}}
 .src{{position:fixed;left:0;top:0;width:900px;opacity:0;pointer-events:none;z-index:-1;background:#fff;color:#000}}
 .passage{{border-left:3px solid var(--gold);padding-left:14px}} .passage p{{margin:0 0 8px}} .passage .title{{font-weight:700}}
 table.data{{border-collapse:collapse;margin:6px 0 12px;font-size:15px}} table.data th{{background:var(--navy);color:#fff;font-weight:400;padding:6px 10px;text-align:left}} table.data td{{border-bottom:1px solid var(--line);padding:6px 10px}}
-.stem{{font-weight:700;margin:14px 0 8px}} .choices{{list-style:none;padding:0;margin:0}} .choices li{{padding:6px 8px;border-radius:6px}} .choice-table{{display:inline-table;vertical-align:top;margin:0 0 0 6px}}
+.stem{{font-weight:700;margin:14px 0 8px}} .choices{{list-style:none;padding:0;margin:0}} .choices li{{padding:6px 8px;border-radius:6px}} .choices li:has(svg){{display:inline-block;width:49%;vertical-align:top}} .choice-table{{display:inline-table;vertical-align:top;margin:0 0 0 6px}}
 details{{margin-top:12px;background:var(--cream);border-radius:8px;padding:10px 14px}} summary{{cursor:pointer;color:var(--navy);font-weight:700}}
 details[open] ~ .x{{}} .show .choices li.right, details[open] {{}}
 body.reveal .choices li.right{{background:#e3f1e3}}

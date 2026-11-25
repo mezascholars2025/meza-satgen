@@ -972,3 +972,95 @@ def test_answers_cannot_be_guessed_from_the_choices_alone():
                     hits[rule].append((item.key in chosen) / len(chosen))
         for rule, h in hits.items():
             assert sum(h) / len(h) <= 0.55, (name, rule, round(sum(h) / len(h), 2))
+
+
+# ------------------------------------------------- closing out Algebra: inequalities to solve, graphs as choices, ...
+
+
+def solution_set(test, grid=None):
+    grid = grid or [Fraction(n, 2) for n in range(-60, 61)]
+    return [bool(test(x)) for x in grid]
+
+
+def or_chain(text: str):
+    """'x < −4 or x > 0' or a plain chain like '−4 < x ≤ 0'."""
+    parts = [chain(p.strip()) for p in text.split(" or ")]
+    return lambda x: any(p(x) for p in parts)
+
+
+def test_solving_inequalities_and_systems_of_inequalities():
+    for item in gen("ineq_solve"):
+        t = item.truth
+        if item.level == "hard":
+
+            def truth(x, t=t):
+                v = t["a"] * x + t["b"]
+                return holds(t["r1"], t["L"], v) and holds(t["r2"], v, t["R"])
+        else:
+
+            def truth(x, t=t):
+                return holds(t["rel"], t["a"] * x + t["b"], t["c"])
+
+        want = solution_set(truth)
+        for k, text in item.choices.items():
+            assert (solution_set(chain(text)) == want) == (k == item.key), (item.stem, text)
+    for item in gen("ineq_system_setup"):
+        t = item.truth
+        for k, text in item.choices.items():
+            e1, e2 = text.split("\n")
+            l1, r1, rhs1 = split_rel(e1)
+            l2, r2, rhs2 = split_rel(e2)
+            ok = (
+                evaluate(l1, x=1, y=0) == evaluate(l1, x=0, y=1) == 1
+                and r1 == t["crel"]
+                and value(rhs1) == t["c"]
+                and evaluate(l2, x=1, y=0) == t["a"]
+                and evaluate(l2, x=0, y=1) == t["b"]
+                and r2 == t["mrel"]
+                and value(rhs2) == t["M"]
+            )
+            assert ok == (k == item.key), (item.stem, text)
+
+
+def test_graph_choices_only_the_key_shows_the_right_line_or_region():
+    for item in gen("graph_choices"):
+        t = item.truth
+        want = (t["m"], t["b"]) if item.level != "hard" else (t["side"], t["dashed"])
+        for k, svg in item.choices.items():
+            assert svg.startswith("<svg") and svg.count('stroke="#cfcfcf"') >= 26
+            assert (t["cells"][svg] == want) == (k == item.key)
+            if item.level == "hard":
+                assert "<polygon" in svg and (("stroke-dasharray" in svg) == t["cells"][svg][1])
+
+
+def test_function_notation_abs_value_and_points():
+    for item in gen("function_notation"):
+        t = item.truth
+        if t["kind"] == "shift":
+            for k, expr in item.choices.items():
+                ok = all(evaluate(expr, x=x) == t["a"] * (x + t["c"]) + t["b"] for x in (0, 1, 2))
+                assert ok == (k == item.key), (item.stem, expr)
+        elif t["kind"] == "scale":
+            for k, eq in item.choices.items():
+                ok = all(evaluate(rhs(eq), x=x) == t["k"] * (t["a"] * x + t["b"]) + t["d"] for x in (0, 1, 2))
+                assert ok == (k == item.key), (item.stem, eq)
+        else:
+            (a, b), (a2, b2), n = t["f"], t["g"], t["n"]
+            assert value(item.choices[item.key]) == a * (a2 * n + b2) + b
+    for item in gen("abs_value"):
+        t = item.truth
+        if item.level == "easy":
+            sols = [x for x in range(-60, 61) if abs(x - t["h"]) == t["r"]]
+            assert value(item.choices[item.key]) == sum(sols) and len(sols) == 2
+        elif item.level == "medium":
+            sols = [Fraction(n, t["a"]) for n in range(-300, 301) if abs(n + t["c"]) == t["r"]]
+            assert value(item.choices[item.key]) == max(sols)
+        else:
+            want = solution_set(lambda x, t=t: holds(t["rel"], abs(x - t["h"]), t["r"]))
+            for k, text in item.choices.items():
+                assert (solution_set(or_chain(text)) == want) == (k == item.key), (item.stem, text)
+    for item in gen("point_meaning"):
+        t = item.truth
+        key = item.choices[item.key]
+        assert "every" not in key and key.index(mm.num(t["y0"])) >= 0
+        assert sum(mm.num(t["y0"]) in c and str(t["x0"]) in c for c in item.choices.values()) == 4

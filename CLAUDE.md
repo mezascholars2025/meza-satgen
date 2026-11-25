@@ -369,6 +369,22 @@ asking," Desmos tips) and example questions he described.
   - Graphs now also come in the full xy-plane (axes through the origin, −8 to 8, "x"/"y" and O), and two lines on a
     real-world graph get a key below it (solid and dashed). A choice that is a table or a system renders as one in
     review.html. Tests solve every system and check every choice independently.
+- **Closing out Algebra (Sebastian, Nov 25): six more types.**
+  - `ineq_solve` (easy 4x − 8 > 12; medium a negative coefficient, so dividing flips the sign; hard a compound
+    inequality with a negative coefficient, −11 ≤ −3x + 1 < 7 → −2 < x ≤ 4, where the flip also moves which end is
+    strict). Choices: right or flipped sign (or strict end) x right or wrong value.
+  - `ineq_system_setup` (at least 10 items and at most $150 → x + y ≥ 10 and 12x + 8y ≤ 150; hard uses more than /
+    fewer than and a limit in hours or pounds to convert). Choices: count sign right or flipped x amounts right or
+    swapped / not converted.
+  - `graph_choices` (the choices are graphs: "Which graph shows y = −2x + 3?"; medium gives the line in standard form;
+    hard "Which graph shows the solutions to y ≤ (1/2)x − 2?" with shaded regions, solid or dashed). review.html
+    draws graph choices two per row. The CSV holds the SVG text for those choices.
+  - `function_notation` (f(x + 2); g(x) = 2f(x) − 1; f(g(5)) with traps g(f(5)), the product, the sum, g(5)).
+  - `abs_value` (from Sebastian's deck: sum of the solutions of |x − 4| = 7; the greater solution of |2x + 3| = 9;
+    hard |x − 5| < 3 → 2 < x < 8, a 2x2 of between/outside x strict/not strict). The SAT may count absolute value
+    under Advanced Math; it lives here because the deck teaches it with Algebra.
+  - `point_meaning` ("(4, 250) lies on the graph of f": the right roles or swapped x a value at one time or a change
+    over time; hard says f(6) = 330 instead of the point).
 - **Where the answer lands (Sebastian, Nov 25): random by default.** Every question's answer goes to the letter
   used least so far in the batch (ties broken at random) and the wrong answers fill the other letters in random
   order, so any letter can be the answer and a batch is evenly spread. Sebastian chose this over the SAT's habit of
@@ -468,8 +484,8 @@ Audit decisions (Nov 24):
   (equivalent expressions), per Sebastian; build it there.
 - Math: graphs need image support in the portal when questions move there (the review page shows the SVG), and
   fractions need to be stacked there too (the data stores them as "a/b").
-- Math: the rest of Algebra from his deck (absolute value, function notation and composite functions), then the
-  other math domains. He describes question types; Claude builds them in code and tests offline
+- Math: Algebra is closed out (Nov 25); next, the other math domains (Advanced Math, Problem-Solving and Data
+  Analysis, Geometry and Trigonometry). He describes question types; Claude builds them in code and tests offline
   (no API batches).
 
 - **Trap labels (proposed, not built):** a Words in Context trap list (most common meaning, other real meaning,
