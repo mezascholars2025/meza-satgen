@@ -215,7 +215,8 @@ def format_examples(examples: list[dict]) -> str:
 
 _TOPIC_STOP = {"which", "their", "these", "those", "there", "about", "would", "could", "should", "while", "where",
                "other", "after", "before", "because", "between", "through", "first", "found", "study", "studied",
-               "researchers", "team", "text", "suggest", "suggests", "such", "same", "since", "single", "species"}
+               "researchers", "team", "text", "suggest", "suggests", "such", "same", "since", "single", "species",
+               "following", "however", "findings", "account", "historians", "argues", "student", "writing", "century"}
 
 
 def topic_words(text: str) -> set[str]:
@@ -223,11 +224,15 @@ def topic_words(text: str) -> set[str]:
     from meza_quality import word_tier
 
     words = set(re.findall(r"[a-z]{5,}", re.sub(r"</?u>", "", text).lower())) - _TOPIC_STOP
-    return {w for w in words if word_tier(w) in ("advanced", "mid") or (word_tier(w) is None and len(w) >= 9)}
+    return {w for w in words if word_tier(w) in ("advanced", "mid") or (word_tier(w) is None and len(w) >= 6)}
 
 
-def reused_topic(passage: str, examples: list[dict], limit: int = 3) -> list[str]:
-    """Problems for a draft that reuses the topic of a model example it was shown (3+ shared distinctive words)."""
+def reused_topic(passage: str, examples: list[dict], limit: int | None = None) -> list[str]:
+    """Problems for a draft that reuses the topic of a model example it was shown (3+ shared distinctive words; 5+
+    without wordfreq, where the word list is rougher)."""
+    import meza_quality
+
+    limit = limit or (3 if meza_quality._zipf is not None else 5)
     mine = topic_words(passage)
     out = []
     for e in examples:

@@ -5,6 +5,8 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 os.environ.setdefault("MEZA_QUALITY", "on")
@@ -1179,7 +1181,10 @@ def test_learn_with_picks_reads_level_from_explanation(tmp_path):
     assert ex["level"] == "hard" and ex["status"] == "Claude-reviewed"
 
 
-def test_draft_may_not_reuse_a_model_examples_topic():
+@pytest.mark.parametrize("with_wordfreq", [True, False])
+def test_draft_may_not_reuse_a_model_examples_topic(with_wordfreq, monkeypatch):
+    if not with_wordfreq:
+        monkeypatch.setattr(meza_quality, "_zipf", None)
     ex = {"passage": "Prince Rupert's drops form when molten glass falls into cold water as tadpole-shaped beads."}
     copy = "Tadpole-shaped Prince Rupert's drops of molten glass puzzled scientists for centuries."
     assert meza_traps.reused_topic(copy, [ex])

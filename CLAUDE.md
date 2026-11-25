@@ -264,6 +264,8 @@ Audit decisions (Nov 24):
 
 - Key stands out without the passage (the probe's most common flag in the trap runs): wrong answers need the same
   completeness and balance as the key. Next thing to fix for Text Structure, Central Ideas, and Inferences.
+- Topics repeat across runs (glacial varves came up in both trap rounds, in different runs): the rhythm memory only
+  covers the current run. A cross-run topic log would fix it.
 - Trap bank: review the 9 starter seeds and 8 Claude-reviewed picks, approve or remove them, and add GOOD TRAPS from each real run. Watch for
   the writer copying an example's structure too closely; if it does, show 1 example (MEZA_TRAP_EXAMPLES=1).
 - First real 20-question run with the new gate, then compare the key-longest rate against the 22/30 baseline.
