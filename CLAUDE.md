@@ -10,7 +10,7 @@ Update it in the same pull request whenever you add a rule or change how somethi
   key hidden, confirms any key change, and removes near-duplicates. **Don't edit `src/satgen/`.** Pull upstream
   fixes with `git fetch upstream && git merge upstream/main`.
 - Everything Meza-specific lives in the `meza_*` files, `data/meza_vocab_bank.json`, and `tests/test_meza_quality.py`.
-- Scope right now: **Reading and Writing only.**
+- Scope right now: **Reading and Writing**, and **Math, starting with Algebra** (`meza_math.py`, Nov 25).
 
 | File | What it does |
 |---|---|
@@ -19,6 +19,7 @@ Update it in the same pull request whenever you add a rule or change how somethi
 | `meza_quality.py` | Free, deterministic checks (lint, rhythm, vocabulary) and the passage-free probe. `python meza_quality.py runs/<run>/questions.json` lints an old run with no API calls. |
 | `meza_context.txt` | The item-writing rulebook the writer model follows. |
 | `meza_export.py` | Builds `review.html` and `questions.csv` for human review. |
+| `meza_math.py` | Math questions built in code: numbers, answer, and wrong choices are computed, so every key is right. `python meza_math.py run --count 12` writes `runs/math-<date_time>/` with review.html; `--families linear_rate`, `--offline` (template stories, no API). See "Math" below. |
 | `data/meza_vocab_bank.json` | 1,961 unique words merged from three public Anki decks Sebastian chose (words and parts of speech only), tiered by word frequency: 1,069 advanced, 691 mid, 201 common; 103 flagged as having a second meaning (used for underlined-word items). |
 
 Run tests with `pytest` (no network). Offline smoke run: `python meza_satgen.py run --offline --count 6`.
@@ -185,6 +186,39 @@ Each rule below came from auditing output or from Sebastian's review rounds agai
   instead of being discarded. Format, length, stems, vocabulary, and rhythm rules still block. Also fixed: bank
   phrases like "grapple with" could never be matched in a passage.
 
+## Math (Sebastian, Nov 25)
+
+Sebastian paused the reading work to make the math generator really good, starting with Algebra. Sources: his own
+"Mastering SAT Algebra" lesson deck (Meza's own material: 8 topics, the golden rule "know exactly what the question is
+asking," Desmos tips) and example questions he described.
+
+- **Built in code, not written by the AI.** Reading answers need judgment; math answers can be computed. Each question
+  family picks numbers that come out even, computes the answer exactly (fractions, no rounding), and builds each wrong
+  choice from a named student mistake, so the explanation can say which mistake each wrong answer comes from.
+  `tests/test_meza_math.py` re-solves every equation with a separate parser, so the key is checked twice.
+- **Families so far** (skill: Linear equations in one variable):
+  - `expression_value` ("If 4x + 5 = 29, what is the value of 9x − 7?"). Easy: solve, then substitute. Medium: x is
+    an awkward fraction and the target is a multiple of the given side plus a constant, so scaling is the fast route.
+    Hard: parentheses and x on both sides. Main trap at every level: the value of x (the golden rule); others: the
+    constant dropped or with the wrong sign, a distribution error, a sign error when moving a term.
+  - `linear_rate` (Sebastian's trucker: a job done at a constant rate). Easy: rate given; when will N be left?
+    Medium: start amount and one later reading, so the rate must be worked out; how many hours after starting will
+    N be left? Hard: two readings, start not given; when will the job be finished? Main trap: "how many MORE hours"
+    versus "how many hours after starting"; others: time to do the remaining part, the whole job, the rate itself,
+    using the amount left as the amount done.
+- **Choices.** Numbers in ascending order, as on the SAT. A whole-number answer gets whole-number wrong choices (a
+  stray fraction stands out), except medium `expression_value`, where x itself is the trap. Keys: among the letters
+  the real mistakes can produce, each question takes the letter used least so far in the batch, so keys spread over
+  A-D without filler; a labeled near miss fills in only when fewer than three real mistakes exist (under 6% of
+  questions). About 1 in 4 questions is grid-in (student-produced response).
+- **Stories.** Word problems get 4-5 sentences about a named person in a rotating setting (trucker, food bank
+  volunteer, print shop, warehouse, baker, farmworker; a batch uses every setting before repeating). The writer model
+  (Sonnet; MEZA_MATH_WRITER) wraps the fixed numbers; code checks that every planned number appears exactly once, in
+  the planned order (first story run: one draft relabeled the numbers and kept the same answer by coincidence), with
+  no other numbers and thousands commas, and a blind solver (Haiku; MEZA_MATH_SOLVER) must reach the computed
+  answer in 2 of 3 tries. Otherwise the plain template story is used. First runs: 15 of 16 stories passed on the
+  first try. Runs: `runs/math-first`, `runs/math-stories`.
+
 ## Source rule (Sebastian, Nov 24; do not break)
 
 Allowed as source or training material, and nothing else:
@@ -233,6 +267,10 @@ Audit decisions (Nov 24):
 - Run `pytest` before opening a pull request.
 
 ## Open next steps
+
+- Math: Sebastian reviews `runs/math-first` and `runs/math-stories`; then more Algebra families from his deck
+  (systems of equations: number of solutions; absolute value; function notation and composite functions; slopes,
+  parallel and perpendicular lines; inequalities; "which equation models this situation"), then the other math domains.
 
 - **Trap labels (proposed, not built):** a Words in Context trap list (most common meaning, other real meaning,
   wrong connotation, wrong degree, reversal, borrowed from elsewhere in the passage, grammatical but imprecise);
