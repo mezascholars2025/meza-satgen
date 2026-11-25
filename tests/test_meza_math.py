@@ -220,3 +220,14 @@ def test_new_families_rarely_need_filler():
         items = list(gen(family))
         filler = sum(any("slip" in w for _, w in i.mistakes) for i in items)
         assert filler / len(items) < 0.1, family
+
+
+def test_in_terms_of_only_the_key_gives_a_solution():
+    for item in gen("in_terms_of"):
+        group = re.search(r"value of (.+)\?$", item.stem).group(1)  # "x + 5"
+        c = evaluate(group, x=0)
+        left, right = sides(item.passage)
+        assert re.search(r"\((\d?)x", left) and group in right
+        for k, text in item.choices.items():
+            x = value(text) - c  # this choice as the value of the group means x = choice − c
+            assert (evaluate(left, x=x) == evaluate(right, x=x)) == (k == item.key), (item.passage, text)

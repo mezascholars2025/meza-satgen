@@ -225,6 +225,11 @@ asking," Desmos tips) and example questions he described.
       "which equation?"; medium: the payment amount is unknown and the number of payments is given).
     - `interpret_parts` (the same situations as an equation: "What does 625 / 25m / 1,075 represent?"; medium asks
       about the product, the part students mislabel most). Wrong choices are what the other parts represent.
+    - `in_terms_of` ("3(2x + 10) − 4 = 5(x + 5) + 8. If x is the solution to the given equation, what is the value
+      of x + 5?"): both sides are built from the same group, so students can let k = x + 5 (2x + 10 = 2k) and solve
+      for k directly, or solve for x and add. Medium: the left group is 2(x + c); hard: 2 or 3 times, c and the
+      answer can be negative. Traps: the value of x (the golden rule), the value of 2x + 10, forgetting the factor
+      of 2, a sign slip on a constant, the opposite sign.
   - Equations are shown on their own line above the question (the `passage` field), as on the SAT. Families with
     choices that are equations or phrases put the key at the letter used least so far in the batch.
     `tests/test_meza_math.py` checks every choice by substitution: only the key solves the equation, makes the

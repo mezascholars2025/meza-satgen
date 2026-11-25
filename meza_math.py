@@ -910,6 +910,49 @@ def interpret_parts(rng: random.Random, level: str, fmt: str) -> MathItem:
     )
 
 
+def in_terms_of(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'3(2x + 10) − 4 = 5(x + 5) + 8. If x is the solution to the given equation, what is the value of x + 5?'
+    Both sides are built from the same group (x + 5), so a student can let k = x + 5 (2x + 10 = 2k) and solve for k
+    directly, or solve for x and add 5. Hard: the left group is 2 or 3 times (x + c), c can be negative, and the
+    answer can be negative."""
+    while True:
+        c = rng.randint(2, 12) if level != "hard" else rng.choice([n for n in range(-12, 13) if abs(n) >= 2])
+        m = 2 if level != "hard" else rng.choice([2, 3])
+        a, d = rng.randint(2, 7), rng.randint(2, 9)
+        u = rng.randint(2, 15) if level != "hard" else rng.choice([n for n in range(-9, 13) if n not in (0, 1)])
+        b = rng.choice([n for n in range(-20, 21) if abs(n) >= 2])
+        e = (a * m - d) * u + b
+        if a * m != d and e and abs(e) >= 2 and u - c != u and (u - c) != 0:
+            break
+    group = lin(1, c)
+    passage = f"{a}({lin(m, m * c)}){plus(b)} = {d}({group}){plus(e)}"
+    stem = f"If x is the solution to the given equation, what is the value of {group}?"
+    mistakes = [
+        (Fraction(u - c), f"this is the value of x; the question asks for the value of {group}"),
+        (Fraction(m * u), f"this is the value of {lin(m, m * c)}, not {group}"),
+        (
+            Fraction(e - b, a - d) if a != d else Fraction(0),
+            f"this treats {lin(m, m * c)} as if it were {group}, forgetting the factor of {m}",
+        ),
+        (
+            Fraction(e + b, a * m - d),
+            f"this {'adds' if b > 0 else 'subtracts'} {num(abs(b))} instead of "
+            f"{'subtracting' if b > 0 else 'adding'} it",
+        ),
+        (Fraction(-u), "this has the right size but the wrong sign"),
+    ]
+    steps = [
+        f"Let k = {group}. Then {lin(m, m * c)} = {m}k, so the equation becomes {a}({m}k){plus(b)} = "
+        f"{d}k{plus(e)}, or {a * m}k{plus(b)} = {d}k{plus(e)}.",
+        f"Solve for k: {term(a * m - d, 'k')} = {num(e - b)}, so k = {num(u)}.",
+        f"So {group} = {num(u)}. (Solving for x first also works: x = {num(u - c)}, and {num(u - c)}{plus(c)} = "
+        f"{num(u)}.)",
+    ]
+    return MathItem(
+        "in_terms_of", SKILL, level, fmt, stem, Fraction(u), steps, mistakes, passage=passage, positive_only=False
+    )
+
+
 FAMILY_LEVELS = {
     "expression_value": LEVELS,
     "linear_rate": LEVELS,
@@ -920,6 +963,7 @@ FAMILY_LEVELS = {
     "three_kinds_equation": ("easy", "medium"),
     "payment_equation": ("easy", "medium"),
     "interpret_parts": ("easy", "medium"),
+    "in_terms_of": ("medium", "hard"),
 }
 
 FAMILIES = {
@@ -932,6 +976,7 @@ FAMILIES = {
     "three_kinds_equation": three_kinds_equation,
     "payment_equation": payment_equation,
     "interpret_parts": interpret_parts,
+    "in_terms_of": in_terms_of,
 }
 
 
