@@ -236,12 +236,16 @@ def graph_svg(
     y_lo: int = 0,
     plane: bool = False,
     line_names=(),
+    shade=(),
+    dashed=(),
 ) -> str:
     """An SAT-style graph drawn in code, so every number is exact. A light grid (x_n grid steps right of 0 and x_lo
     left of it; likewise y), dark axes through the origin, numbered ticks, and solid lines given as (slope,
     intercept); dots given as (x, y). Real-world graphs (plane=False) start at 0 and carry axis titles with units;
     xy-plane graphs (plane=True) run into the negatives, with "x" and "y" at the ends of the axes and O at the
-    origin. Two lines can carry names (line_names), printed next to their right ends; the second line is dashed."""
+    origin. Two lines can carry names (line_names), shown in a key under the graph; the second line is dashed.
+    Inequality graphs: shade=[(m, b, "above" or "below")] fills that side of y = mx + b in light gray, and the lines
+    whose positions are in dashed are drawn dashed (a strict inequality)."""
     W, H = 460, 380 if not plane else 420
     L, B, T, R = (70, 55, 15, 15) if not plane else (30, 20, 20, 20)
     if line_names:  # a key under the graph: a solid line for the first name, a dashed line for the second
@@ -290,6 +294,29 @@ def graph_svg(
         f'<line x1="{X(0):.1f}" y1="{Y(y_min):.1f}" x2="{X(0):.1f}" y2="{Y(y_max):.1f}" stroke="black" '
         f'stroke-width="1.5"/>'
     )
+    for m, b, side in shade:  # clip the grid rectangle to the half-plane (Sutherland-Hodgman, one edge)
+        m, b = Fraction(m), Fraction(b)
+        box = [(x_min, y_min), (x_max, y_min), (x_max, y_max), (x_min, y_max)]
+
+        def inside(pt, m=m, b=b, side=side) -> bool:
+            d = pt[1] - (m * pt[0] + b)
+            return d >= 0 if side == "above" else d <= 0
+
+        poly = []
+        for i, cur in enumerate(box):
+            prev = box[i - 1]
+            if inside(cur) != inside(prev):  # the edge crosses the line
+                (x1, y1), (x2, y2) = prev, cur
+                if x1 == x2:
+                    cross = (x1, m * x1 + b)
+                else:
+                    cross = ((y1 - b) / m, y1) if m else (x1, b)
+                poly.append(cross)
+            if inside(cur):
+                poly.append(cur)
+        if len(poly) >= 3:
+            pts_ = " ".join(f"{X(px):.1f},{Y(py):.1f}" for px, py in poly)
+            out.append(f'<polygon points="{pts_}" fill="#8c8c8c" fill-opacity="0.35" stroke="none"/>')
     for n, (m, b) in enumerate(lines):  # clip y = mx + b to the grid
         m, b = Fraction(m), Fraction(b)
         pts = []
@@ -305,7 +332,7 @@ def graph_svg(
         pts = sorted(set(pts))
         if len(pts) >= 2:
             (x1, y1), (x2, y2) = pts[0], pts[-1]
-            dash = ' stroke-dasharray="7 5"' if n == 1 and line_names else ""
+            dash = ' stroke-dasharray="7 5"' if (n == 1 and line_names) or n in dashed else ""
             out.append(
                 f'<line x1="{X(x1):.1f}" y1="{Y(y1):.1f}" x2="{X(x2):.1f}" y2="{Y(y2):.1f}" stroke="black" '
                 f'stroke-width="2.2"{dash}/>'
@@ -4900,6 +4927,476 @@ def system_times_more(rng: random.Random, level: str, fmt: str) -> MathItem:
     return item
 
 
+# ---------------------------------------------------- linear inequalities in one or two variables (Sebastian, Nov 25)
+
+INEQ_SKILL = "Linear inequalities in one or two variables"
+SYMS = {"<": "<", "<=": "≤", ">": ">", ">=": "≥"}
+FLIP = {"<": ">", ">": "<", "≤": "≥", "≥": "≤"}
+LOOSE = {"<": "≤", ">": "≥", "≤": "<", "≥": ">"}  # strict <-> not strict
+
+MAX_FRAMES = [
+    dict(
+        text="{name} has ${B} to spend at an arcade. Admission costs ${F}, and each game costs ${r}.",
+        q="What is the greatest number of games {name} can play?",
+        F=(8, 15),
+        r=(Fraction(3, 2), Fraction(2), Fraction(5, 2), Fraction(3)),
+        B=(40, 80),
+        unit="games",
+        money=True,
+    ),
+    dict(
+        text="A delivery van can carry at most {B} pounds. The driver and equipment weigh {F} pounds, and each box "
+        "of supplies weighs {r} pounds.",
+        q="What is the greatest number of boxes of supplies the van can carry?",
+        F=(180, 320),
+        r=(35, 40, 45, 55),
+        B=(1200, 2000),
+        unit="boxes",
+        money=False,
+    ),
+    dict(
+        text="{name}'s phone plan costs ${F} each month plus ${r} for each gigabyte of data used. {name} wants to "
+        "spend at most ${B} on the plan this month.",
+        q="What is the greatest number of whole gigabytes of data {name} can use this month?",
+        F=(20, 35),
+        r=(Fraction(9, 4), Fraction(7, 2), Fraction(4), Fraction(9, 2)),
+        B=(45, 75),
+        unit="gigabytes",
+        money=True,
+    ),
+]
+MIN_FRAMES = [
+    dict(
+        text="A school club needs to raise at least ${B} for a trip. It has already raised ${F} and sells candles "
+        "for ${r} each.",
+        q="What is the least number of candles the club must sell to reach its goal?",
+        F=(60, 150),
+        r=(6, 7, 8, 9),
+        B=(400, 700),
+        unit="candles",
+        money=True,
+    ),
+    dict(
+        text="{name} needs at least {B} points to earn a badge in a game. {name} already has {F} points and earns "
+        "{r} points for each level completed.",
+        q="What is the least number of levels {name} must complete to earn the badge?",
+        F=(100, 300),
+        r=(15, 18, 24, 35),
+        B=(700, 1200),
+        unit="levels",
+        money=False,
+    ),
+]
+
+
+def approx(q: Fraction) -> str:
+    """'40.5', or '40.22...' for a repeating decimal."""
+    return dec(q) if terminating(q) else f"{float(q):.2f}..."
+
+
+def ineq_max_word(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'Kai has $60 to spend at an arcade. Admission costs $12, and each game costs $1.50. What is the greatest number
+    of games Kai can play?' 12 + 1.5g ≤ 60, so g ≤ 32 (rounded down). Medium: 'at least' (round up). Hard: two
+    variables (12 pens already chosen, the most notebooks). Traps: rounding the wrong way, leaving out the fixed
+    part, dividing the budget by the wrong price."""
+    name = rng.choice(NAMES)
+    if level == "hard":
+        a, b = rng.sample([3, 4, 5, 6], 2)
+        while True:
+            y = rng.randint(4, 12)
+            B = rng.randrange(60, 160, 5)
+            left = B - b * y
+            if left > 3 * a and left % a:
+                break
+        ans = Fraction(left // a)
+        stem = (
+            f"{name} can spend at most ${B} on x notebooks and y binders. Each notebook costs ${a}, and each "
+            f"binder costs ${b}. If {name} buys {y} binders, what is the greatest number of notebooks {name} can "
+            f"buy?"
+        )
+        mistakes = [
+            (ans + 1, f"this rounds {num(Fraction(left, a))} up, but then the cost is over ${B}"),
+            (Fraction(B // a), f"this leaves out the {y} binders"),
+            (Fraction(left // b), f"this divides by ${b}, the price of a binder"),
+            (Fraction(B // a) - y, f"this subtracts {y} notebooks instead of the cost of {y} binders"),
+        ]
+        steps = [
+            f"{coef(a)} + {b}({y}) ≤ {B}, so {coef(a)} ≤ {left} and x ≤ {num(Fraction(left, a))}.",
+            f"x must be a whole number, so the greatest is {num(ans)}.",
+        ]
+        item = MathItem("ineq_max_word", INEQ_SKILL, level, fmt, stem, ans, steps, mistakes)
+        item.truth = {"kind": "max2", "a": a, "b": b, "B": B, "y": y}
+        return item
+    frames = MAX_FRAMES if level == "easy" else MIN_FRAMES
+    f = rng.choice(frames)
+    while True:
+        F_ = rng.randint(*f["F"])
+        r = Fraction(rng.choice(f["r"]))
+        B = rng.randrange(f["B"][0], f["B"][1] + 1, 5 if f["money"] else 25)
+        q = Fraction(B - F_) / r
+        if q.denominator > 1 and q > 4 and Fraction(B) / r != q:
+            break
+    show = (lambda v: money(v)[1:]) if f["money"] else num  # noqa: E731
+    stem = f"{f['text'].format(name=name, B=num(B), F=num(F_), r=show(r))} {f['q'].format(name=name)}"
+    if level == "easy":
+        ans = Fraction(math.floor(q))
+        mistakes = [
+            (ans + 1, f"this rounds {approx(q)} up, but then the total is over the limit"),
+            (Fraction(math.floor(Fraction(B) / r)), f"this leaves out the {show(F_)} at the start"),
+            (Fraction(math.floor(Fraction(B + F_) / r)), f"this adds the {show(F_)} instead of subtracting it"),
+            (Fraction(math.floor(Fraction(B) / (r + F_))), f"this adds the {show(F_)} to the cost of each one"),
+        ]
+        rel = "≤"
+    else:
+        ans = Fraction(math.ceil(q))
+        mistakes = [
+            (ans - 1, f"this rounds {approx(q)} down, but then the total is short of the goal"),
+            (Fraction(math.ceil(Fraction(B) / r)), f"this leaves out the {show(F_)} already there"),
+            (Fraction(math.ceil(Fraction(B + F_) / r)), f"this adds the {show(F_)} instead of subtracting it"),
+            (Fraction(math.ceil(Fraction(B) / (r + F_))), f"this adds the {show(F_)} to the amount for each one"),
+        ]
+        rel = "≥"
+    steps = [
+        f"{show(F_)} + {show(r)}n {rel} {show(B)}, so {show(r)}n {rel} {show(B - F_)} and n {rel} {approx(q)}.",
+        f"n must be a whole number, so the {'greatest' if level == 'easy' else 'least'} is {num(ans)}.",
+    ]
+    item = MathItem("ineq_max_word", INEQ_SKILL, level, fmt, stem, ans, steps, mistakes[:3] + mistakes[3:])
+    item.truth = {"kind": "max" if level == "easy" else "min", "F": F_, "r": r, "B": B}
+    return item
+
+
+SETUP_INEQ = [
+    dict(
+        text="An elevator can safely carry at most {B} pounds. A worker who weighs {F} pounds is moving boxes that "
+        "weigh {r} pounds each. Which inequality represents the number of boxes, x, the worker can take in "
+        "the elevator in one trip?",
+        rel="≤",
+        F=(150, 220),
+        r=(30, 45, 50, 60),
+        B=(1000, 1500),
+    ),
+    dict(
+        text="A student has {F} points in a class and earns {r} points for each extra-credit project. The student "
+        "needs more than {B} points to earn an A. Which inequality represents the number of projects, x, that "
+        "would earn the student an A?",
+        rel=">",
+        F=(600, 800),
+        r=(10, 12, 15, 20),
+        B=(850, 950),
+    ),
+    dict(
+        text="A gym charges a ${F} sign-up fee plus ${r} for each class. Tomas wants to spend less than ${B} at the "
+        "gym this month. Which inequality represents the number of classes, x, Tomas can take?",
+        rel="<",
+        F=(20, 40),
+        r=(8, 12, 15),
+        B=(120, 200),
+    ),
+    dict(
+        text="A food bank has {F} cans and receives {r} more cans each day. It needs at least {B} cans for a holiday "
+        "drive. Which inequality represents the number of days, x, after which the food bank will have "
+        "enough cans?",
+        rel="≥",
+        F=(200, 400),
+        r=(35, 40, 55),
+        B=(1200, 2000),
+    ),
+]
+
+
+def ineq_setup(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'An elevator can safely carry at most 1,200 pounds. A worker who weighs 180 pounds is moving boxes that weigh
+    45 pounds each. Which inequality represents the number of boxes?' (180 + 45x ≤ 1,200). Medium covers more than /
+    less than / at least / at most. Hard: a range, 'at least $400 and at most $650' (400 ≤ 100 + 15x ≤ 650).
+    Traps: the sign backward, strict vs. not strict, the two numbers swapped, the fixed part left out."""
+    if level == "hard":
+        F_, r = rng.randrange(75, 200, 25), rng.choice([12, 15, 18, 20, 25])
+        lo = rng.randrange(300, 500, 50)
+        hi = lo + rng.randrange(150, 400, 50)
+        stem = (
+            f"A caterer charges a ${F_} booking fee plus ${r} for each guest. A family wants the total cost to be "
+            f"at least ${num(lo)} and at most ${num(hi)}. Which inequality represents the possible numbers of "
+            f"guests, x?"
+        )
+        mid = f"{F_} + {coef(r)}"
+        key = f"{num(lo)} ≤ {mid} ≤ {num(hi)}"
+        mistakes = [
+            (
+                f"{num(lo)} < {mid} < {num(hi)}",
+                "this leaves out the two end values, but 'at least' and 'at most' include them",
+            ),
+            (f"{num(lo)} ≤ {coef(r)} ≤ {num(hi)}", f"this leaves out the ${F_} booking fee"),
+            (f"{num(lo)} ≤ {r} + {coef(F_)} ≤ {num(hi)}", "this swaps the fee and the cost per guest"),
+            (f"{num(lo - F_)} ≤ {mid} ≤ {num(hi - F_)}", "this subtracts the fee from the limits as well"),
+        ]
+        steps = [f"The total cost is {mid}.", f"At least {num(lo)} and at most {num(hi)}: {key}."]
+        item = MathItem("ineq_setup", INEQ_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
+        item.truth = {"F": F_, "r": r, "lo": lo, "hi": hi, "rel": "range"}
+        return item
+    frames = [f for f in SETUP_INEQ if f["rel"] in "≤≥"] if level == "easy" else SETUP_INEQ
+    f = rng.choice(frames)
+    F_, r = rng.randint(*f["F"]), rng.choice(f["r"])
+    B = rng.randrange(f["B"][0], f["B"][1] + 1, 10)
+    stem = f["text"].format(F=num(F_), r=r, B=num(B))
+    rel = f["rel"]
+    lhs = f"{num(F_)} + {coef(r)}"
+    key = f"{lhs} {rel} {num(B)}"
+    mistakes = [
+        (f"{lhs} {FLIP[rel]} {num(B)}", "this has the inequality sign backward"),
+        (
+            f"{lhs} {LOOSE[rel]} {num(B)}",
+            "this has the wrong kind of inequality: "
+            + (
+                "'more than' and 'less than' leave out the limit itself"
+                if rel in "<>"
+                else "'at least' and 'at most' include the limit itself"
+            ),
+        ),
+        (f"{r} + {coef(F_)} {rel} {num(B)}", "this swaps the starting amount and the amount for each one"),
+        (f"{coef(r)} {rel} {num(B)}", f"this leaves out the starting {num(F_)}"),
+    ]
+    steps = [f"The total is {lhs}.", f"The words mean {rel}: {key}."]
+    item = MathItem("ineq_setup", INEQ_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
+    item.truth = {"F": F_, "r": r, "B": B, "rel": rel}
+    return item
+
+
+def ineq_graph(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """A shaded region in the xy-plane, bounded by a solid line (≤ or ≥) or a dashed line (< or >). 'Which
+    inequality is represented by the shaded region?' Easy: the four signs with the same line. Medium: a fraction
+    slope, and one choice has the slope's sign flipped. Hard: the choices are in standard form (2x − 3y < 6), where
+    solving for y with a negative coefficient flips the sign. Traps: the sign backward, solid vs. dashed, the slope's
+    sign, forgetting to flip."""
+    while True:
+        m = Fraction(rng.choice(nz(-3, 3)), 1 if level == "easy" else rng.choice([1, 2, 3]))
+        b = rng.choice(nz(-5, 5))
+        if abs(m) != 1 or level == "easy":
+            break
+    above, strict = rng.random() < 0.5, rng.random() < 0.5
+    rel = (">" if strict else "≥") if above else ("<" if strict else "≤")
+    fig = graph_svg(
+        "x",
+        "y",
+        1,
+        8,
+        1,
+        8,
+        lines=[(m, b)],
+        label_every=(2, 2),
+        x_lo=8,
+        y_lo=8,
+        plane=True,
+        shade=[(m, b, "above" if above else "below")],
+        dashed=(0,) if strict else (),
+    )
+    stem = "The shaded region shown represents the solutions to which inequality?"
+    why = {
+        FLIP[rel]: "this has the sign backward: the shading is on the other side of the line",
+        LOOSE[rel]: "",
+        FLIP[LOOSE[rel]]: "this has the sign backward and the wrong kind of line",
+    }
+    why[LOOSE[rel]] = (
+        "a dashed line means the points on the line are not included, so the sign must be strict"
+        if strict
+        else "a solid line means the points on the line are included, so the sign must include equality"
+    )
+    if level != "hard":
+        key = f"y {rel} {linf(m, b)}"
+        mistakes = [(f"y {r2} {linf(m, b)}", w) for r2, w in why.items()]
+        if level == "medium":
+            mistakes[2] = (f"y {rel} {linf(-m, b)}", "this uses the slope with the wrong sign")
+    else:
+        A, B, C = -m.numerator, m.denominator, b * m.denominator  # −px + qy = qb, i.e. y = mx + b
+        if rng.random() < 0.6:  # write it with a negative y-coefficient, so the sign flips when solving for y
+            A, B, C = -A, -B, -C
+        flip = B < 0
+        r_key = FLIP[rel] if flip else rel
+        body = axby(A, B, 0)[: -len(" = 0")]
+        key = f"{body} {r_key} {num(C)}"
+        mistakes = [
+            (
+                f"{body} {FLIP[r_key]} {num(C)}",
+                "this does not flip the sign when dividing by a negative number"
+                if flip
+                else "this has the sign backward",
+            ),
+            (f"{body} {LOOSE[r_key]} {num(C)}", why[LOOSE[rel]]),
+            (f"{body} {FLIP[LOOSE[r_key]]} {num(C)}", "this has the sign backward and the wrong kind of line"),
+        ]
+    steps = [
+        f"The line is y = {linf(m, b)} (y-intercept {num(b)}, slope {num(m)}).",
+        f"The line is {'dashed' if strict else 'solid'}, so the sign is {'strict' if strict else 'not strict'}; "
+        f"the shading is {'above' if above else 'below'} the line, so y {rel} {linf(m, b)}.",
+    ]
+    if level == "hard":
+        steps.append(
+            f"Written in standard form, that is {key}"
+            + (" (the sign flips because the y-coefficient is negative)." if B < 0 else ".")
+        )
+    item = MathItem(
+        "ineq_graph", INEQ_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key, figure=fig
+    )
+    item.truth = {"m": m, "b": b, "rel": rel}
+    return item
+
+
+def _holds(rel: str, left, right) -> bool:
+    return {"<": left < right, "≤": left <= right, ">": left > right, "≥": left >= right}[rel]
+
+
+def ineq_system_points(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'y ≤ 2x + 3 and y > −x + 1. Which point (x, y) is a solution to the system?' (or 'is NOT a solution').
+    Hard uses decimal slopes (y < 0.5x + 2). The tempting wrong point sits exactly on the dashed boundary of the strict
+    inequality; others satisfy only one of the two."""
+    while True:  # retry until every kind of point exists
+        while True:
+            if level == "hard":
+                m1, m2 = Fraction(rng.choice([-3, -1, 1, 3]), 2), Fraction(rng.choice([-4, -2, 2, 4, 6]), 4)
+            else:
+                m1, m2 = Fraction(rng.choice(nz(-3, 3))), Fraction(rng.choice(nz(-3, 3)))
+            b1, b2 = rng.choice(nz(-5, 5)), rng.choice(nz(-5, 5))
+            if m1 != m2 and m2.denominator <= 2:
+                break
+        r1, r2 = rng.choice(["≤", "≥"]), rng.choice(["<", ">"])  # one solid boundary, one dashed
+        dm = level == "hard"
+        e1, e2 = f"y {r1} {linf(m1, b1, decimal=dm)}", f"y {r2} {linf(m2, b2, decimal=dm)}"
+        if rng.random() < 0.5:
+            e1, e2, m1, m2, b1, b2, r1, r2 = e2, e1, m2, m1, b2, b1, r2, r1
+
+        def ok1(x, y, r=r1, m=m1, b=b1):
+            return _holds(r, y, m * x + b)
+
+        def ok2(x, y, r=r2, m=m2, b=b2):
+            return _holds(r, y, m * x + b)
+
+        pts = [(x, y) for x in range(-6, 7, 2 if dm else 1) for y in range(-8, 9)]
+        both = [p_ for p_ in pts if ok1(*p_) and ok2(*p_)]
+        only1 = [p_ for p_ in pts if ok1(*p_) and not ok2(*p_)]
+        only2 = [p_ for p_ in pts if ok2(*p_) and not ok1(*p_)]
+        strict_m, strict_b, strict_ok = (m1, b1, ok1) if r1 in "<>" else (m2, b2, ok2)
+        other_ok = ok2 if strict_ok is ok1 else ok1
+        on_dashed = [(x, y) for x, y in pts if y == strict_m * x + strict_b and other_ok(x, y)]
+        if len(both) >= 4 and len(only1 + only2) >= 2 and on_dashed:
+            break
+    negative = rng.random() < 0.35
+    if negative:  # which point is NOT a solution: three that work, one that fails (often on the dashed line)
+        bad = rng.choice(on_dashed or only1 or only2)
+        good = rng.sample(both, 3)
+        key_pt = bad
+        mistakes_pts = [(p_, "this point makes both inequalities true") for p_ in good]
+        stem = "Which point (x, y) is NOT a solution to the given system of inequalities?"
+    else:
+        key_pt = rng.choice(both)
+        cand = []
+        if on_dashed:
+            cand.append(
+                (
+                    rng.choice(on_dashed),
+                    "this point is on the dashed line, so it does not satisfy the strict inequality",
+                )
+            )
+        if only1:
+            cand.append((rng.choice(only1), "this point satisfies only the first inequality"))
+        if only2:
+            cand.append((rng.choice(only2), "this point satisfies only the second inequality"))
+        while len(cand) < 3:
+            cand.append((rng.choice(only1 + only2), "this point satisfies only one of the inequalities"))
+        mistakes_pts = cand
+        stem = "Which point (x, y) is a solution to the given system of inequalities?"
+
+    def pair(pt) -> str:
+        return f"({num(pt[0])}, {num(pt[1])})"
+
+    key = pair(key_pt)
+    mistakes, seen = [], {key}
+    for pt, w in mistakes_pts:
+        while pair(pt) in seen:  # pick another point of the same kind
+            pool = both if "both" in w else (only1 + only2 + on_dashed)
+            pt = rng.choice(pool)
+        seen.add(pair(pt))
+        mistakes.append((pair(pt), w))
+    steps = [
+        f"Substitute each point into both inequalities: {e1} and {e2}.",
+        f"Only {key} {'fails at least one' if negative else 'makes both true'}.",
+    ]
+    item = MathItem(
+        "ineq_system_points",
+        INEQ_SKILL,
+        level,
+        "mcq",
+        stem,
+        Fraction(0),
+        steps,
+        mistakes,
+        passage=f"{e1}\n{e2}",
+        key_text=key,
+    )
+    item.truth = {"negative": negative}
+    return item
+
+
+def ineq_fence_range(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """Sebastian's fencing problem. Medium: 'A rectangular pen will use at most 100 yards of fencing. One side is 32
+    yards long. Which inequality gives the possible lengths x of the other side?' (0 < x ≤ 18). Hard adds an area
+    limit: 'The area must be at least 200 square yards' (6.25 ≤ x ≤ 18); 'more than' makes it strict. Traps:
+    fencing only one of each side, the area limit and the fence limit swapped, the wrong kind of inequality."""
+    s_ = rng.choice([12, 16, 20, 24, 28, 32, 36, 40])
+    h = rng.randint(8, 30)
+    while h == s_:
+        h = rng.randint(8, 30)
+    Fence = 2 * s_ + 2 * h
+    if level == "medium":
+        stem = (
+            f"A farmer will use at most {Fence} yards of fencing to enclose a rectangular pen. One side of the pen "
+            f"is {s_} yards long. Which inequality represents the possible lengths x, in yards, of the "
+            f"other side of the pen?"
+        )
+        key = f"0 < x ≤ {h}"
+        mistakes = [
+            (f"0 < x ≤ {Fence - 2 * s_}", f"this counts the unknown side once but both {s_}-yard sides"),
+            (f"0 < x ≤ {Fence - s_}", "this counts each side only once"),
+            (f"x ≥ {h}", "this has the inequality sign backward"),
+            (f"0 < x ≤ {num(Fraction(Fence - s_, 2))}", f"this counts the {s_}-yard side only once"),
+        ]
+        steps = [
+            f"Perimeter: 2({s_}) + 2x ≤ {Fence}, so 2x ≤ {Fence - 2 * s_} and x ≤ {h}.",
+            f"A length must be positive, so {key}.",
+        ]
+        truth = {"lo": 0, "lo_strict": True, "hi": h}
+    else:
+        lo = Fraction(rng.randint(2, max(3, h - 3)) * 4 + rng.choice([0, 1, 2, 3]), 4)
+        while lo >= h or lo <= 1:
+            lo = Fraction(rng.randint(4, 4 * h - 4), 4)
+        A = lo * s_
+        strict = rng.random() < 0.4
+        word = "more than" if strict else "at least"
+        lo_rel = "<" if strict else "≤"
+        stem = (
+            f"A farmer will use at most {Fence} yards of fencing to enclose a rectangular pen. One side of the pen "
+            f"is {s_} yards long, and the area of the pen must be {word} {num(A)} square yards. Which "
+            f"inequality represents the possible lengths x, in yards, of the other side of the pen?"
+        )
+        key = f"{dec(lo)} {lo_rel} x ≤ {h}"
+        mistakes = [
+            (f"{dec(lo)} {lo_rel} x ≤ {Fence - 2 * s_}", "this counts the unknown side once in the fencing"),
+            (f"{dec(lo)} {LOOSE[lo_rel]} x ≤ {h}", "this has the wrong kind of inequality at the area limit"),
+            (
+                f"{dec(lo)} {lo_rel} x ≤ {num(Fraction(Fence - s_, 2))}",
+                f"this counts the {s_}-yard side only once in the fencing",
+            ),
+            (f"{h} {lo_rel} x ≤ {dec(lo)}" if lo > h else f"x ≤ {h}", "this leaves out the area limit"),
+        ]
+        steps = [
+            f"Fencing: 2({s_}) + 2x ≤ {Fence}, so x ≤ {h}.",
+            f"Area: {s_}x {'>' if strict else '≥'} {num(A)}, so x {'>' if strict else '≥'} {dec(lo)}.",
+            f"Together: {key}.",
+        ]
+        truth = {"lo": lo, "lo_strict": strict, "hi": h}
+    item = MathItem("ineq_fence_range", INEQ_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
+    item.truth = {**truth, "s": s_, "fence": Fence}
+    return item
+
+
 FAMILY_LEVELS = {
     "expression_value": LEVELS,
     "linear_rate": LEVELS,
@@ -4954,6 +5451,11 @@ FAMILY_LEVELS = {
     "system_word_setup": ("medium", "hard"),
     "system_graph_equations": LEVELS,
     "system_times_more": LEVELS,
+    "ineq_max_word": LEVELS,
+    "ineq_setup": LEVELS,
+    "ineq_graph": LEVELS,
+    "ineq_system_points": ("medium", "hard"),
+    "ineq_fence_range": ("medium", "hard"),
 }
 
 FAMILIES = {
@@ -5010,6 +5512,11 @@ FAMILIES = {
     "system_word_setup": system_word_setup,
     "system_graph_equations": system_graph_equations,
     "system_times_more": system_times_more,
+    "ineq_max_word": ineq_max_word,
+    "ineq_setup": ineq_setup,
+    "ineq_graph": ineq_graph,
+    "ineq_system_points": ineq_system_points,
+    "ineq_fence_range": ineq_fence_range,
 }
 
 

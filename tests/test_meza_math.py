@@ -423,7 +423,7 @@ def test_tables_and_combined_functions():
 
 # ------------------------------------------------- linear functions extras, two-variable equations, systems (Nov 25)
 
-REL = ("≤", "≥", "=")
+REL = ("≤", "≥", "<", ">", "=")
 
 
 def split_rel(text: str) -> tuple[str, str, str]:
@@ -672,3 +672,102 @@ def test_systems_from_words_and_graphs():
         else:
             assert t["a"] - t["b"] in given
         assert value(item.choices[item.key]) == t[t["ask"]]
+
+
+# ------------------------------------------------------------------------------- linear inequalities (Nov 25)
+
+
+def holds(rel: str, a, b) -> bool:
+    return {"<": a < b, "≤": a <= b, ">": a > b, "≥": a >= b, "=": a == b}[rel]
+
+
+def chain(text: str):
+    """'0 < x ≤ 18', '6.25 ≤ x ≤ 18', 'x ≤ 17', 'x ≥ 21' -> a test for a number."""
+    parts = re.split(r"\s*(<|≤|>|≥)\s*", text.replace(mm.MINUS, "-"))
+    vals = [p if p == "x" else Fraction(p) for p in parts[::2]]
+    rels = parts[1::2]
+
+    def ok(x: Fraction) -> bool:
+        seq = [x if v == "x" else v for v in vals]
+        return all(holds(r, a, b) for r, a, b in zip(rels, seq, seq[1:], strict=False))
+
+    return ok
+
+
+def test_inequality_word_problems():
+    for item in gen("ineq_max_word"):
+        t = item.truth
+        key = value(item.choices[item.key])
+        if t["kind"] == "max":
+            want = max(n for n in range(0, 500) if t["F"] + t["r"] * n <= t["B"])
+        elif t["kind"] == "min":
+            want = min(n for n in range(0, 500) if t["F"] + t["r"] * n >= t["B"])
+        else:
+            want = max(n for n in range(0, 500) if t["a"] * n + t["b"] * t["y"] <= t["B"])
+        assert key == want and sum(value(c) == want for c in item.choices.values()) == 1
+    for item in gen("ineq_setup"):
+        t = item.truth
+        for k, text in item.choices.items():
+            if t["rel"] == "range":
+                lo, r1, mid, r2, hi = re.split(r"\s*(≤|<)\s*", text)
+                ok = (
+                    evaluate(mid, x=0) == t["F"]
+                    and evaluate(mid, x=1) - evaluate(mid, x=0) == t["r"]
+                    and value(lo) == t["lo"]
+                    and value(hi) == t["hi"]
+                    and r1 == r2 == "≤"
+                )
+            else:
+                left, rel, right = split_rel(text)
+                ok = (
+                    evaluate(left, x=0) == t["F"]
+                    and evaluate(left, x=1) - evaluate(left, x=0) == t["r"]
+                    and value(right) == t["B"]
+                    and rel == t["rel"]
+                )
+            assert ok == (k == item.key), (item.stem, text)
+
+
+def test_inequality_graphs_and_points():
+    for item in gen("ineq_graph"):
+        m, b, rel = item.truth["m"], item.truth["b"], item.truth["rel"]
+        assert "<polygon" in item.figure and (("stroke-dasharray" in item.figure) == (rel in "<>"))
+        probes = [(Fraction(x), m * x + b + d) for x in (-3, 0, 3) for d in (1, -1, 0)]  # above, below, on
+
+        def region(text, probes=probes):
+            left, r, right = split_rel(text)
+            return [holds(r, evaluate(left, x=x, y=y), evaluate(right, x=x, y=y)) for x, y in probes]
+
+        want = [rel in "≥>", rel in "≤<", rel in "≤≥"] * 3
+        for k, text in item.choices.items():
+            assert (region(text) == want) == (k == item.key), (rel, text)
+    for item in gen("ineq_system_points"):
+        ineqs = item.passage.split("\n")
+        for k, text in item.choices.items():
+            x, y = (value(v) for v in text.strip("()").split(", "))
+            both = all(
+                holds(split_rel(e)[1], evaluate(split_rel(e)[0], x=x, y=y), evaluate(split_rel(e)[2], x=x, y=y))
+                for e in ineqs
+            )
+            want_key = not both if "NOT" in item.stem else both
+            assert want_key == (k == item.key), (item.passage, text)
+
+
+def test_fence_range_key_matches_the_constraints():
+    for item in gen("ineq_fence_range"):
+        side = int(re.search(r"One side of the pen is (\d+) yards", item.stem).group(1))
+        fence = int(re.search(r"at most (\d+) yards of fencing", item.stem).group(1))
+        area = re.search(r"(at least|more than) ([\d,]+) square yards", item.stem)
+        grid = [Fraction(n, 4) for n in range(1, 4 * 80)]
+
+        def allowed(x, side=side, fence=fence, area=area):
+            ok = 2 * side + 2 * x <= fence
+            if area:
+                a = value(area.group(2))
+                ok &= side * x >= a if area.group(1) == "at least" else side * x > a
+            return ok
+
+        truth = [allowed(x) for x in grid]
+        for k, text in item.choices.items():
+            test = chain(text)
+            assert ([test(x) for x in grid] == truth) == (k == item.key), (item.stem, text)

@@ -345,6 +345,21 @@ asking," Desmos tips) and example questions he described.
     flipped), and `system_times_more` ("three times as many chose soccer as tennis, and 40 more chose soccer: how
     many chose tennis?"; easy gives a total; hard "4 more than three times"; traps divide by 3 instead of 2, give
     the other group, or leave out the extra).
+- **Linear inequalities in one or two variables** (Sebastian, Nov 25):
+  - `ineq_max_word` (budget or weight limit with a fixed part: the greatest number of games / boxes / gigabytes,
+    rounded down; medium "at least" goals rounded up; hard two variables, "if she buys 6 binders, how many
+    notebooks?"). Traps round the wrong way, leave out the fixed part, add it, or add it to each item's price.
+  - `ineq_setup` (which inequality: at most ≤, at least ≥, more than >, less than <; hard a range "at least $400 and
+    at most $750": 400 ≤ 125 + 20x ≤ 750). Traps flip the sign, use the wrong kind (strict vs. not), swap the fixed
+    part and the rate, or leave the fixed part out.
+  - `ineq_graph` (a shaded region with a solid or dashed line: which inequality? easy the four signs on one line;
+    medium one choice flips the slope's sign; hard standard form, where a negative y-coefficient flips the sign).
+  - `ineq_system_points` (two inequalities, one solid and one strict; which point is / is NOT a solution; the main
+    trap sits exactly on the dashed boundary; hard uses decimal slopes).
+  - `ineq_fence_range` (Sebastian's fencing problem: at most 100 yards of fence, one side 32 yards; medium
+    0 < x ≤ 18; hard adds "area at least / more than 200 square yards": 6.25 ≤ x ≤ 18. Traps fence each side once,
+    count one side once, use the wrong kind of inequality at the area limit, or drop the area limit).
+  - graph_svg shades a half-plane (shade=[(m, b, "above")]) and draws strict boundaries dashed (dashed=(0,)).
   - Graphs now also come in the full xy-plane (axes through the origin, −8 to 8, "x"/"y" and O), and two lines on a
     real-world graph get a key below it (solid and dashed). A choice that is a table or a system renders as one in
     review.html. Tests solve every system and check every choice independently.
@@ -415,12 +430,12 @@ Audit decisions (Nov 24):
 - Math: solving a formula for one variable ("A = ½h(b + c); which equation gives h?") belongs with Advanced Math
   (equivalent expressions), per Sebastian; build it there.
 - Math: graphs need image support in the portal when questions move there (the review page shows the SVG).
-- Math: the rest of Algebra from his deck (linear inequalities, absolute value, function notation and composite
-  functions), then the other math domains. He describes question types; Claude builds them in code and tests offline
+- Math: the rest of Algebra from his deck (absolute value, function notation and composite functions), then the
+  other math domains. He describes question types; Claude builds them in code and tests offline
   (no API batches).
 - Math: more two-variable and systems types worth adding: the x- and y-intercepts of ax + by = c, which point lies on
-  a line, the line through two points, parallel lines (same slope, the system has no solution), systems of
-  inequalities (which point is in the solution region; needs shaded graphs).
+  a line, the line through two points, parallel lines (same slope, the system has no solution), and a graphed system
+  of inequalities (two shaded regions overlapping; "which point is in the solution region?").
 
 - **Trap labels (proposed, not built):** a Words in Context trap list (most common meaning, other real meaning,
   wrong connotation, wrong degree, reversal, borrowed from elsewhere in the passage, grammatical but imprecise);
