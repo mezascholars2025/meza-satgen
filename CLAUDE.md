@@ -274,6 +274,39 @@ asking," Desmos tips) and example questions he described.
     each week than plant B"). Medium: one model. Other traps: slope vs. starting value, a total instead of a rate,
     the rate flipped ("took 2.5 weeks to grow 1 cm"), the value at the end instead of the start. Choice explanations
     for phrase or equation choices now give only the letter and the reason.
+  - **Graphs** (Sebastian: "definitely super important"): `graph_svg` draws an SAT-style graph in code: a light
+    grid with at least 10 lines each way (10-14), dark axes, numbered ticks (every other line when crowded), italic
+    axis titles with units, the line clipped to the grid, optional dots. Steps are 1, 2, 2.5, or 5 times a power of
+    10, chosen per problem. Lines pass through grid intersections, so the value a student reads is exact. The SVG is
+    stored in the question's `figure` field and shown in review.html and the copy-for-slides block.
+  - `graph_estimate` ("Based on the graph, what is the estimated value of y when x = 160?"; hard asks for x given
+    y): six settings (van fuel, pool filling, phone battery, tree height, plane altitude, kayak cost). Traps: the
+    grid line above or below, one vertical grid line over, the starting value, the wrong axis.
+  - `graph_slope` ("what is the change in the amount of fuel for each additional mile driven?"; hard: "each
+    additional 40 minutes"): choices are phrases with a direction and an amount; traps are the opposite direction,
+    the rate flipped, the starting value, the change over the whole graph, the change for one grid step or one unit.
+  - `rate_total_function` ("$18 per hour; 6 hours Saturday and x hours Sunday. Which function f gives the total?"):
+    f(x) = 18x + 108 or 18(x + 6); traps add the hours instead of the earnings, add to the rate, leave out a day.
+  - `intercept_meaning` (best interpretation of the x- or y-intercept of y = f(x) for a draining tank, candle, gift
+    card, phone battery): traps include the other intercept's true statement and the right number in the wrong role.
+  - `two_points_function` ("f(5) = 7 and f(2) = 19. Which equation defines f?"): traps flip the slope's sign, use an
+    output as the y-intercept, or flip the slope.
+  - `intercept_from_slope` ("slope 3, y-intercept (0, −12): x-coordinate of the x-intercept?", or the reverse;
+    hard uses fraction slopes).
+  - `cost_function`: easy a one-time fee plus a monthly charge; medium Sebastian's "first 2 (or 3) hours at one rate,
+    then another rate, x = hours past the first 2," so the first hours' cost becomes the y-intercept; hard the same
+    with x = total hours (x ≥ 2), simplified (C(x) = 10(x − 3) + 105 = 10x + 75).
+  - `function_change` (F(c) = (9/5)c + 32, a print shop's cost, K(f) = (5/9)(f − 32) + 273.15, ocean pressure
+    0.43d + 14.7: "If the input increases by 18, by how much does the output increase?"): slope × change; traps add a
+    visible constant (273.15) or give the input change.
+  - `table_equation` (a titled table of real-life values: hours studied and test scores, oven temperature, ticket
+    costs, a draining tank; "Which equation represents the relationship?"): rows step by 2 or 3 on hard, so the
+    change between rows is a trap; the first y-value (x ≠ 0) as the y-intercept is another.
+  - Sebastian's alternatives (Nov 25): `table_mb` (same tables, "f(x) = mx + b ... What is the value of m / b?"),
+    `table_shift` (a table of f, then g(x) = f(x) ± c (medium) or f(x − c) / f(x + c) (hard); "Which equation
+    defines g?"; traps shift the wrong way or forget to multiply the inside shift by the slope), and `sum_functions`
+    (f and g given, h(x) = f(x) + g(x) or f(x) − g(x); the slope, the y-intercept, or the x-intercept of h; traps
+    multiply, use only f, or combine the two x-intercepts).
 - **Choices.** Numbers in ascending order, as on the SAT. A whole-number answer gets whole-number wrong choices (a
   stray fraction stands out), except medium `expression_value`, where x itself is the trap. Keys: among the letters
   the real mistakes can produce, each question takes the letter used least so far in the batch, so keys spread over
@@ -340,7 +373,8 @@ Audit decisions (Nov 24):
 
 - Math: solving a formula for one variable ("A = ½h(b + c); which equation gives h?") belongs with Advanced Math
   (equivalent expressions), per Sebastian; build it there.
-- Math: more Linear functions types (Sebastian is describing them), then more Algebra from his deck (systems of equations: number of solutions; absolute value;
+- Math: graphs need image support in the portal when questions move there (the review page shows the SVG).
+- Math: more Linear functions types if Sebastian adds them, then more Algebra from his deck (systems of equations: number of solutions; absolute value;
   function notation and composite functions; slopes, parallel and perpendicular lines; inequalities), then the other
   math domains. He describes question types; Claude builds them in code and tests offline (no API batches).
 

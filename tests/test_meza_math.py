@@ -332,3 +332,90 @@ def test_interpret_models_key_names_the_right_thing_and_role():
             assert any(t["obj"] not in c and t["obj"].capitalize() not in c for c in item.choices.values())
         roles.add(t["role"])
     assert roles == {"rate", "start"}
+
+
+def rhs(equation: str) -> str:
+    return equation.split("=", 1)[1]
+
+
+def test_graphs_have_a_full_grid_and_the_key_is_on_the_line():
+    for item in gen("graph_estimate", 100):
+        svg = item.figure
+        assert svg.startswith("<svg") and svg.count('stroke="#cfcfcf"') >= 22  # 11+ lines each way, incl. edges
+        t = item.truth
+        want = t["y0"] if item.level != "hard" else t["x0"]
+        assert t["y0"] == t["m"] * t["x0"] + t["b"]
+        assert sum(value(c) == want for c in item.choices.values()) == 1 and value(item.choices[item.key]) == want
+    for item in gen("graph_slope", 100):
+        t = item.truth
+        key = item.choices[item.key]
+        assert mm.dec(abs(t["m"]) * t["k"]) in key
+        assert ("increases" in key) == (t["m"] > 0)
+
+
+def test_function_choices_only_the_key_matches_the_situation():
+    for item in gen("rate_total_function"):
+        t = item.truth
+        for k, eq in item.choices.items():
+            assert (evaluate(rhs(eq), x=3) == t["r"] * (3 + t["a"])) == (k == item.key), eq
+    for item in gen("two_points_function"):
+        xs = [int(v.replace(mm.MINUS, "-")) for v in re.findall(r"\((−?\d+)\) =", item.stem)]
+        ys = [Fraction(v.replace(mm.MINUS, "-").replace(",", "")) for v in re.findall(r"\) = (−?[\d,]+)", item.stem)]
+        for k, eq in item.choices.items():
+            fits = all(evaluate(rhs(eq), x=x) == y for x, y in zip(xs, ys, strict=True))
+            assert fits == (k == item.key), (item.stem, eq)
+    for item in gen("cost_function"):
+        t = item.truth
+        for k, eq in item.choices.items():
+            if item.level == "easy":
+                true = [t["fee"] + t["rate"] * mth for mth in (2, 5)]
+                got = [evaluate(rhs(eq), m=mth) for mth in (2, 5)]
+            else:
+                hours = [t["h"] + 1, t["h"] + 4]
+                xs_ = [1, 4] if item.level == "medium" else hours  # hours past the first h, or total hours
+                true = [t["h"] * t["a"] + t["r"] * (hh - t["h"]) for hh in hours]
+                got = [evaluate(rhs(eq), x=x) for x in xs_]
+            assert (got == true) == (k == item.key), (item.stem, eq)
+
+
+def test_intercepts_and_function_change():
+    for item in gen("intercept_meaning"):
+        t = item.truth
+        assert t["m"] * t["x0"] + t["b"] == 0
+        key = item.choices[item.key]
+        assert mm.num(t["b"] if t["which"] == "y" else t["x0"]) in key
+    for item in gen("intercept_from_slope"):
+        t = item.truth
+        assert t["m"] * t["a"] + t["b"] == 0
+        want = t["a"] if "x-coordinate" in item.stem else t["b"]
+        assert value(item.choices[item.key]) == want
+    for item in gen("function_change"):
+        assert value(item.choices[item.key]) == item.truth["m"] * item.truth["d"]
+
+
+def test_tables_and_combined_functions():
+    for family in ("table_equation", "table_mb"):
+        for item in gen(family):
+            t = item.truth
+            assert all(y == t["m"] * x + t["b"] for x, y in t["rows"])
+            if family == "table_equation":
+                for k, eq in item.choices.items():
+                    fits = all(evaluate(rhs(eq), x=x) == y for x, y in t["rows"])
+                    assert fits == (k == item.key), eq
+            else:
+                assert value(item.choices[item.key]) == t[t["ask"]]
+    for item in gen("table_shift"):
+        t = item.truth
+        inner = re.search(r"g\(x\) = (.+)", t["g"]).group(1)
+        for k, eq in item.choices.items():
+            fits = True
+            for x in (0, 1, 5):
+                f_in = evaluate(re.search(r"f\((.+?)\)", inner).group(1), x=x)  # the argument of f
+                g_true = t["m"] * f_in + t["b"] + evaluate(inner.split(")", 1)[1] or "0")
+                fits &= evaluate(rhs(eq), x=x) == g_true
+            assert fits == (k == item.key), (t["g"], eq)
+    for item in gen("sum_functions"):
+        t = item.truth
+        want = {"slope": t["M"], "y-intercept": t["B"], "x-intercept": Fraction(-t["B"], t["M"])}[t["ask"]]
+        assert value(item.choices[item.key]) == want
+        assert sum(value(c) == want for c in item.choices.values()) == 1

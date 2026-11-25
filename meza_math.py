@@ -101,6 +101,7 @@ class MathItem:
     fixed_choices: list[str] | None = None  # text choices in a set order ("Zero", "Exactly one", ...)
     truth: dict | None = None  # values of the constants behind the question (for tests)
     decimals: bool = False  # show numeric choices as decimals (0.4) instead of fractions (2/5)
+    figure: str = ""  # an SVG graph shown between the passage and the question
 
     def build_choices(self, rng: random.Random, used: dict[str, int] | None = None) -> None:
         """Four numeric choices in ascending order (as on the SAT): the answer plus three distinct real mistakes. The
@@ -195,12 +196,110 @@ class MathItem:
             "type": f"{self.family}_{self.level}",
             "format": self.fmt,
             "passage": self.passage,
+            "figure": self.figure,
             "stem": self.stem,
             "choices": self.choices,
             "answer": self.key if self.fmt == "mcq" else spr_answer(self.answer),
             "explanation": self.explanation(),
             "family": self.family,
         }
+
+
+# ----------------------------------------------------------------------------------------------------------- graphs
+
+
+def nice_axis(top: Fraction, lines: int = 10) -> tuple[Fraction, Fraction]:
+    """A grid step from 1, 2, 2.5, or 5 times a power of 10, so the axis reaches `top` with at least `lines` grid
+    lines; returns (step, axis maximum)."""
+    for exp in range(-2, 7):
+        for base in (1, 2, Fraction(5, 2), 5):
+            step = Fraction(base) * Fraction(10) ** exp
+            n = -(-top // step)  # grid lines needed to reach top
+            if n <= max(lines, 12):
+                n = max(n, lines)
+                return step, step * n
+    raise ValueError("axis too large")
+
+
+def graph_svg(
+    x_label: str,
+    y_label: str,
+    x_step,
+    x_n: int,
+    y_step,
+    y_n: int,
+    lines=(),
+    points=(),
+    label_every: tuple[int, int] = (1, 1),
+) -> str:
+    """An SAT-style graph: a light grid (x_n vertical and y_n horizontal grid lines past the axes), dark axes from
+    the origin, numbered ticks, axis titles with units, solid lines given as (slope, intercept) and dots given as
+    (x, y). Drawn in code, so every number is exact."""
+    W, H, L, B, T, R = 460, 380, 70, 55, 15, 15
+    pw, ph = W - L - R, H - B - T
+    x_max, y_max = Fraction(x_step) * x_n, Fraction(y_step) * y_n
+
+    def X(v) -> float:
+        return L + float(Fraction(v) / x_max) * pw
+
+    def Y(v) -> float:
+        return T + ph - float(Fraction(v) / y_max) * ph
+
+    out = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
+        f'font-family="Georgia, serif" font-size="12" role="img" aria-label="{y_label} versus {x_label}">',
+        '<rect width="100%" height="100%" fill="white"/>',
+    ]
+    for i in range(x_n + 1):
+        out.append(
+            f'<line x1="{X(x_step * i):.1f}" y1="{Y(0):.1f}" x2="{X(x_step * i):.1f}" y2="{Y(y_max):.1f}" '
+            f'stroke="#cfcfcf" stroke-width="1"/>'
+        )
+        if i % label_every[0] == 0:
+            out.append(
+                f'<text x="{X(x_step * i):.1f}" y="{Y(0) + 16:.1f}" text-anchor="middle">'
+                f"{dec(Fraction(x_step) * i)}</text>"
+            )
+    for j in range(y_n + 1):
+        out.append(
+            f'<line x1="{X(0):.1f}" y1="{Y(y_step * j):.1f}" x2="{X(x_max):.1f}" y2="{Y(y_step * j):.1f}" '
+            f'stroke="#cfcfcf" stroke-width="1"/>'
+        )
+        if j % label_every[1] == 0 and j:
+            out.append(
+                f'<text x="{X(0) - 6:.1f}" y="{Y(y_step * j) + 4:.1f}" text-anchor="end">'
+                f"{dec(Fraction(y_step) * j)}</text>"
+            )
+    out.append(f'<line x1="{X(0)}" y1="{Y(0)}" x2="{X(x_max)}" y2="{Y(0)}" stroke="black" stroke-width="1.5"/>')
+    out.append(f'<line x1="{X(0)}" y1="{Y(0)}" x2="{X(0)}" y2="{Y(y_max)}" stroke="black" stroke-width="1.5"/>')
+    for m, b in lines:  # clip y = mx + b to the grid
+        m, b = Fraction(m), Fraction(b)
+        pts = []
+        for xv in (Fraction(0), x_max):
+            yv = m * xv + b
+            if 0 <= yv <= y_max:
+                pts.append((xv, yv))
+        if m:
+            for yv in (Fraction(0), y_max):
+                xv = (yv - b) / m
+                if 0 <= xv <= x_max:
+                    pts.append((xv, yv))
+        pts = sorted(set(pts))
+        if len(pts) >= 2:
+            (x1, y1), (x2, y2) = pts[0], pts[-1]
+            out.append(
+                f'<line x1="{X(x1):.1f}" y1="{Y(y1):.1f}" x2="{X(x2):.1f}" y2="{Y(y2):.1f}" stroke="black" '
+                f'stroke-width="2.2"/>'
+            )
+    for xv, yv in points:
+        out.append(f'<circle cx="{X(xv):.1f}" cy="{Y(yv):.1f}" r="3.5" fill="black"/>')
+    out.append(f'<text x="{L + pw / 2:.1f}" y="{H - 8}" text-anchor="middle" font-style="italic">{x_label}</text>')
+    out.append(
+        f'<text transform="translate(16 {T + ph / 2:.1f}) rotate(-90)" text-anchor="middle" '
+        f'font-style="italic">{y_label}</text>'
+    )
+    out.append("</svg>")
+    return "".join(out)
 
 
 # ----------------------------------------------------------------------------- family 1: value of an expression
@@ -1859,6 +1958,953 @@ def interpret_models(rng: random.Random, level: str, fmt: str) -> MathItem:
     return item
 
 
+def coef(m, var: str = "x", decimal: bool = False) -> str:
+    """3 -> '3x', -1 -> '−x', 3/4 -> '(3/4)x', 0.5 -> '0.5x' (decimal=True)."""
+    m = Fraction(m)
+    if m == 1:
+        return var
+    if m == -1:
+        return MINUS + var
+    if m.denominator == 1 or decimal:
+        return f"{dec(m) if decimal else num(m)}{var}"
+    return f"{MINUS if m < 0 else ''}({num(abs(m))}){var}"
+
+
+def linf(m, b, var: str = "x", decimal: bool = False) -> str:
+    """'18x + 108', '−0.05x + 13', '(5/9)x − 17' (b may be 0)."""
+    out = coef(m, var, decimal)
+    b = Fraction(b)
+    show = dec if decimal else num
+    if b > 0:
+        out += f" + {show(b)}"
+    elif b < 0:
+        out += f" {MINUS} {show(-b)}"
+    return out
+
+
+def unit(n, one: str, many: str) -> str:
+    return f"{dec(n)} {one if Fraction(n) == 1 else many}"
+
+
+GRAPH_FRAMES = [
+    dict(
+        intro="A delivery van's fuel tank was filled before a trip. The graph shows the amount of fuel y, in gallons, "
+        "left in the tank after the van had been driven x miles.",
+        x="Distance driven (miles)",
+        y="Fuel in tank (gallons)",
+        sign=-1,
+        xs=[10, 20, 25, 50],
+        ys=[1, 2],
+        xname="the van had been driven",
+        xu=("mile", "miles"),
+        per="mile driven",
+        yq="the amount of fuel left in the tank",
+        yu=("gallon", "gallons"),
+        start="the van started the trip with",
+    ),
+    dict(
+        intro="A swimming pool is being filled with water at a constant rate. The graph shows the amount of water y, "
+        "in gallons, in the pool x minutes after filling began.",
+        x="Time (minutes)",
+        y="Water in pool (gallons)",
+        sign=1,
+        xs=[5, 10, 20],
+        ys=[100, 200, 250, 500],
+        xname="filling had gone on for",
+        xu=("minute", "minutes"),
+        per="minute",
+        yq="the amount of water in the pool",
+        yu=("gallon", "gallons"),
+        start="the pool held",
+    ),
+    dict(
+        intro="A phone's battery drains at a steady rate during a long video call. The graph shows the battery charge "
+        "y, as a percent of a full charge, x minutes after the call began.",
+        x="Time (minutes)",
+        y="Battery charge (percent)",
+        sign=-1,
+        xs=[10, 20, 25],
+        ys=[5, 10],
+        xname="the call had lasted",
+        xu=("minute", "minutes"),
+        per="minute",
+        yq="the battery charge",
+        yu=("percentage point", "percentage points"),
+        start="the battery charge was",
+    ),
+    dict(
+        intro="A tree nursery measured the height of a young maple tree once a month. The graph shows a linear model "
+        "of the tree's height y, in inches, x months after the first measurement.",
+        x="Time (months)",
+        y="Height (inches)",
+        sign=1,
+        xs=[1, 2],
+        ys=[2, 4, 5],
+        xname="the first measurement had been taken",
+        xu=("month", "months"),
+        per="month",
+        yq="the tree's height",
+        yu=("inch", "inches"),
+        start="the tree's height was",
+    ),
+    dict(
+        intro="A small plane descends at a constant rate as it approaches an airport. The graph shows the plane's "
+        "altitude y, in feet, x minutes after the descent began.",
+        x="Time (minutes)",
+        y="Altitude (feet)",
+        sign=-1,
+        xs=[1, 2],
+        ys=[500, 1000],
+        xname="the descent had lasted",
+        xu=("minute", "minutes"),
+        per="minute",
+        yq="the plane's altitude",
+        yu=("foot", "feet"),
+        start="the plane's altitude was",
+    ),
+    dict(
+        intro="A kayak rental shop charges a fixed fee plus an hourly rate. The graph shows the total cost y, in "
+        "dollars, of renting a kayak for x hours.",
+        x="Rental time (hours)",
+        y="Total cost (dollars)",
+        sign=1,
+        xs=[1],
+        ys=[5, 10, 20],
+        xname="the kayak had been rented for",
+        xu=("hour", "hours"),
+        per="hour",
+        yq="the total cost",
+        yu=("dollar", "dollars"),
+        start="the fixed fee was",
+    ),
+]
+
+
+def _graph_line(rng: random.Random, f: dict):
+    """A line through grid points: slope = (dy grid steps)/(dx grid steps), starting on a grid line, staying on the
+    grid. Returns (xs, x_n, ys, y_n, m, b, dx)."""
+    while True:
+        xs, ys = Fraction(rng.choice(f["xs"])), Fraction(rng.choice(f["ys"]))
+        x_n, y_n = rng.choice([10, 12]), rng.choice([10, 12, 14])
+        dx, dy = rng.choice([1, 2, 4, 5]), rng.choice([1, 2, 3])
+        m = f["sign"] * dy * ys / (dx * xs)
+        if f["sign"] > 0:
+            b = ys * rng.randint(0 if f["sign"] > 0 and "cost" not in f["y"] else 1, 3)
+            end = b + m * xs * x_n
+            ok = end <= ys * y_n and end >= ys * (y_n - 4)
+        else:
+            b = ys * rng.randint(y_n - 3, y_n)
+            end = b + m * xs * x_n
+            ok = end >= 0 and end <= ys * 4 or (end < 0 and (-b / m) >= xs * (x_n - 2))
+        if ok and (xs * x_n) / (dx * xs) >= 2:
+            return xs, x_n, ys, y_n, m, b, dx
+
+
+def graph_estimate(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """A graph of a real-world linear relationship. 'Based on the graph, what is the estimated amount of fuel left
+    when the van has been driven 160 miles?'  Hard asks the other way: 'what is the estimated distance when 5 gallons
+    are left?'  Traps: reading one grid line too high or low, the starting value, reading the wrong axis."""
+    f = rng.choice(GRAPH_FRAMES)
+    xs, x_n, ys, y_n, m, b, dx = _graph_line(rng, f)
+    fig = graph_svg(f["x"], f["y"], xs, x_n, ys, y_n, lines=[(m, b)], label_every=(2 if x_n > 10 else 1, 2))
+    lattice = [
+        xs * dx * j for j in range(1, x_n // dx + 1) if 0 <= m * xs * dx * j + b <= ys * y_n and xs * dx * j <= xs * x_n
+    ]
+    x0 = rng.choice(lattice[: max(1, len(lattice) - 1)] or lattice)
+    y0 = m * x0 + b
+    if level != "hard":
+        stem = f"{f['intro']} Based on the graph, what is the estimated value of y when x = {dec(x0)}?"
+        ans = y0
+        mistakes = [
+            (y0 + ys, "this reads the grid line just above the line"),
+            (y0 - ys, "this reads the grid line just below the line"),
+            (b, f"this is the value of y when x = 0 ({f['start']} this)"),
+            (m * (x0 + xs) + b, "this reads the line one vertical grid line too far right"),
+            (m * (x0 - xs) + b, "this reads the line one vertical grid line too far left"),
+        ]
+        steps = [
+            f"Find x = {dec(x0)} on the horizontal axis and go straight up to the line.",
+            f"The line there is at y = {dec(y0)} on the vertical axis.",
+        ]
+    else:
+        stem = f"{f['intro']} Based on the graph, what is the estimated value of x when y = {dec(y0)}?"
+        ans = x0
+        mistakes = [
+            (x0 + xs, "this reads one vertical grid line too far right"),
+            (x0 - xs, "this reads one vertical grid line too far left"),
+            (y0, "this is the value of y, not x"),
+            ((y0 + ys - b) / m, "this starts from the grid line above y = " + dec(y0)),
+        ]
+        steps = [
+            f"Find y = {dec(y0)} on the vertical axis and go across to the line.",
+            f"Then go straight down: the line is at x = {dec(x0)}.",
+        ]
+    mistakes = [(v, w) for v, w in mistakes if v >= 0 and terminating(v)]
+    item = MathItem(
+        "graph_estimate",
+        FUNC_SKILL,
+        level,
+        fmt,
+        stem,
+        ans,
+        steps,
+        mistakes,
+        figure=fig,
+        fractions_ok=True,
+        decimals=True,
+    )
+    item.truth = {"m": m, "b": b, "x0": x0, "y0": y0}
+    return item
+
+
+def graph_slope(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'According to the graph, what is the change in the amount of fuel for each additional mile driven?'  Hard asks
+    for each additional block of units ('each additional 40 miles'). Choices are phrases: the right size and
+    direction; the opposite direction; the rate flipped; the starting value; the total change shown on the graph."""
+    f = rng.choice(GRAPH_FRAMES)
+    xs, x_n, ys, y_n, m, b, dx = _graph_line(rng, f)
+    fig = graph_svg(f["x"], f["y"], xs, x_n, ys, y_n, lines=[(m, b)], label_every=(2 if x_n > 10 else 1, 2))
+    k = Fraction(1) if level != "hard" else xs * dx
+    change = abs(m) * k
+    up, down = "increases", "decreases"
+    word = up if m > 0 else down
+    other = down if m > 0 else up
+    per = f["per"] if k == 1 else f"{dec(k)} {f['xu'][1]}" + (" driven" if "driven" in f["per"] else "")
+    stem = f"{f['intro']} According to the graph, what is the change in {f['yq']} for each additional {per}?"
+
+    def say(w: str, n) -> str:
+        return f"{_cap(f['yq'])} {w} by {unit(n, *f['yu'])}."
+
+    key = say(word, change)
+    x_end = min(xs * x_n, (-b / m) if m < 0 else xs * x_n)
+    pool = [
+        (say(other, change), f"the line goes {'up' if m > 0 else 'down'} from left to right, so it {word}"),
+        (say(word, b), f"{dec(b)} is the value when x = 0, not the change for each {f['xu'][0]}"),
+        (say(word, abs(m * x_end)), f"this is the change over the whole graph, not for each {per}"),
+    ]
+    if terminating(1 / abs(m)) and 1 / abs(m) != change:
+        pool.insert(
+            1, (say(word, 1 / abs(m)), f"this flips the rate: {dec(1 / abs(m))} {f['xu'][1]} for each {f['yu'][0]}")
+        )
+    if xs * dx != k:  # the change over one marked step of the line instead of one unit
+        pool.append(
+            (
+                say(word, abs(m) * xs * dx),
+                f"this is the change for each {dec(xs * dx)} {f['xu'][1]}, not for each {per}",
+            )
+        )
+    if k != 1:  # hard: the change for one unit instead of the block asked about
+        pool.append((say(word, abs(m)), f"this is the change for each single {f['xu'][0]}, not for each {per}"))
+    pool.append((say(word, change * 2), f"this doubles the change for each {per}"))
+    seen, mistakes = {key}, []
+    for text, why in pool:
+        if text not in seen and " by 0 " not in text:
+            seen.add(text)
+            mistakes.append((text, why))
+    mistakes = mistakes[:3]
+    steps = [
+        f"Pick two points on the line where it crosses grid lines, such as (0, {dec(b)}) and "
+        f"({dec(xs * dx)}, {dec(b + m * xs * dx)}).",
+        f"Slope = ({dec(b + m * xs * dx)} {MINUS} {dec(b)}) ÷ {dec(xs * dx)} = {dec(m)}"
+        + (f"; for {dec(k)} {f['xu'][1]}, the change is {dec(m)} × {dec(k)} = {dec(m * k)}." if k != 1 else "."),
+        f"So {key[0].lower() + key[1:]}",
+    ]
+    item = MathItem(
+        "graph_slope", FUNC_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key, figure=fig
+    )
+    item.truth = {"m": m, "b": b, "k": k}
+    return item
+
+
+RATE_JOBS = [
+    dict(
+        text="{n} earns ${r} per hour babysitting. On Saturday, {n} babysat for {a} hours, and on Sunday, {n} babysat "
+        "for x hours.",
+        total="the total amount, in dollars, {n} earned babysitting on Saturday and Sunday",
+        rates=[12, 15, 16, 18, 20, 22, 25],
+    ),
+    dict(
+        text="{n} reads at a rate of {r} pages per hour. On Monday, {n} read for {a} hours, and on Tuesday, {n} read "
+        "for x hours.",
+        total="the total number of pages {n} read on Monday and Tuesday",
+        rates=[20, 24, 30, 35, 40, 45],
+    ),
+    dict(
+        text="A truck driver drives at an average speed of {r} miles per hour. On the first day of a trip, the driver "
+        "drove for {a} hours, and on the second day, the driver drove for x hours.",
+        total="the total distance, in miles, the driver drove on the two days",
+        rates=[50, 55, 60, 62, 65],
+    ),
+    dict(
+        text="A printer prints {r} pages per minute. On Friday, it printed for {a} minutes, and on Saturday, it "
+        "printed for x minutes.",
+        total="the total number of pages printed on Friday and Saturday",
+        rates=[18, 20, 24, 30, 36, 40],
+    ),
+]
+
+
+def rate_total_function(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'... earns $18 per hour ... babysat for 6 hours on Saturday and x hours on Sunday. Which function f gives the
+    total amount earned on the two days?'  f(x) = 18x + 108 (or 18(x + 6), the form chosen at random). Traps add the
+    hours instead of the earnings, multiply the hours into the rate, or leave out the first day."""
+    f, n = rng.choice(RATE_JOBS), rng.choice(NAMES)
+    r, a = rng.choice(f["rates"]), rng.randint(2, 9)
+    factored = level == "hard" or rng.random() < 0.3
+    stem = f"{f['text'].format(n=n, r=r, a=a)} Which function f gives {f['total'].format(n=n)}?"
+    key = f"f(x) = {r}(x + {a})" if factored else f"f(x) = {r}x + {num(r * a)}"
+    mistakes = [
+        (f"f(x) = {r}x + {a}", f"this adds the {a} hours instead of what was done in them ({r} × {a})"),
+        (f"f(x) = {r + a}x" if not factored else f"f(x) = {r}x + {a}", f"this adds {a} to the rate"),
+        (f"f(x) = {r}x", f"this leaves out the first {a} hours"),
+        (
+            f"f(x) = {num(r * a)}x" if not factored else f"f(x) = {r}({a}x)",
+            f"this multiplies the {a} hours into the rate instead of adding",
+        ),
+    ]
+    steps = [
+        f"The first day gives {r} × {a} = {num(r * a)}; the second gives {r}x.",
+        f"Together: f(x) = {r}x + {num(r * a)}" + (f" = {r}(x + {a})." if factored else "."),
+    ]
+    item = MathItem("rate_total_function", FUNC_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
+    item.truth = {"r": r, "a": a}
+    return item
+
+
+INTERCEPT_FRAMES = [
+    dict(
+        desc="the amount of water, in gallons, in a tank x minutes after the tank began draining",
+        start="The tank held {k} gallons of water when it began draining.",
+        end="The tank is empty {k} minutes after it began draining.",
+        rate="The amount of water in the tank decreases by {k} gallons each minute.",
+        slopes=[10, 12, 15, 20, 25],
+        xs=range(12, 61),
+    ),
+    dict(
+        desc="the height, in centimeters, of a candle x hours after it was lit",
+        start="The candle was {k} centimeters tall when it was lit.",
+        end="The candle burns out completely {k} hours after it was lit.",
+        rate="The candle's height decreases by {k} centimeters each hour.",
+        slopes=[Fraction(1, 2), Fraction(3, 4), 1, Fraction(5, 4), 2],
+        xs=range(8, 41),
+    ),
+    dict(
+        desc="the balance, in dollars, on a gift card x weeks after it was first used, if the same amount is "
+        "spent each week",
+        start="The gift card had a balance of ${k} when it was first used.",
+        end="The gift card is used up {k} weeks after it was first used.",
+        rate="The balance decreases by ${k} each week.",
+        slopes=[5, 8, 10, 12, 15, 20],
+        xs=range(4, 16),
+    ),
+    dict(
+        desc="a phone's battery charge, as a percent of a full charge, x hours after the phone was unplugged",
+        start="The battery charge was {k}% when the phone was unplugged.",
+        end="The battery is fully drained {k} hours after the phone was unplugged.",
+        rate="The battery charge decreases by {k} percentage points each hour.",
+        slopes=[4, 5, 8, 10],
+        xs=range(8, 26),
+    ),
+]
+
+
+def intercept_meaning(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'The function f(x) = −25x + 600 gives the amount of water in a tank x minutes after it began draining. What is
+    the best interpretation of the x-intercept of the graph of y = f(x) in this context?'  Traps: the other
+    intercept (a true statement, but not the one asked), the right number in the wrong role, the rate."""
+    f = rng.choice(INTERCEPT_FRAMES)
+    while True:
+        m = Fraction(rng.choice(f["slopes"]))
+        x0 = rng.choice(list(f["xs"]))
+        b = m * x0
+        if b.denominator == 1 and b != x0:
+            break
+    which = rng.choice(["x", "y"]) if level == "hard" else "y"
+    decimal = m.denominator != 1
+    eq = f"f(x) = {linf(-m, b, decimal=decimal)}"
+    stem = (
+        f"The function {eq} gives {f['desc']}. What is the best interpretation of the {which}-intercept of the "
+        f"graph of y = f(x) in the xy-plane in this context?"
+    )
+    say = {k: f[k] for k in ("start", "end", "rate")}
+    if which == "y":
+        key = say["start"].format(k=num(b))
+        mistakes = [
+            (say["end"].format(k=num(b)), f"{num(b)} is the starting amount (x = 0), not a time"),
+            (say["end"].format(k=num(x0)), "this is true, but it describes the x-intercept"),
+            (say["rate"].format(k=num(b)), f"{num(b)} is the starting amount, not the change each unit"),
+        ]
+        steps = [f"The y-intercept is where x = 0: f(0) = {num(b)}.", f"So: {key}"]
+    else:
+        key = say["end"].format(k=num(x0))
+        mistakes = [
+            (say["start"].format(k=num(x0)), f"{num(x0)} is a time (the x-value), not a starting amount"),
+            (say["start"].format(k=num(b)), "this is true, but it describes the y-intercept"),
+            (say["rate"].format(k=num(x0)), f"{num(x0)} is the x-value where f(x) = 0, not a rate"),
+        ]
+        steps = [
+            f"The x-intercept is where f(x) = 0: {linf(-m, b, decimal=decimal)} = 0, so x = {num(x0)}.",
+            f"So: {key}",
+        ]
+    item = MathItem("intercept_meaning", FUNC_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
+    item.truth = {"m": -m, "b": b, "x0": x0, "which": which}
+    return item
+
+
+def two_points_function(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'For the linear function f, f(5) = 7 and f(2) = 19. Which equation defines f?'  Traps: the slope with the wrong
+    sign, a given output used as the y-intercept, the slope flipped (run over rise). Hard gives the two values in a
+    table-free sentence with negative inputs."""
+    letter = rng.choice(["f", "g", "h", "p"])
+    while True:
+        m = rng.choice(nz(-6, 6))
+        b = rng.choice(nz(-20, 30))
+        lo, hi = (-6, 9) if level == "hard" else (1, 9)
+        x1, x2 = rng.sample([v for v in range(lo, hi + 1) if v], 2)
+        y1, y2 = m * x1 + b, m * x2 + b
+        if len({y1, y2, b, -b}) == 4 and (y1 - b) and abs(m) != 1:
+            break
+    stem = (
+        f"For the linear function {letter}, {letter}({num(x1)}) = {num(y1)} and {letter}({num(x2)}) = "
+        f"{num(y2)}. Which equation defines {letter}?"
+    )
+    key = f"{letter}(x) = {linf(m, b)}"
+    mistakes = [
+        (f"{letter}(x) = {linf(-m, y1 + m * x1)}", "this uses the slope with the wrong sign"),
+        (f"{letter}(x) = {linf(m, y1)}", f"this uses {num(y1)}, an output, as the y-intercept"),
+        (f"{letter}(x) = {linf(Fraction(1, m), b)}", "this flips the slope (change in x over change in y)"),
+        (f"{letter}(x) = {linf(m, y2)}", f"this uses {num(y2)}, an output, as the y-intercept"),
+    ]
+    steps = [
+        f"Slope = ({num(y2)} {MINUS} {num(y1)}) / ({num(x2)} {MINUS} {num(x1)}) = {num(m)}.",
+        f"Use one point: {num(y1)} = {num(m)}({num(x1)}) + b, so b = {num(b)}.",
+        f"So {key}.",
+    ]
+    item = MathItem("two_points_function", FUNC_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
+    item.truth = {"m": m, "b": b, "letter": letter}
+    return item
+
+
+def intercept_from_slope(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'In the xy-plane, a line has a slope of 3 and passes through (0, −12). What is the x-coordinate of the
+    x-intercept?'  Or the other way: slope and x-intercept given, find the y-coordinate of the y-intercept. Hard
+    uses fraction slopes."""
+    while True:
+        m = (
+            Fraction(rng.choice(nz(-8, 8)))
+            if level != "hard"
+            else Fraction(rng.choice(nz(-5, 5)), rng.choice([2, 3, 4]))
+        )
+        a = Fraction(rng.choice(nz(-12, 12)))  # x-intercept
+        b = -m * a  # y-intercept
+        if b.denominator == 1 and b and m.denominator <= 4 and a != b and abs(m) != 1:
+            break
+    if rng.random() < 0.5:
+        stem = (
+            f"In the xy-plane, a line has a slope of {num(m)} and a y-intercept of (0, {num(b)}). What is the "
+            f"x-coordinate of the x-intercept of the line?"
+        )
+        ans = a
+        mistakes = [
+            (-a, "this has the right size but the wrong sign"),
+            (m / b, "this divides the slope by the y-intercept"),
+            (b, "this is the y-intercept"),
+            (-b * m, "this multiplies by the slope instead of dividing"),
+        ]
+        steps = [
+            f"The line is y = {linf(m, b)}. At the x-intercept, y = 0: 0 = {linf(m, b)}.",
+            f"So x = {MINUS}({num(b)}) ÷ {num(m)} = {num(a)}.",
+        ]
+    else:
+        stem = (
+            f"In the xy-plane, a line has a slope of {num(m)} and an x-intercept of ({num(a)}, 0). What is the "
+            f"y-coordinate of the y-intercept of the line?"
+        )
+        ans = b
+        mistakes = [
+            (-b, "this has the right size but the wrong sign"),
+            (a, "this is the x-intercept"),
+            (a / m, "this divides the x-intercept by the slope instead of multiplying"),
+            (m * a + m, "this adds the slope again"),
+        ]
+        steps = [
+            f"Use y = {coef(m)} + b with the point ({num(a)}, 0): 0 = ({num(m)})({num(a)}) + b.",
+            f"So b = {num(b)}.",
+        ]
+    item = MathItem(
+        "intercept_from_slope",
+        FUNC_SKILL,
+        level,
+        fmt,
+        stem,
+        ans,
+        steps,
+        mistakes,
+        positive_only=False,
+        fractions_ok=True,
+    )
+    item.truth = {"m": m, "a": a, "b": b}
+    return item
+
+
+MONTHLY_PLANS = [
+    dict(
+        what="A gym charges a one-time sign-up fee of ${a} plus ${r} per month.",
+        c="the total cost, in dollars, of a gym membership for m months",
+        fees=range(25, 151, 5),
+        rates=range(20, 61, 5),
+    ),
+    dict(
+        what="A streaming service charges a one-time setup fee of ${a} plus ${r} per month.",
+        c="the total cost, in dollars, of the service for m months",
+        fees=range(10, 51, 5),
+        rates=range(8, 21),
+    ),
+    dict(
+        what="A storage company charges a one-time move-in fee of ${a} plus ${r} per month to rent a storage unit.",
+        c="the total cost, in dollars, of renting the unit for m months",
+        fees=range(20, 101, 10),
+        rates=range(45, 151, 5),
+    ),
+]
+HOURLY_PLANS = [
+    dict(
+        what="A shop rents kayaks for ${a} per hour for the first {h} hours and ${r} per hour after that.",
+        thing="renting a kayak",
+    ),
+    dict(
+        what="A tutor charges ${a} per hour for the first {h} hours of tutoring each week and ${r} per hour for any "
+        "additional hours that week.",
+        thing="a week of tutoring",
+    ),
+    dict(
+        what="A parking garage charges ${a} per hour for the first {h} hours and ${r} per hour after that.",
+        thing="parking a car in the garage",
+    ),
+    dict(
+        what="A bike rental shop charges ${a} per hour for the first {h} hours and ${r} per hour after that.",
+        thing="renting a bike",
+    ),
+]
+
+
+def cost_function(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """Easy: a one-time fee plus a monthly charge, 'Which function gives the cost C(m)?' Medium: ${a} per hour for the
+    first 2 (or 3) hours and ${r} per hour after that, where x is the number of hours AFTER the first 2, so the first
+    hours' cost goes into the y-intercept: C(x) = rx + 2a. Hard: the same, but x is the TOTAL number of hours (x ≥ 2),
+    so C(x) = r(x − 2) + 2a, shown simplified."""
+    if level == "easy":
+        f = rng.choice(MONTHLY_PLANS)
+        a, r = rng.choice(list(f["fees"])), rng.choice(list(f["rates"]))
+        if a == r:
+            a += 5
+        stem = f"{f['what'].format(a=a, r=r)} Which function C gives {f['c']}?"
+        key = f"C(m) = {r}m + {a}"
+        mistakes = [
+            (f"C(m) = {a}m + {r}", "this swaps the one-time fee and the monthly charge"),
+            (f"C(m) = {r + a}m", "this charges the one-time fee every month"),
+            (f"C(m) = {r}m {MINUS} {a}", "this subtracts the fee instead of adding it"),
+            (f"C(m) = {r}(m + {a})", f"this multiplies the fee by ${r}"),
+        ]
+        steps = [f"Each month costs ${r}, so m months cost {r}m. The ${a} fee is paid once.", f"So {key}."]
+        truth = {"fee": a, "rate": r}
+    else:
+        f = rng.choice(HOURLY_PLANS)
+        h = rng.choice([2, 2, 3])
+        while True:
+            a, r = rng.randint(4, 15) * 5, rng.randint(2, 12) * 5
+            if a != r and h * a != r:
+                break
+        first = h * a
+        if level == "medium":
+            q = (
+                f"Which function C gives the cost, in dollars, of {f['thing']} for x hours more than the first {h} "
+                f"hours?"
+            )
+            key = f"C(x) = {r}x + {first}"
+            mistakes = [
+                (f"C(x) = {r}x + {a}", f"this adds the cost of only one of the first {h} hours"),
+                (f"C(x) = {a}x + {h * r}", "this swaps the two hourly rates"),
+                (f"C(x) = {r}x + {r * h}", f"this charges the first {h} hours at the later rate"),
+                (
+                    f"C(x) = {r}(x {MINUS} {h}) + {first}",
+                    f"x already counts only the hours after the first {h}, so nothing more is subtracted",
+                ),
+            ]
+            steps = [
+                f"The first {h} hours always cost {h} × ${a} = ${first}; that is the constant term.",
+                f"Each of the x extra hours costs ${r}, so {key}.",
+            ]
+        else:
+            q = f"Which function C gives the cost, in dollars, of {f['thing']} for x hours, where x ≥ {h}?"
+            key = f"C(x) = {linf(r, first - r * h)}"
+            mistakes = [
+                (f"C(x) = {r}x + {first}", f"this charges ${r} for all x hours as well as the first {h}"),
+                (f"C(x) = {linf(r, first + r * h)}", f"this uses x + {h} instead of x {MINUS} {h}"),
+                (
+                    f"C(x) = {linf(a, r * h - a * h)}" if r * h != a * h else f"C(x) = {a}x",
+                    "this swaps the two hourly rates",
+                ),
+                (f"C(x) = {r}x", f"this leaves out the first {h} hours' cost"),
+            ]
+            steps = [
+                f"The first {h} hours cost {h} × ${a} = ${first}; the other x {MINUS} {h} hours cost ${r} each.",
+                f"C(x) = {r}(x {MINUS} {h}) + {first} = {linf(r, first - r * h)}.",
+            ]
+        stem = f"{f['what'].format(a=a, r=r, h=h)} {q}"
+        truth = {"a": a, "r": r, "h": h}
+    item = MathItem("cost_function", FUNC_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
+    item.truth = truth
+    return item
+
+
+FORMULAS = [
+    dict(
+        text="The function F(c) = (9/5)c + 32 gives the temperature, in degrees Fahrenheit, for a temperature of c "
+        "degrees Celsius.",
+        ask="If a temperature increases by {d} degrees Celsius, by how many degrees Fahrenheit does it increase?",
+        m=Fraction(9, 5),
+        b=Fraction(32),
+        shown=Fraction(32),
+        deltas=[5, 10, 15, 20, 25, 30, 40],
+        level="medium",
+    ),
+    dict(
+        text="A print shop charges C(n) = 0.15n + 12.5 dollars to print n copies of a flyer.",
+        ask="If an order increases by {d} copies, by how many dollars does the cost increase?",
+        m=Fraction(3, 20),
+        b=Fraction(25, 2),
+        shown=Fraction(25, 2),
+        deltas=[20, 40, 60, 100, 200],
+        level="medium",
+    ),
+    dict(
+        text="The function K(f) = (5/9)(f − 32) + 273.15 gives the temperature, in kelvins, for a temperature of f "
+        "degrees Fahrenheit.",
+        ask="If a temperature increases by {d} degrees Fahrenheit, by how many kelvins does it increase?",
+        m=Fraction(5, 9),
+        b=Fraction(27315, 100) - Fraction(160, 9),
+        shown=Fraction(27315, 100),
+        deltas=[9, 18, 27, 36, 45, 54],
+        level="hard",
+    ),
+    dict(
+        text="The function P(d) = 0.43d + 14.7 gives the approximate pressure, in pounds per square inch, at a depth "
+        "of d feet below the surface of the ocean.",
+        ask="If a diver descends {d} feet deeper, by how many pounds per square inch does the pressure increase?",
+        m=Fraction(43, 100),
+        b=Fraction(147, 10),
+        shown=Fraction(147, 10),
+        deltas=[10, 20, 30, 50, 100],
+        level="hard",
+    ),
+]
+
+
+def function_change(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'K(f) = (5/9)(f − 32) + 273.15 ... If a temperature increases by 18 degrees Fahrenheit, by how many kelvins does
+    it increase?'  The change is the slope times the change in input; the constants cancel. Traps: the input change
+    itself, the slope flipped, the constant term added back in, one output value instead of the change."""
+    f = rng.choice([x for x in FORMULAS if x["level"] == level])
+    d = rng.choice(f["deltas"])
+    m = f["m"]
+    ans = m * d
+    stem = f"{f['text']} {f['ask'].format(d=d)}"
+    mistakes = [
+        (Fraction(d), "this is the change in the input, not in the output"),
+        (d / m, "this divides by the rate instead of multiplying (the rate is flipped)"),
+        (ans + f["shown"], f"this adds {dec(f['shown'])}, a constant that cancels when you subtract two outputs"),
+        (d + f["shown"], f"this adds {dec(f['shown'])} to the change in the input"),
+        (m, "this is the change for an increase of 1, not of " + str(d)),
+    ]
+    mistakes = [(v, w) for v, w in mistakes if terminating(v)]
+    steps = [
+        f"The output changes by the slope, {dec(m)}, for each 1 the input increases; the constant terms cancel.",
+        f"So the change is {dec(m)} × {d} = {dec(ans)}.",
+    ]
+    item = MathItem(
+        "function_change", FUNC_SKILL, level, fmt, stem, ans, steps, mistakes, fractions_ok=True, decimals=True
+    )
+    item.truth = {"m": m, "d": d}
+    return item
+
+
+TABLE_FRAMES = [
+    dict(
+        title="Hours studied and test scores",
+        x="Hours studied",
+        y="Test score (points)",
+        xd="the number of hours a student studied",
+        yd="the student's test score, in points",
+        xstart=[1, 2],
+        xstep=[1, 2],
+        m=range(4, 10),
+        b=range(40, 61),
+    ),
+    dict(
+        title="Oven temperature while preheating",
+        x="Time (minutes)",
+        y="Temperature (°F)",
+        xd="the time, in minutes, since the oven was turned on",
+        yd="the oven's temperature, in degrees Fahrenheit",
+        xstart=[2, 3],
+        xstep=[2, 3],
+        m=range(15, 41, 5),
+        b=range(70, 81),
+    ),
+    dict(
+        title="Cost of concert tickets",
+        x="Number of tickets",
+        y="Total cost (dollars)",
+        xd="the number of tickets bought",
+        yd="the total cost, in dollars, including a one-time service fee",
+        xstart=[1, 2],
+        xstep=[1, 2],
+        m=range(18, 46),
+        b=range(5, 16),
+    ),
+    dict(
+        title="Water in a storage tank",
+        x="Time (days)",
+        y="Water in tank (liters)",
+        xd="the number of days since the tank was filled",
+        yd="the amount of water in the tank, in liters",
+        xstart=[2, 3],
+        xstep=[2, 3],
+        m=range(-30, -9, 5),
+        b=range(400, 601, 20),
+    ),
+]
+
+
+def md_table(title: str, xh: str, yh: str, rows: list) -> str:
+    lines = [title, f"| {xh} | {yh} |", "|---|---|"]
+    lines += [f"| {num(x)} | {num(y)} |" for x, y in rows]
+    return "\n".join(lines)
+
+
+def _table(rng: random.Random, f: dict):
+    x0, dx = rng.choice(f["xstart"]), rng.choice(f["xstep"])
+    m, b = rng.choice(list(f["m"])), rng.choice(list(f["b"]))
+    xs = [x0 + dx * i for i in range(4)]
+    return xs, dx, m, b, [(x, m * x + b) for x in xs]
+
+
+def table_equation(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """A table of real-life values ('Hours studied' and 'Test score'). 'Which equation represents the relationship
+    between x and y?'  Traps: the change between rows used as the slope (rows step by 2), the first y-value used as
+    the y-intercept (the table starts at x = 1 or 2, not 0), the slope flipped, the slope with the wrong sign."""
+    f = rng.choice(TABLE_FRAMES)
+    while True:
+        xs, dx, m, b, rows = _table(rng, f)
+        if level == "medium" or dx > 1:
+            break
+    passage = md_table(f["title"], f["x"], f["y"], rows)
+    stem = (
+        f"The table shows values of x, {f['xd']}, and y, {f['yd']}. The relationship between x and y is linear. "
+        f"Which equation represents this relationship?"
+    )
+    key = f"y = {linf(m, b)}"
+    mistakes = [
+        (
+            f"y = {linf(m * dx, b)}",
+            f"this uses the change between rows ({num(m * dx)}) as the slope; the rows are {dx} apart",
+        )
+        if dx > 1
+        else (f"y = {linf(m, b + m)}", "this finds the starting value one row too early"),
+        (f"y = {linf(m, rows[0][1])}", f"this uses {num(rows[0][1])}, the y-value at x = {xs[0]}, as the y-intercept"),
+        (f"y = {linf(Fraction(1, m), b)}", "this flips the slope"),
+        (f"y = {linf(-m, rows[0][1] + m * xs[0])}", "this uses the slope with the wrong sign"),
+    ]
+    steps = [
+        f"Slope: ({num(rows[1][1])} {MINUS} {num(rows[0][1])}) ÷ ({xs[1]} {MINUS} {xs[0]}) = {num(m)}.",
+        f"y-intercept: {num(rows[0][1])} = {num(m)}({xs[0]}) + b, so b = {num(b)}.",
+        f"So {key}.",
+    ]
+    item = MathItem(
+        "table_equation", FUNC_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key, passage=passage
+    )
+    item.truth = {"m": m, "b": b, "rows": rows}
+    return item
+
+
+def table_mb(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """The same kind of table, but: 'The function f is defined by f(x) = mx + b ... What is the value of m?' (or b).
+    Traps: the change between rows, the first y-value, the slope flipped, m and b mixed up."""
+    f = rng.choice(TABLE_FRAMES)
+    while True:
+        xs, dx, m, b, rows = _table(rng, f)
+        if level == "medium" or dx > 1:
+            break
+    ask = rng.choice(["m", "b"])
+    passage = md_table(f["title"], f["x"], f["y"], rows)
+    stem = (
+        f"The table shows values of x, {f['xd']}, and f(x), {f['yd']}, for a linear function f defined by "
+        f"f(x) = mx + b, where m and b are constants. What is the value of {ask}?"
+    )
+    if ask == "m":
+        ans = Fraction(m)
+        mistakes = [
+            (Fraction(m * dx), "this is the change between rows, not per 1 unit of x"),
+            (Fraction(b), "this is the value of b, not m"),
+            (Fraction(1, m), "this flips the slope"),
+            (
+                Fraction(rows[1][1] - rows[0][1], rows[1][0]),
+                f"this divides the change in y by x = {xs[1]} instead of by the change in x",
+            ),
+        ]
+    else:
+        ans = Fraction(b)
+        mistakes = [
+            (Fraction(rows[0][1]), f"this is the y-value at x = {xs[0]}, not at x = 0"),
+            (Fraction(m), "this is the value of m, not b"),
+            (Fraction(rows[0][1] + m * xs[0]), "this adds instead of subtracting when working back to x = 0"),
+            (Fraction(rows[0][1] - m * dx * xs[0]), "this works back using the change between rows"),
+        ]
+    steps = [
+        f"m = ({num(rows[1][1])} {MINUS} {num(rows[0][1])}) ÷ ({xs[1]} {MINUS} {xs[0]}) = {num(m)}.",
+        f"b: {num(rows[0][1])} = {num(m)}({xs[0]}) + b, so b = {num(b)}.",
+        f"So {ask} = {num(ans)}.",
+    ]
+    item = MathItem(
+        "table_mb",
+        FUNC_SKILL,
+        level,
+        fmt,
+        stem,
+        ans,
+        steps,
+        mistakes,
+        passage=passage,
+        positive_only=False,
+        fractions_ok=ask == "m",
+    )
+    item.truth = {"m": m, "b": b, "ask": ask, "rows": rows}
+    return item
+
+
+def table_shift(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """A table of x and f(x) for a linear function f, then 'g(x) = f(x) + 5' (medium) or 'g(x) = f(x − 3)' /
+    'g(x) = f(x + 3)' (hard). 'Which equation defines g?'  Traps: shifting the wrong way, adding the shift to the
+    slope, forgetting to multiply the inside shift by the slope, leaving g the same as f."""
+    while True:
+        m, b = rng.choice(nz(-6, 7)), rng.choice(nz(-12, 15))
+        x0, dx = rng.choice([-2, -1, 0, 1, 2]), rng.choice([1, 2])
+        c = rng.randint(2, 9)
+        if abs(m) != 1 and m * c != c:
+            break
+    rows = [(x0 + dx * i, m * (x0 + dx * i) + b) for i in range(4)]
+    passage = md_table("Values of the linear function f", "x", "f(x)", rows)
+    kind = "outside" if level == "medium" else rng.choice(["minus", "plus"])
+    sign = rng.choice([1, -1]) if kind == "outside" else 1
+    if kind == "outside":
+        g = f"g(x) = f(x){plus(sign * c)}"
+        key = f"g(x) = {linf(m, b + sign * c)}"
+        mistakes = [
+            (f"g(x) = {linf(m, b - sign * c)}", f"this {'subtracts' if sign > 0 else 'adds'} {c} instead"),
+            (f"g(x) = {linf(m + sign * c, b)}", f"this adds the {num(sign * c)} to the slope"),
+            (f"g(x) = {linf(m, b)}", "this is f itself, unchanged"),
+            (
+                f"g(x) = {linf(m * c, b)}" if sign > 0 else f"g(x) = {linf(m, sign * c)}",
+                "this multiplies the slope by the shift" if sign > 0 else "this leaves out f's own constant",
+            ),
+        ]
+        steps = [
+            f"From the table, f(x) = {linf(m, b)} (slope {num(m)}, f(0) = {num(b)}).",
+            f"g(x) = f(x){plus(sign * c)} = {linf(m, b + sign * c)}.",
+        ]
+    else:
+        shift = -c if kind == "minus" else c  # g(x) = f(x + shift)
+        g = f"g(x) = f(x{plus(shift)})"
+        key = f"g(x) = {linf(m, b + m * shift)}"
+        mistakes = [
+            (f"g(x) = {linf(m, b - m * shift)}", "this shifts the wrong way"),
+            (f"g(x) = {linf(m, b + shift)}", f"this forgets to multiply the {num(shift)} by the slope, {num(m)}"),
+            (f"g(x) = {linf(m + shift, b)}", f"this adds the {num(shift)} to the slope"),
+            (f"g(x) = {linf(m, b)}", "this is f itself, unchanged"),
+        ]
+        steps = [
+            f"From the table, f(x) = {linf(m, b)}.",
+            f"g(x) = f(x{plus(shift)}) = {num(m)}(x{plus(shift)}){plus(b)} = {linf(m, b + m * shift)}.",
+        ]
+    stem = (
+        f"The table shows several values of x and their corresponding values of f(x) for the linear function f. "
+        f"The function g is defined by {g}. Which equation defines g?"
+    )
+    item = MathItem(
+        "table_shift", FUNC_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key, passage=passage
+    )
+    item.truth = {"m": m, "b": b, "g": g}
+    return item
+
+
+def sum_functions(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'f(x) = 3x − 8 and g(x) = 5x + 20. The function h is defined by h(x) = f(x) + g(x). What is the slope of the
+    graph of y = h(x)?' (or the y-coordinate of the y-intercept, or the x-coordinate of the x-intercept). Hard can
+    use h(x) = f(x) − g(x) and asks for the x-intercept more often. Traps: the slopes multiplied, only f's value, the
+    wrong sign from subtracting, f's own x-intercept."""
+    while True:
+        m1, m2 = rng.sample(nz(-7, 9), 2)
+        b1, b2 = rng.sample(nz(-20, 25), 2)
+        op = 1 if level == "medium" else rng.choice([1, -1])
+        M, Bc = m1 + op * m2, b1 + op * b2
+        if M and Bc and Fraction(-Bc, M).denominator <= 4 and m1 * m2 != M and b1 != Bc:
+            break
+    ask = rng.choice(
+        ["slope", "y-intercept"] if level == "medium" else ["slope", "y-intercept", "x-intercept", "x-intercept"]
+    )
+    h = f"h(x) = f(x) {'+' if op > 0 else MINUS} g(x)"
+    q = {
+        "slope": "What is the slope of the graph of y = h(x) in the xy-plane?",
+        "y-intercept": "What is the y-coordinate of the y-intercept of the graph of y = h(x) in the xy-plane?",
+        "x-intercept": "What is the x-coordinate of the x-intercept of the graph of y = h(x) in the xy-plane?",
+    }[ask]
+    stem = (
+        f"The functions f and g are defined by f(x) = {linf(m1, b1)} and g(x) = {linf(m2, b2)}. The function h is "
+        f"defined by {h}. {q}"
+    )
+    if ask == "slope":
+        ans = Fraction(M)
+        mistakes = [
+            (Fraction(m1 * m2), "this multiplies the slopes"),
+            (Fraction(m1), "this is the slope of f only"),
+            (Fraction(m1 - op * m2), f"this {'subtracts' if op > 0 else 'adds'} the slopes"),
+            (Fraction(Bc), "this is the y-intercept of h"),
+        ]
+    elif ask == "y-intercept":
+        ans = Fraction(Bc)
+        mistakes = [
+            (Fraction(b1 * b2), "this multiplies the constants"),
+            (Fraction(b1), "this is f's y-intercept only"),
+            (Fraction(b1 - op * b2), f"this {'subtracts' if op > 0 else 'adds'} the constants"),
+            (Fraction(M), "this is the slope of h"),
+        ]
+    else:
+        ans = -Fraction(Bc, M)
+        mistakes = [
+            (Fraction(Bc, M), "this has the right size but the wrong sign"),
+            (-Fraction(b1, m1), "this is the x-intercept of f only"),
+            (
+                -Fraction(b1, m1) - op * Fraction(b2, m2),
+                "this combines the x-intercepts of f and g, which does not give h's x-intercept",
+            ),
+            (Fraction(Bc), "this is the y-intercept of h"),
+        ]
+    steps = [
+        f"{h} = ({linf(m1, b1)}) {'+' if op > 0 else MINUS} ({linf(m2, b2)}) = {linf(M, Bc)}.",
+        {
+            "slope": f"The slope is {num(M)}.",
+            "y-intercept": f"The y-intercept is (0, {num(Bc)}).",
+            "x-intercept": f"Set h(x) = 0: {linf(M, Bc)} = 0, so x = {num(ans)}.",
+        }[ask],
+    ]
+    item = MathItem(
+        "sum_functions", FUNC_SKILL, level, fmt, stem, ans, steps, mistakes, positive_only=False, fractions_ok=True
+    )
+    item.truth = {"M": M, "B": Bc, "ask": ask}
+    return item
+
+
 FAMILY_LEVELS = {
     "expression_value": LEVELS,
     "linear_rate": LEVELS,
@@ -1880,6 +2926,18 @@ FAMILY_LEVELS = {
     "word_solve": LEVELS,
     "which_has_property": ("medium", "hard"),
     "interpret_models": ("medium", "hard"),
+    "graph_estimate": LEVELS,
+    "graph_slope": ("easy", "medium", "hard"),
+    "rate_total_function": ("medium", "hard"),
+    "intercept_meaning": ("medium", "hard"),
+    "two_points_function": ("medium", "hard"),
+    "intercept_from_slope": ("medium", "hard"),
+    "cost_function": LEVELS,
+    "function_change": ("medium", "hard"),
+    "table_equation": ("medium", "hard"),
+    "table_mb": ("medium", "hard"),
+    "table_shift": ("medium", "hard"),
+    "sum_functions": ("medium", "hard"),
 }
 
 FAMILIES = {
@@ -1903,6 +2961,18 @@ FAMILIES = {
     "word_solve": word_solve,
     "which_has_property": which_has_property,
     "interpret_models": interpret_models,
+    "graph_estimate": graph_estimate,
+    "graph_slope": graph_slope,
+    "rate_total_function": rate_total_function,
+    "intercept_meaning": intercept_meaning,
+    "two_points_function": two_points_function,
+    "intercept_from_slope": intercept_from_slope,
+    "cost_function": cost_function,
+    "function_change": function_change,
+    "table_equation": table_equation,
+    "table_mb": table_mb,
+    "table_shift": table_shift,
+    "sum_functions": sum_functions,
 }
 
 

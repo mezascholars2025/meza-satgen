@@ -73,7 +73,7 @@ def slide_block(q: dict, with_answer: bool) -> str:
     passage = passage.replace("<li>", f'<li style="{font}font-size:18pt;">')
     choices = "".join(f'<p style="{font}font-size:18pt;margin:0 0 6pt;"><b>{k})</b> {esc(v)}</p>'
                       for k, v in q.get("choices", {}).items())
-    out = (f'<div>{passage}<p style="{font}font-size:18pt;font-weight:bold;margin:10pt 0 8pt;">'
+    out = (f'<div>{passage}{q.get("figure", "")}<p style="{font}font-size:18pt;font-weight:bold;margin:10pt 0 8pt;">'
            f'{esc(q.get("stem",""))}</p>{choices}')
     if with_answer:
         body = tags(q.get("explanation", ""))["body"]
@@ -146,7 +146,7 @@ def build(run: Path) -> None:
   {flag_html}
   <div class="src" id="q{i}">{slide_block(q, False)}</div>
   <div class="src" id="a{i}">{slide_block(q, True)}</div>
-  <div class="passage">{render_passage(q.get('passage',''))}</div>
+  <div class="passage">{render_passage(q.get('passage',''))}</div>{q.get('figure', '')}
   <p class="stem">{esc(q.get('stem',''))}</p>
   <ol class="choices">{choices}</ol>
   <details><summary>Answer &amp; explanation</summary>
