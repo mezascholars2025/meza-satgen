@@ -9,6 +9,7 @@ The bank only holds ORIGINAL questions (Meza's own or this generator's; see the 
 It grows through review:
 
     python meza_traps.py learn runs/<run>      add questions marked GOOD TRAPS in the run's questions.csv
+    python meza_traps.py learn runs/<run> --pick 2,5 --status "..."   add these question numbers instead
     python meza_traps.py candidates runs/<run> list questions whose traps scored high, worth a look
     python meza_traps.py list                  what the bank holds, per skill
     python meza_traps.py approve <id> ...      mark starter examples as reviewed (approved ones are shown first)
@@ -212,6 +213,32 @@ def format_examples(examples: list[dict]) -> str:
     return "\n".join(parts)
 
 
+_TOPIC_STOP = {"which", "their", "these", "those", "there", "about", "would", "could", "should", "while", "where",
+               "other", "after", "before", "because", "between", "through", "first", "found", "study", "studied",
+               "researchers", "team", "text", "suggest", "suggests", "such", "same", "since", "single", "species"}
+
+
+def topic_words(text: str) -> set[str]:
+    """Distinctive words of a passage (rarer words, ignoring common ones), for spotting a reused topic."""
+    from meza_quality import word_tier
+
+    words = set(re.findall(r"[a-z]{5,}", re.sub(r"</?u>", "", text).lower())) - _TOPIC_STOP
+    return {w for w in words if word_tier(w) in ("advanced", "mid") or (word_tier(w) is None and len(w) >= 9)}
+
+
+def reused_topic(passage: str, examples: list[dict], limit: int = 3) -> list[str]:
+    """Problems for a draft that reuses the topic of a model example it was shown (3+ shared distinctive words)."""
+    mine = topic_words(passage)
+    out = []
+    for e in examples:
+        shared = sorted(mine & topic_words(e.get("passage", "")))
+        if len(shared) >= limit:
+            out.append("This passage reuses the topic of a MODEL WRONG ANSWERS example (shared words: "
+                       + ", ".join(shared[:6]) + "). Write about a different subject; study only how the example's "
+                       "wrong answers are built.")
+    return out
+
+
 def next_id(bank: list[dict]) -> str:
     nums = [int(m.group(1)) for e in bank if (m := re.match(r"t(\d+)$", str(e.get("id", ""))))]
     return f"t{max(nums, default=0) + 1:03d}"
@@ -251,15 +278,17 @@ def _traps_for(q: dict, entry: dict | None) -> dict:
     return out
 
 
-def learn(run: Path, path: Path = BANK_PATH) -> list[str]:
-    """Add every question whose CSV 'Review status' or 'Reviewer notes' says GOOD TRAPS."""
+def learn(run: Path, path: Path = BANK_PATH, picks: list[int] | None = None,
+          status: str = "approved (Sebastian)") -> list[str]:
+    """Add every question whose CSV 'Review status' or 'Reviewer notes' says GOOD TRAPS (or the given numbers)."""
     questions, log = _final_entries(run)
-    marked = set()
-    with open(run / "questions.csv", newline="", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            note = f"{row.get('Review status', '')} {row.get('Reviewer notes', '')}".lower()
-            if "good trap" in note:
-                marked.add(int(row["#"]))
+    marked = set(picks or [])
+    if picks is None:
+        with open(run / "questions.csv", newline="", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                note = f"{row.get('Review status', '')} {row.get('Reviewer notes', '')}".lower()
+                if "good trap" in note:
+                    marked.add(int(row["#"]))
     bank = load_bank(path)
     have = {_fp(e["passage"], e["stem"]) for e in bank}
     added = []
@@ -269,10 +298,11 @@ def learn(run: Path, path: Path = BANK_PATH) -> list[str]:
         entry = log.get(_fp(q.get("passage", ""), q["stem"]))
         qtype = (entry or {}).get("qtype") or q.get("type") or q.get("qtype") or ""
         base = re.sub(r"_(easy|medium|hard)$", "", qtype)
-        level = next((d for d in DIFFICULTIES if qtype.endswith(d)), "medium")
+        tag = re.search(r"\[Difficulty:\s*(\w+)\]", q.get("explanation", ""))
+        level = next((d for d in DIFFICULTIES if qtype.endswith(d)), tag.group(1).lower() if tag else "medium")
         ex = {"id": next_id(bank), "skill": base, "level": level, "passage": q.get("passage", ""),
               "stem": q["stem"], "choices": q["choices"], "answer": q["answer"],
-              "traps": _traps_for(q, entry), "status": "approved (Sebastian)",
+              "traps": _traps_for(q, entry), "status": status,
               "source": f"{run.name} #{i}", "added": date.today().isoformat()}
         bank.append(ex)
         added.append(ex["id"])
@@ -323,7 +353,9 @@ def main(argv: list[str]) -> int:
         return 0
     run = Path(argv[1])
     if argv[0] == "learn":
-        added = learn(run)
+        opts = dict(zip(argv[2::2], argv[3::2]))
+        picks = [int(x) for x in opts["--pick"].split(",")] if "--pick" in opts else None
+        added = learn(run, picks=picks, status=opts.get("--status", "approved (Sebastian)"))
         print(f"added {len(added)} example(s): {', '.join(added) or '-'}")
         if not added:
             print('Mark questions with "GOOD TRAPS" in the Review status column of questions.csv first.')

@@ -279,6 +279,254 @@
    "status": "seed (pending Sebastian's review)",
    "source": "hand-written seed (Claude, Nov 24)",
    "added": "2026-11-24"
+  },
+  {
+   "id": "t010",
+   "skill": "words_in_context_completion",
+   "level": "hard",
+   "passage": "Critics in the 1920s dismissed the painter's obdurate refusal to use color as a form of evasion, and the charge lingered for decades. One art historian argues, however, that although the near-monochrome canvases seem at first to offer little, their muted surfaces reward sustained looking with a ______ that livelier, more colorful pictures of the period seldom achieve.",
+   "stem": "Which choice completes the text with the most logical and precise word or phrase?",
+   "choices": {
+    "A": "grandeur",
+    "B": "simplicity",
+    "C": "profundity",
+    "D": "solemnity"
+   },
+   "answer": "C",
+   "traps": {
+    "A": {
+     "type": "imprecise_fit",
+     "why": "Grandeur is a positive quality that livelier pictures might also achieve, but it implies magnificence, which clashes with the muted, austere canvases and with the idea of reward from sustained looking."
+    },
+    "B": {
+     "type": "borrowed_from_passage",
+     "why": "Simplicity echoes the idea that the canvases 'offer little,' but the sentence contrasts that appearance with what the paintings actually reward, and the 'seldom achieve' clause calls for a more impressive quality."
+    },
+    "D": {
+     "type": "wrong_connotation",
+     "why": "Solemnity suits muted, near-monochrome canvases and is a plausible quality, but it names a mood rather than the depth of insight that sustained looking rewards, so it lacks precision."
+    }
+   },
+   "status": "Claude-reviewed (pending Sebastian)",
+   "source": "traps-r1-wic #3",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t011",
+   "skill": "text_structure_function",
+   "level": "easy",
+   "passage": "Archaeologists excavating a Bronze Age settlement uncovered a set of small stone cubes in a range of sizes. Early excavators assumed the cubes were game pieces, since they were smooth and easy to hold. <u>When researchers weighed the cubes, they found that each one was close to a whole-number multiple of the smallest cube's mass.</u> Such regular masses would be unlikely among game pieces, but they would be expected in a system of weights used for trade. The researchers therefore propose that merchants used the cubes to measure goods in the settlement's markets.",
+   "stem": "Which choice best describes the function of the underlined sentence in the text as a whole?",
+   "choices": {
+    "A": "It explains why regular masses would be unlikely among game pieces.",
+    "B": "It describes the earlier assumption about how the cubes were used.",
+    "C": "It establishes that the cubes were weights used in the settlement's markets.",
+    "D": "It presents a result that supports a new view of the cubes."
+   },
+   "answer": "D",
+   "traps": {
+    "A": {
+     "type": "wrong_target",
+     "why": "The point about regular masses is accurate but is made in the following sentence, which interprets the underlined finding."
+    },
+    "B": {
+     "type": "wrong_target",
+     "why": "The earlier assumption about game pieces is accurate but is described in the previous sentence, not the underlined one."
+    },
+    "C": {
+     "type": "wrong_action",
+     "why": "It overstates the sentence's role: the sentence offers evidence, and the researchers only propose, rather than establish, that the cubes were weights used in markets."
+    }
+   },
+   "status": "Claude-reviewed (pending Sebastian)",
+   "source": "traps-r1-tsp #1",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t012",
+   "skill": "central_ideas",
+   "level": "easy",
+   "passage": "The following text is from Cordelia Hale Ainsworth's 1887 short story \"The Last Stitch.\" Hester Pell, a village dressmaker, watches from the church porch as a bride she has sewn for walks up the aisle.\n\nHester stood half hidden behind the porch door, her hands clasped tight against her apron. She had sat up nine nights over that gown, and her eyes still smarted with the labour of it. Now, as the bride passed beneath the lamp, the white silk took the light and gave it back so softly that a murmur ran along the pews. Hester heard it, and her face flushed warm. She had never in her life been praised aloud, but she felt, at that moment, fully repaid.",
+   "stem": "Which choice best states the main idea of the text?",
+   "choices": {
+    "A": "A character feels uneasy about being noticed as others admire her long labor.",
+    "B": "A character feels fully repaid for her long labor when others admire her work.",
+    "C": "A character feels her long labor was wasted because no one has praised her aloud.",
+    "D": "A character feels delighted when the bride singles out her work before the congregation."
+   },
+   "answer": "B",
+   "traps": {
+    "A": {
+     "type": "wrong_tone",
+     "why": "It copies the correct answer's structure but flips her feeling to unease; the flush reads as pleasure and she feels repaid, so the text doesn't support it."
+    },
+    "C": {
+     "type": "word_echo",
+     "why": "It uses the detail that she has never been praised aloud but reverses the outcome, since she feels fully repaid rather than that her work was wasted."
+    },
+    "D": {
+     "type": "mix_up",
+     "why": "The admiration comes from a murmur among the pews, not from the bride singling out Hester's work, so the actor is mixed up and the claim is unsupported."
+    }
+   },
+   "status": "Claude-reviewed (pending Sebastian)",
+   "source": "traps-r1-cid #4",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t013",
+   "skill": "command_of_evidence_claim",
+   "level": "easy",
+   "passage": "A Prince Rupert's drop forms when a bead of molten glass falls into cold water and freezes into a shape like a tadpole. The round head can survive a hammer blow, but snipping the thin tail makes the whole drop burst into powder. A student writing about the drops argues that the head is so hard to break because its outer surface is held in a state of compression, pressed inward on the glass beneath.",
+   "stem": "Which quotation from a glass scientist would most effectively support the student's argument?",
+   "choices": {
+    "A": "\"The head of a drop is much thicker than the tail, so it holds more glass to absorb a hammer blow, and a blow must deliver far more force to damage it than to damage the tail.\"",
+    "B": "\"The outer skin of the head stays hotter than the interior as the bead freezes, so the interior sets first and the surface is left stretched, which makes it easy for a crack to begin.\"",
+    "C": "\"The outer skin of the head sets first, and the interior shrinks afterward, so the surface ends up squeezed tightly inward, which makes it hard for a crack to begin.\"",
+    "D": "\"Once a crack starts in the thin tail, it runs quickly into the stretched interior of the drop, so the whole piece bursts apart in a fraction of a second.\""
+   },
+   "answer": "C",
+   "traps": {
+    "A": {
+     "type": "true_but_irrelevant",
+     "why": "It explains the head's strength by thickness rather than surface compression, so it is plausible and on topic but never supports the student's specific mechanism."
+    },
+    "B": {
+     "type": "opposite",
+     "why": "It reverses the cooling order so the surface is stretched, which contradicts the compression claim and makes cracks easy, so it is clearly wrong on a second look."
+    },
+    "D": {
+     "type": "wrong_part",
+     "why": "It describes the tail's cracking and a stretched interior, which fits the drop's behavior, but says nothing about why the head's compressed surface resists breaking."
+    }
+   },
+   "status": "Claude-reviewed (pending Sebastian)",
+   "source": "traps-r1-coe #4",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t014",
+   "skill": "inferences",
+   "level": "hard",
+   "passage": "Downstream of one dam, a freshwater mussel bed is aging: surveys find plentiful adults but almost no juveniles, a pattern a facile reading would blame on water too cold or too poorly oxygenated for young mussels. Juveniles raised in a laboratory and placed in cages within the bed, however, grew and survived as well as caged juveniles at an unaffected site upstream. Mussel larvae cannot mature unless they first spend several weeks attached to the gills of a host fish, and the fish species that carry this mussel's larvae are far rarer below the dam than above it. If this reasoning is right, researchers would expect that ______.",
+   "stem": "Which choice most logically completes the text?",
+   "choices": {
+    "A": "juvenile mussels would become as common below the dam as above it once host fish could again reach the bed, even with no change in water conditions",
+    "B": "juvenile mussels would become more common below the dam if the water there were warmed and better oxygenated, even if host fish stayed as rare as they are now",
+    "C": "juvenile mussels would become more common below the dam if host fish could again reach the bed, even with no change in water conditions",
+    "D": "juvenile mussels would become more common below the dam if host fish could again reach the bed, but only if water conditions there were also improved"
+   },
+   "answer": "C",
+   "traps": {
+    "A": {
+     "type": "overreach",
+     "why": "'As common as above the dam' goes beyond the passage, which gives no basis for full recovery to upstream levels; it is a stronger claim than A."
+    },
+    "B": {
+     "type": "old_view",
+     "why": "Restates the facile water-quality explanation the passage rejects, and it ignores the host-fish requirement."
+    },
+    "D": {
+     "type": "half_right",
+     "why": "Near-twin of A that adds a 'only if water also improved' condition, which contradicts the caged-juvenile evidence that water is already adequate."
+    }
+   },
+   "status": "Claude-reviewed (pending Sebastian)",
+   "source": "traps-r1-inf #3",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t015",
+   "skill": "command_of_evidence_claim",
+   "level": "easy",
+   "passage": "Some lakes fed by glaciers hold sediment in thin paired layers called varves. Each pair has a pale, coarse layer at the bottom and a dark, fine layer on top. <u>A student writing about varves argues that the pale layer forms in summer, because warm weather melts the glacier and the fast meltwater streams carry coarse grains into the lake, where the grains sink quickly.</u>",
+   "stem": "Which statement, if true, would most strongly support the claim in the underlined sentence?",
+   "choices": {
+    "A": "Glacial streams flow fastest in summer, when melting is greatest, and water moving that fast can sweep coarse sand grains into the lake, where they settle to the bottom within hours.",
+    "B": "Glacial streams flow fastest in early spring, when the first thaw sweeps loose debris downhill, and water moving that fast can sweep coarse sand grains into the lake, where they settle to the bottom within hours.",
+    "C": "Glacial melting is greatest in summer, when warm weather sends the largest volume of meltwater down the streams and into the lake, and the incoming water warms the lake's surface near the stream mouths by several degrees.",
+    "D": "Coarse sand grains settle to the lake bottom within hours of entering the water, whereas fine clay particles can stay suspended for weeks or months, so the two kinds of grain end up in separate layers."
+   },
+   "answer": "A",
+   "traps": {
+    "B": {
+     "type": "opposite",
+     "why": "It copies A's mechanism but puts the fastest flow in early spring, which undercuts the summer timing the claim depends on."
+    },
+    "C": {
+     "type": "half_right",
+     "why": "It supports the summer melt and large meltwater volume but then shifts to lake-surface warming, which says nothing about coarse grains being carried in or sinking, so the claim is only partly supported."
+    },
+    "D": {
+     "type": "true_but_irrelevant",
+     "why": "It explains why coarse and fine grains separate into layers, but it gives no link to summer or to meltwater, so it does not support the claim that the pale layer forms in summer."
+    }
+   },
+   "status": "Claude-reviewed (pending Sebastian)",
+   "source": "traps-r2-coe #3",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t016",
+   "skill": "central_ideas",
+   "level": "easy",
+   "passage": "A team of physicists used a high-speed camera to film dry spaghetti rods as they were bent until they broke. Most rods snapped into three or more pieces rather than two, and the team tested whether hidden flaws in the pasta were to blame. They were not, because rods made as uniform as possible fragmented in the same way. Instead, the footage showed that the first break sends a wave of bending along the remaining rod, and that wave causes further breaks within moments.",
+   "stem": "Which choice best states the main idea of the text?",
+   "choices": {
+    "A": "Dry spaghetti snaps into several pieces because hidden flaws in the rod give way one after another.",
+    "B": "Dry spaghetti snaps into several pieces because a bending wave from the first break exposes hidden flaws in the rod.",
+    "C": "Dry spaghetti snaps into several pieces because the first break sends a bending wave along the rod.",
+    "D": "Dry spaghetti snaps into several pieces because the bend strains the rod past its limit at several points at once."
+   },
+   "answer": "C",
+   "traps": {
+    "A": {
+     "type": "mix_up",
+     "why": "It names hidden flaws as the cause, which the passage explicitly rules out because uniform rods fragmented the same way."
+    },
+    "B": {
+     "type": "half_right",
+     "why": "It copies B's structure and the bending wave but adds that the wave exposes hidden flaws, a claim the passage contradicts by ruling flaws out."
+    },
+    "D": {
+     "type": "opposite",
+     "why": "It offers a simultaneous multi-point strain explanation that the passage never gives, since the further breaks follow the first break within moments."
+    }
+   },
+   "status": "Claude-reviewed (pending Sebastian)",
+   "source": "traps-r2-cid #4",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t017",
+   "skill": "inferences",
+   "level": "easy",
+   "passage": "Many British novelists of the 1860s published their books in weekly magazine installments. Each installment was paid for as it appeared, which gave a writer a steady income while the book was still unfinished. The weekly deadline, however, left little time for revision, and plots sometimes wandered. A number of novelists nonetheless chose this format even when a publisher offered to wait for a finished manuscript. Some of these serials were later reissued as bound volumes. These findings suggest that ______.",
+   "stem": "Which choice most logically completes the text?",
+   "choices": {
+    "A": "some novelists chose installments in order to adjust their plots in response to readers' reactions as the story unfolded",
+    "B": "some novelists valued a steady income while they were writing more than the chance to revise a finished manuscript",
+    "C": "most novelists who wrote in installments cared little about the quality of their finished plots",
+    "D": "some novelists valued a steady income while they were writing, which is why their serials were later reissued as bound volumes"
+   },
+   "answer": "B",
+   "traps": {
+    "A": {
+     "type": "real_world_true",
+     "why": "Plausible real-world serial practice, but the passage never mentions reader reactions or plot adjustment, so it is unsupported; it also sits oddly with the stated lack of revision time."
+    },
+    "C": {
+     "type": "overreach",
+     "why": "Passage says plots sometimes wandered, but 'most novelists' and 'cared little about quality' is a sweeping unsupported leap."
+    },
+    "D": {
+     "type": "half_right",
+     "why": "It copies the correct claim about steady income but adds a causal link to later reissue as bound volumes, which the passage never establishes."
+    }
+   },
+   "status": "Claude-reviewed (pending Sebastian)",
+   "source": "traps-r2-inf #1",
+   "added": "2026-11-24"
   }
  ]
 }

@@ -38,7 +38,7 @@ from pathlib import Path
 from meza_quality import (PROBE_TYPES, base_type, describe, difficulty_of, features, lint, probe_feedback,
                           probe_votes, rhythm_check, vocab_used)
 from meza_traps import CRITIC_GUIDANCE, CRITIC_SYSTEM, TRAPS, critic_prompt, family_of, format_examples
-from meza_traps import load_bank, pick_examples
+from meza_traps import load_bank, pick_examples, reused_topic
 from meza_quality import FOCUS_CRITIC_PROMPT, FOCUS_CRITIC_SYSTEM, fingerprint, focus_problems
 from meza_quality import (TSP_BANDS, TSP_TRAPS, TSP_TYPES, TSP_VERBS,
                           lead_verb, trap_critic_problems, trap_label_problems)
@@ -730,6 +730,7 @@ class MezaPipeline(pipeline.Pipeline):
             base_prompt += TRAP_LINE_GENERAL.format(
                 guidance=CRITIC_GUIDANCE[trap_fam], traps="\n".join(f"  - {k}: {v}" for k, v in TRAPS[trap_fam].items()),
                 level_rule=TRAP_LEVEL_RULE_GENERAL.get(lvl, ""))
+        examples = []
         if trap_fam and TRAP_EXAMPLES:
             examples = pick_examples(self.trap_bank, base_type(qtype), difficulty_of(qtype, index) or "medium",
                                      n=TRAP_EXAMPLES, seed=f"{index}:{len(self.plan)}")
@@ -840,6 +841,7 @@ class MezaPipeline(pipeline.Pipeline):
             # Judgment calls (the reviewer-model critics and the passage-free probe) are "soft": after the last rewrite
             # they flag the question for human review instead of discarding it. Everything else must pass.
             soft: list[str] = []
+            problems += reused_topic(q.passage, examples)
             if trap_fam:
                 problems += trap_label_problems(data.get("traps"), q.answer, level, trap_fam)
                 if not problems and QUALITY == "on" and TRAP_CRITIC == "on":

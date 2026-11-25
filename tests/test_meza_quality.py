@@ -1151,3 +1151,37 @@ def test_learn_adds_marked_questions_with_traps_on_final_letters(tmp_path):
         "D": {"type": "twin", "why": "one element swapped"},
     }
     assert meza_traps.learn(run, bank_path) == []  # already in the bank
+
+
+def test_learn_with_picks_reads_level_from_explanation(tmp_path):
+    run = tmp_path / "run"
+    run.mkdir()
+    q = {
+        "passage": "P.",
+        "stem": "S?",
+        "choices": {"A": "k", "B": "w1", "C": "w2", "D": "w3"},
+        "answer": "A",
+        "explanation": "[Domain: Information and Ideas] [Skill: inferences] [Difficulty: Hard] [Subject: History]",
+    }
+    (run / "questions.json").write_text(json.dumps([q]))
+    entry = {
+        "qtype": "inferences",
+        "passed": True,
+        "fingerprint": meza_quality.fingerprint("P.", "S?"),
+        "choices": q["choices"],
+        "answer": "A",
+        "traps": {"B": "twin", "C": "old_view", "D": "overreach"},
+    }
+    (run / "quality.jsonl").write_text(json.dumps(entry) + "\n")
+    bank_path = tmp_path / "bank.json"
+    assert meza_traps.learn(run, bank_path, picks=[1], status="Claude-reviewed") == ["t001"]
+    ex = meza_traps.load_bank(bank_path)[0]
+    assert ex["level"] == "hard" and ex["status"] == "Claude-reviewed"
+
+
+def test_draft_may_not_reuse_a_model_examples_topic():
+    ex = {"passage": "Prince Rupert's drops form when molten glass falls into cold water as tadpole-shaped beads."}
+    copy = "Tadpole-shaped Prince Rupert's drops of molten glass puzzled scientists for centuries."
+    assert meza_traps.reused_topic(copy, [ex])
+    other = "A team of physicists filmed dry spaghetti rods as they were bent until they broke into pieces."
+    assert meza_traps.reused_topic(other, [ex]) == []

@@ -195,6 +195,16 @@ Each rule below came from auditing output or from Sebastian's review rounds agai
   5 from the Nov 24 Information and Ideas run and 4 written by Claude (2 vocabulary, 2 Text Structure). Approve with
   `python meza_traps.py approve t001 ...`, prune with `remove`. Turn the examples off with MEZA_TRAP_EXAMPLES=0.
 
+- **Trap-learning runs (Nov 24, 50 questions: 10 per skill in two rounds of 5).** 44 shipped (30 with a Review flag),
+  about $11. After round 1, Claude picked the 5 strongest items (one per skill) into the bank; round 2 used them.
+  Critic scores barely moved (average tempting 2.67 → 2.76; wrong answers rated 1-2: 42% → 40%), so the examples
+  alone are not enough yet. The main blocker is the key standing out without the passage (most Text Structure and
+  Central Ideas drafts failed the probe at least once): the correct answer is often the only complete or balanced
+  choice. One round 2 draft copied an example's topic (Prince Rupert's drops). → `reused_topic` rejects a draft
+  that shares 3+ distinctive words with a model example it was shown. 8 Claude-picked examples were added
+  (status "Claude-reviewed (pending Sebastian)"); `learn --pick 2,5 --status ...` adds chosen numbers, and the
+  level now comes from the explanation tag. Runs: `runs/traps-r1-*`, `runs/traps-r2-*`.
+
 - **Second real run: 1 of 10 shipped.** Stacked judgment checks rejected nearly everything. → the reviewer-model
   critics and the passage-free probe are now "soft": after the last rewrite, a question whose only remaining
   problems are soft ships with a yellow Review flag in review.html (and "FLAGGED: ..." in the CSV's Review status)
@@ -252,7 +262,9 @@ Audit decisions (Nov 24):
 
 ## Open next steps
 
-- Trap bank: review the 9 starter seeds, approve or remove them, and add GOOD TRAPS from each real run. Watch for
+- Key stands out without the passage (the probe's most common flag in the trap runs): wrong answers need the same
+  completeness and balance as the key. Next thing to fix for Text Structure, Central Ideas, and Inferences.
+- Trap bank: review the 9 starter seeds and 8 Claude-reviewed picks, approve or remove them, and add GOOD TRAPS from each real run. Watch for
   the writer copying an example's structure too closely; if it does, show 1 example (MEZA_TRAP_EXAMPLES=1).
 - First real 20-question run with the new gate, then compare the key-longest rate against the 22/30 baseline.
 - Check the ratio of fill-in-the-blank to underlined-word items in `meza_run.sh` (currently 5:4) against real tests.
