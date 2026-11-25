@@ -1,0 +1,532 @@
+{
+ "about": "Proven wrong-answer sets, shown to the writer as models. Original questions only (see the Source rule in CLAUDE.md). Grow it with `python meza_traps.py learn runs/<run>`.",
+ "examples": [
+  {
+   "id": "t001",
+   "skill": "details",
+   "level": "easy",
+   "passage": "The following text is from a short story. Mr. Penrith is a watchmaker in a small village.\n\nMr. Aldous Penrith had kept the only watchmaker's shop in Little Wenlow for forty years, and in all that time no customer had ever heard him promise a repair by a certain day. \"A watch is not a loaf of bread,\" he would say, bending over the open case with his glass fixed in one eye. \"It is done when it is done.\" The neighbors owned that he was slow, but they owned also that nothing he mended ever came back to him. He held that a quick workman was merely a man who had learned to be satisfied too soon.",
+   "stem": "Based on the text, how would Mr. Penrith most likely regard a workman who finishes repairs quickly?",
+   "choices": {
+    "A": "He would think the workman cannot be trusted to keep promises to customers.",
+    "B": "He would think the workman is content with work that could be better.",
+    "C": "He would think the workman probably lacks the training that careful repair requires.",
+    "D": "He would think the workman serves customers well by returning watches sooner."
+   },
+   "answer": "B",
+   "traps": {
+    "A": {
+     "type": "word_echo",
+     "why": "reuses the passage's word 'promise' but links quick work to broken promises, which the text never does"
+    },
+    "C": {
+     "type": "never_said",
+     "why": "a plausible reason to distrust fast work (training) that the passage never mentions"
+    },
+    "D": {
+     "type": "opposite",
+     "why": "flips his view: he sees quick workmen as satisfied too soon, not as serving customers well"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "2026-11-24_192819 #1",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t002",
+   "skill": "central_ideas",
+   "level": "medium",
+   "passage": "Invar, an alloy of iron and roughly 36 percent nickel, expands far less than most metals when heated, a property that made it valuable for surveying tapes and clock pendulums. Metallurgists attribute this behavior to magnetism: as the alloy warms, changes in its magnetic ordering tend to shrink the spacing between its atoms, offsetting the swelling caused by their growing vibrations. The effect has limits, however. Near a temperature known as the Curie point, the magnetic contribution fades, and the alloy's expansion rises sharply.",
+   "stem": "Which choice best states the main idea of the text?",
+   "choices": {
+    "A": "Invar's resistance to heat-driven expansion arises from its atoms vibrating less than those of other metals, but that resistance weakens once the alloy is heated near its Curie point.",
+    "B": "Invar's resistance to heat-driven expansion arises from magnetic effects, but that resistance is strongest near the Curie point, where the magnetic contribution reaches its peak.",
+    "C": "Invar's resistance to heat-driven expansion arises from magnetic effects, but that resistance weakens once the alloy is heated near its Curie point.",
+    "D": "Invar's resistance to heat-driven expansion arises from magnetic effects, but that resistance diminishes in versions of the alloy whose nickel content rises well above roughly 36 percent."
+   },
+   "answer": "C",
+   "traps": {
+    "A": {
+     "type": "mix_up",
+     "why": "keeps the key's structure but swaps the cause (less vibration) for the passage's cause (magnetism)"
+    },
+    "B": {
+     "type": "opposite",
+     "why": "same frame, but says resistance peaks near the Curie point, where the text says it fades"
+    },
+    "D": {
+     "type": "never_said",
+     "why": "same frame, but invents a limit based on nickel content; the 36 percent figure is background"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "2026-11-24_192819 #2",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t003",
+   "skill": "inferences",
+   "level": "medium",
+   "passage": "For generations, historians gauged the spread of printing in fifteenth-century Germany by counting the books that survive in libraries, and they concluded that print served mainly scholars and clergy. An exhaustive review of surviving printers' account books, however, shows that a large share of shop income came from single-sheet items such as calendars, indulgence forms, and public announcements. Such sheets were usually thrown away after use, so few remain in any collection. These findings suggest that ______.",
+   "stem": "Which choice most logically completes the text?",
+   "choices": {
+    "A": "a count of surviving books probably leaves out many books made for scholars and clergy that were later discarded",
+    "B": "a count of surviving books probably overstates how many books printers actually sold to scholars and clergy",
+    "C": "a count of surviving single sheets probably shows that printers earned more from public announcements than from any other product",
+    "D": "a count of surviving books probably leaves out much of the printing that reached a wider public"
+   },
+   "answer": "D",
+   "traps": {
+    "A": {
+     "type": "twin",
+     "why": "same structure as the key, but the lost items become scholarly books instead of single sheets"
+    },
+    "B": {
+     "type": "never_said",
+     "why": "the passage gives no figures on books sold to scholars and clergy"
+    },
+    "C": {
+     "type": "overreach",
+     "why": "'more than from any other product' goes past 'a large share of shop income'"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "2026-11-24_192819 #3",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t004",
+   "skill": "command_of_evidence_claim",
+   "level": "hard",
+   "passage": "In some languages, a speaker cannot report an event without attaching a verb suffix indicating whether the information was witnessed directly or merely heard from someone else. Although many linguists have misgivings about claims that grammar shapes habitual thought, a team of psychologists tested adult speakers of one such language alongside adult speakers of a language lacking the suffixes. Each group watched staged events and also heard secondhand accounts of others, and a week later each participant was asked how every piece of information had been acquired. Speakers of the suffixed language identified sources far more accurately, and the team concluded that the grammatical requirement to specify a source trains speakers to monitor sources as they first take in information.",
+   "stem": "Which finding, if true, would most directly support the team's conclusion?",
+   "choices": {
+    "A": "People who know in advance that they will have to state a particular kind of detail tend to notice and store that detail more reliably while an event is unfolding.",
+    "B": "Communities whose languages mark the source of information tend to give greater weight to eyewitness testimony in settling disputes than communities whose languages do not.",
+    "C": "Speakers of the suffixed language judged statements marked as secondhand to be less trustworthy than statements marked as firsthand, regardless of which person had actually made those statements.",
+    "D": "Children in communities that use the suffixes begin marking the source of information in their own speech at around the age of four."
+   },
+   "answer": "A",
+   "traps": {
+    "B": {
+     "type": "true_but_irrelevant",
+     "why": "an accurate-sounding cultural difference that says nothing about how sources are monitored"
+    },
+    "C": {
+     "type": "wrong_part",
+     "why": "about trusting marked statements, not about noticing sources while taking in information"
+    },
+    "D": {
+     "type": "true_but_irrelevant",
+     "why": "when children learn the suffixes is on topic but does not link grammar to attention"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "2026-11-24_192819 #4",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t005",
+   "skill": "command_of_evidence_quantitative",
+   "level": "medium",
+   "passage": "Germination of seeds from four annual wildflower species, with and without smoke exposure\n\n| Species | Untreated seeds germinating (%) | Smoke-treated seeds germinating (%) |\n|---|---|---|\n| Species A | 8 | 71 |\n| Species B | 45 | 52 |\n| Species C | 12 | 64 |\n| Species D | 5 | 38 |\n\nMany annual wildflowers of fire-prone grasslands survive as dormant seeds in the soil. A team of botanists exposed seeds from four species to smoke water, which mimics a grassland fire, and compared them with untreated seeds. The team proposed that a species has a fire-cued germination trait only if fewer than 20% of its untreated seeds germinate and more than 60% of its smoke-treated seeds germinate. The table shows that two of the four species meet both conditions: ______.",
+   "stem": "Which choice most effectively uses data from the table to complete the statement?",
+   "choices": {
+    "A": "Species A, with 8% of untreated seeds and 71% of smoke-treated seeds germinating, and Species D, with 5% and 38%",
+    "B": "Species B, with 45% of untreated seeds and 52% of smoke-treated seeds germinating, and Species C, with 12% and 64%",
+    "C": "Species A, with 8% of untreated seeds and 71% of smoke-treated seeds germinating, and Species C, with 12% and 64%",
+    "D": "Species C, with 12% of untreated seeds and 64% of smoke-treated seeds germinating, and Species D, with 5% and 38%"
+   },
+   "answer": "C",
+   "traps": {
+    "A": {
+     "type": "misread_data",
+     "why": "Species A qualifies, but Species D's 38% misses the 60% smoke threshold"
+    },
+    "B": {
+     "type": "half_right",
+     "why": "Species C qualifies, but Species B's 45% untreated rate is far above 20%"
+    },
+    "D": {
+     "type": "misread_data",
+     "why": "pairs a qualifying species with one that fails the smoke condition"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "2026-11-24_192819 #5",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t006",
+   "skill": "words_in_context_completion",
+   "level": "medium",
+   "passage": "When the city first proposed closing Harlan Street to cars on weekends, shop owners on the block predicted ruin. Two summers later, their sales records tell a different story: weekend revenue rose at nearly every store, and several owners who had led the opposition now ______ the plan at council meetings, urging that it be extended to weekdays.",
+   "stem": "Which choice completes the text with the most logical and precise word or phrase?",
+   "choices": {
+    "A": "tolerate",
+    "B": "question",
+    "C": "champion",
+    "D": "reconsider"
+   },
+   "answer": "C",
+   "traps": {
+    "A": {
+     "type": "wrong_degree",
+     "why": "right direction, but 'urging that it be extended' calls for active support, not mere acceptance"
+    },
+    "B": {
+     "type": "reversal",
+     "why": "fits the owners' earlier opposition, tempting a reader who misses the shift in the second sentence"
+    },
+    "D": {
+     "type": "imprecise_fit",
+     "why": "they have already changed their minds; the sentence needs what they now do at meetings"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "hand-written seed (Claude, Nov 24)",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t007",
+   "skill": "words_in_context_meaning",
+   "level": "medium",
+   "passage": "Although the committee had admired the architect's earlier libraries, it found her design for the new museum too <u>busy</u>: the front combined arches, columns, glass panels, and a copper frieze, leaving the eye no place to rest.",
+   "stem": "As used in the text, what does the word \"busy\" most nearly mean?",
+   "choices": {
+    "A": "occupied",
+    "B": "hectic",
+    "C": "lively",
+    "D": "cluttered"
+   },
+   "answer": "D",
+   "traps": {
+    "A": {
+     "type": "most_common_meaning",
+     "why": "the everyday sense (busy = occupied), which does not fit a building's design"
+    },
+    "B": {
+     "type": "other_real_meaning",
+     "why": "a real sense of busy (a busy schedule) that a hurried reader could force into the sentence"
+    },
+    "C": {
+     "type": "wrong_connotation",
+     "why": "close in meaning but positive, while 'too busy' and 'no place to rest' are criticism"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "hand-written seed (Claude, Nov 24)",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t008",
+   "skill": "text_structure_function",
+   "level": "medium",
+   "passage": "Biologists long assumed that once a male sparrow of one common species learned its song as a young bird, the song stayed fixed for life. <u>When a highway beside a nature reserve closed for six months of repairs, a team of biologists recorded males there singing softer songs with a wider range of notes.</u> After traffic returned, many of the same birds shifted back toward louder, narrower songs. Such changes suggest that adult birds keep adjusting their songs to the sounds around them.",
+   "stem": "Which choice best describes the function of the underlined sentence in the text as a whole?",
+   "choices": {
+    "A": "It describes the long-held view of how the sparrows' songs develop.",
+    "B": "It presents an observation that the text later uses to challenge a long-held view.",
+    "C": "It explains why traffic noise causes the sparrows to sing louder songs.",
+    "D": "It states the conclusion that adult birds keep adjusting their songs."
+   },
+   "answer": "B",
+   "traps": {
+    "A": {
+     "type": "wrong_target",
+     "why": "accurately describes the first sentence's role, not the underlined one"
+    },
+    "C": {
+     "type": "wrong_action",
+     "why": "the sentence reports what was recorded; it does not explain a cause"
+    },
+    "D": {
+     "type": "wrong_relationship",
+     "why": "treats the evidence as the conclusion it leads to in the last sentence"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "hand-written seed (Claude, Nov 24)",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t009",
+   "skill": "text_structure_purpose",
+   "level": "easy",
+   "passage": "Tide pools look calm at low tide, but for the animals in them, the hours before the sea returns can be the hardest of the day. As the sun warms the shallow water, its oxygen level drops; as the water evaporates, it grows saltier. A sea star caught in a small pool may face conditions far harsher than those of the open ocean only a few meters away.",
+   "stem": "Which choice best states the main purpose of the text?",
+   "choices": {
+    "A": "To describe the conditions a sea star faces in a small pool at low tide",
+    "B": "To argue that tide pools are more dangerous for animals than the open ocean is",
+    "C": "To explain that tide pools can be harsh places for animals despite how calm they appear",
+    "D": "To explain how sunlight and evaporation change ocean water in general"
+   },
+   "answer": "C",
+   "traps": {
+    "A": {
+     "type": "too_narrow",
+     "why": "accurate, but it covers only the last sentence's example"
+    },
+    "B": {
+     "type": "wrong_action",
+     "why": "the text describes and says conditions 'may' be harsher; it does not argue a ranking"
+    },
+    "D": {
+     "type": "too_broad",
+     "why": "the text is about tide pools at low tide, not ocean water in general"
+    }
+   },
+   "status": "seed (pending Sebastian's review)",
+   "source": "hand-written seed (Claude, Nov 24)",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t010",
+   "skill": "words_in_context_completion",
+   "level": "hard",
+   "passage": "Critics in the 1920s dismissed the painter's obdurate refusal to use color as a form of evasion, and the charge lingered for decades. One art historian argues, however, that although the near-monochrome canvases seem at first to offer little, their muted surfaces reward sustained looking with a ______ that livelier, more colorful pictures of the period seldom achieve.",
+   "stem": "Which choice completes the text with the most logical and precise word or phrase?",
+   "choices": {
+    "A": "grandeur",
+    "B": "simplicity",
+    "C": "profundity",
+    "D": "solemnity"
+   },
+   "answer": "C",
+   "traps": {
+    "A": {
+     "type": "imprecise_fit",
+     "why": "Grandeur is a positive quality that livelier pictures might also achieve, but it implies magnificence, which clashes with the muted, austere canvases and with the idea of reward from sustained looking."
+    },
+    "B": {
+     "type": "borrowed_from_passage",
+     "why": "Simplicity echoes the idea that the canvases 'offer little,' but the sentence contrasts that appearance with what the paintings actually reward, and the 'seldom achieve' clause calls for a more impressive quality."
+    },
+    "D": {
+     "type": "wrong_connotation",
+     "why": "Solemnity suits muted, near-monochrome canvases and is a plausible quality, but it names a mood rather than the depth of insight that sustained looking rewards, so it lacks precision."
+    }
+   },
+   "status": "Claude-reviewed (pending Sebastian)",
+   "source": "traps-r1-wic #3",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t011",
+   "skill": "text_structure_function",
+   "level": "easy",
+   "passage": "Archaeologists excavating a Bronze Age settlement uncovered a set of small stone cubes in a range of sizes. Early excavators assumed the cubes were game pieces, since they were smooth and easy to hold. <u>When researchers weighed the cubes, they found that each one was close to a whole-number multiple of the smallest cube's mass.</u> Such regular masses would be unlikely among game pieces, but they would be expected in a system of weights used for trade. The researchers therefore propose that merchants used the cubes to measure goods in the settlement's markets.",
+   "stem": "Which choice best describes the function of the underlined sentence in the text as a whole?",
+   "choices": {
+    "A": "It explains why regular masses would be unlikely among game pieces.",
+    "B": "It describes the earlier assumption about how the cubes were used.",
+    "C": "It establishes that the cubes were weights used in the settlement's markets.",
+    "D": "It presents a result that supports a new view of the cubes."
+   },
+   "answer": "D",
+   "traps": {
+    "A": {
+     "type": "wrong_target",
+     "why": "The point about regular masses is accurate but is made in the following sentence, which interprets the underlined finding."
+    },
+    "B": {
+     "type": "wrong_target",
+     "why": "The earlier assumption about game pieces is accurate but is described in the previous sentence, not the underlined one."
+    },
+    "C": {
+     "type": "wrong_action",
+     "why": "It overstates the sentence's role: the sentence offers evidence, and the researchers only propose, rather than establish, that the cubes were weights used in markets."
+    }
+   },
+   "status": "Claude-reviewed (pending Sebastian)",
+   "source": "traps-r1-tsp #1",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t012",
+   "skill": "central_ideas",
+   "level": "easy",
+   "passage": "The following text is from Cordelia Hale Ainsworth's 1887 short story \"The Last Stitch.\" Hester Pell, a village dressmaker, watches from the church porch as a bride she has sewn for walks up the aisle.\n\nHester stood half hidden behind the porch door, her hands clasped tight against her apron. She had sat up nine nights over that gown, and her eyes still smarted with the labour of it. Now, as the bride passed beneath the lamp, the white silk took the light and gave it back so softly that a murmur ran along the pews. Hester heard it, and her face flushed warm. She had never in her life been praised aloud, but she felt, at that moment, fully repaid.",
+   "stem": "Which choice best states the main idea of the text?",
+   "choices": {
+    "A": "A character feels uneasy about being noticed as others admire her long labor.",
+    "B": "A character feels fully repaid for her long labor when others admire her work.",
+    "C": "A character feels her long labor was wasted because no one has praised her aloud.",
+    "D": "A character feels delighted when the bride singles out her work before the congregation."
+   },
+   "answer": "B",
+   "traps": {
+    "A": {
+     "type": "wrong_tone",
+     "why": "It copies the correct answer's structure but flips her feeling to unease; the flush reads as pleasure and she feels repaid, so the text doesn't support it."
+    },
+    "C": {
+     "type": "word_echo",
+     "why": "It uses the detail that she has never been praised aloud but reverses the outcome, since she feels fully repaid rather than that her work was wasted."
+    },
+    "D": {
+     "type": "mix_up",
+     "why": "The admiration comes from a murmur among the pews, not from the bride singling out Hester's work, so the actor is mixed up and the claim is unsupported."
+    }
+   },
+   "status": "Claude-reviewed (pending Sebastian)",
+   "source": "traps-r1-cid #4",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t013",
+   "skill": "command_of_evidence_claim",
+   "level": "easy",
+   "passage": "A Prince Rupert's drop forms when a bead of molten glass falls into cold water and freezes into a shape like a tadpole. The round head can survive a hammer blow, but snipping the thin tail makes the whole drop burst into powder. A student writing about the drops argues that the head is so hard to break because its outer surface is held in a state of compression, pressed inward on the glass beneath.",
+   "stem": "Which quotation from a glass scientist would most effectively support the student's argument?",
+   "choices": {
+    "A": "\"The head of a drop is much thicker than the tail, so it holds more glass to absorb a hammer blow, and a blow must deliver far more force to damage it than to damage the tail.\"",
+    "B": "\"The outer skin of the head stays hotter than the interior as the bead freezes, so the interior sets first and the surface is left stretched, which makes it easy for a crack to begin.\"",
+    "C": "\"The outer skin of the head sets first, and the interior shrinks afterward, so the surface ends up squeezed tightly inward, which makes it hard for a crack to begin.\"",
+    "D": "\"Once a crack starts in the thin tail, it runs quickly into the stretched interior of the drop, so the whole piece bursts apart in a fraction of a second.\""
+   },
+   "answer": "C",
+   "traps": {
+    "A": {
+     "type": "true_but_irrelevant",
+     "why": "It explains the head's strength by thickness rather than surface compression, so it is plausible and on topic but never supports the student's specific mechanism."
+    },
+    "B": {
+     "type": "opposite",
+     "why": "It reverses the cooling order so the surface is stretched, which contradicts the compression claim and makes cracks easy, so it is clearly wrong on a second look."
+    },
+    "D": {
+     "type": "wrong_part",
+     "why": "It describes the tail's cracking and a stretched interior, which fits the drop's behavior, but says nothing about why the head's compressed surface resists breaking."
+    }
+   },
+   "status": "Claude-reviewed (pending Sebastian)",
+   "source": "traps-r1-coe #4",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t014",
+   "skill": "inferences",
+   "level": "hard",
+   "passage": "Downstream of one dam, a freshwater mussel bed is aging: surveys find plentiful adults but almost no juveniles, a pattern a facile reading would blame on water too cold or too poorly oxygenated for young mussels. Juveniles raised in a laboratory and placed in cages within the bed, however, grew and survived as well as caged juveniles at an unaffected site upstream. Mussel larvae cannot mature unless they first spend several weeks attached to the gills of a host fish, and the fish species that carry this mussel's larvae are far rarer below the dam than above it. If this reasoning is right, researchers would expect that ______.",
+   "stem": "Which choice most logically completes the text?",
+   "choices": {
+    "A": "juvenile mussels would become as common below the dam as above it once host fish could again reach the bed, even with no change in water conditions",
+    "B": "juvenile mussels would become more common below the dam if the water there were warmed and better oxygenated, even if host fish stayed as rare as they are now",
+    "C": "juvenile mussels would become more common below the dam if host fish could again reach the bed, even with no change in water conditions",
+    "D": "juvenile mussels would become more common below the dam if host fish could again reach the bed, but only if water conditions there were also improved"
+   },
+   "answer": "C",
+   "traps": {
+    "A": {
+     "type": "overreach",
+     "why": "'As common as above the dam' goes beyond the passage, which gives no basis for full recovery to upstream levels; it is a stronger claim than A."
+    },
+    "B": {
+     "type": "old_view",
+     "why": "Restates the facile water-quality explanation the passage rejects, and it ignores the host-fish requirement."
+    },
+    "D": {
+     "type": "half_right",
+     "why": "Near-twin of A that adds a 'only if water also improved' condition, which contradicts the caged-juvenile evidence that water is already adequate."
+    }
+   },
+   "status": "Claude-reviewed (pending Sebastian)",
+   "source": "traps-r1-inf #3",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t015",
+   "skill": "command_of_evidence_claim",
+   "level": "easy",
+   "passage": "Some lakes fed by glaciers hold sediment in thin paired layers called varves. Each pair has a pale, coarse layer at the bottom and a dark, fine layer on top. <u>A student writing about varves argues that the pale layer forms in summer, because warm weather melts the glacier and the fast meltwater streams carry coarse grains into the lake, where the grains sink quickly.</u>",
+   "stem": "Which statement, if true, would most strongly support the claim in the underlined sentence?",
+   "choices": {
+    "A": "Glacial streams flow fastest in summer, when melting is greatest, and water moving that fast can sweep coarse sand grains into the lake, where they settle to the bottom within hours.",
+    "B": "Glacial streams flow fastest in early spring, when the first thaw sweeps loose debris downhill, and water moving that fast can sweep coarse sand grains into the lake, where they settle to the bottom within hours.",
+    "C": "Glacial melting is greatest in summer, when warm weather sends the largest volume of meltwater down the streams and into the lake, and the incoming water warms the lake's surface near the stream mouths by several degrees.",
+    "D": "Coarse sand grains settle to the lake bottom within hours of entering the water, whereas fine clay particles can stay suspended for weeks or months, so the two kinds of grain end up in separate layers."
+   },
+   "answer": "A",
+   "traps": {
+    "B": {
+     "type": "opposite",
+     "why": "It copies A's mechanism but puts the fastest flow in early spring, which undercuts the summer timing the claim depends on."
+    },
+    "C": {
+     "type": "half_right",
+     "why": "It supports the summer melt and large meltwater volume but then shifts to lake-surface warming, which says nothing about coarse grains being carried in or sinking, so the claim is only partly supported."
+    },
+    "D": {
+     "type": "true_but_irrelevant",
+     "why": "It explains why coarse and fine grains separate into layers, but it gives no link to summer or to meltwater, so it does not support the claim that the pale layer forms in summer."
+    }
+   },
+   "status": "Claude-reviewed (pending Sebastian)",
+   "source": "traps-r2-coe #3",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t016",
+   "skill": "central_ideas",
+   "level": "easy",
+   "passage": "A team of physicists used a high-speed camera to film dry spaghetti rods as they were bent until they broke. Most rods snapped into three or more pieces rather than two, and the team tested whether hidden flaws in the pasta were to blame. They were not, because rods made as uniform as possible fragmented in the same way. Instead, the footage showed that the first break sends a wave of bending along the remaining rod, and that wave causes further breaks within moments.",
+   "stem": "Which choice best states the main idea of the text?",
+   "choices": {
+    "A": "Dry spaghetti snaps into several pieces because hidden flaws in the rod give way one after another.",
+    "B": "Dry spaghetti snaps into several pieces because a bending wave from the first break exposes hidden flaws in the rod.",
+    "C": "Dry spaghetti snaps into several pieces because the first break sends a bending wave along the rod.",
+    "D": "Dry spaghetti snaps into several pieces because the bend strains the rod past its limit at several points at once."
+   },
+   "answer": "C",
+   "traps": {
+    "A": {
+     "type": "mix_up",
+     "why": "It names hidden flaws as the cause, which the passage explicitly rules out because uniform rods fragmented the same way."
+    },
+    "B": {
+     "type": "half_right",
+     "why": "It copies B's structure and the bending wave but adds that the wave exposes hidden flaws, a claim the passage contradicts by ruling flaws out."
+    },
+    "D": {
+     "type": "opposite",
+     "why": "It offers a simultaneous multi-point strain explanation that the passage never gives, since the further breaks follow the first break within moments."
+    }
+   },
+   "status": "Claude-reviewed (pending Sebastian)",
+   "source": "traps-r2-cid #4",
+   "added": "2026-11-24"
+  },
+  {
+   "id": "t017",
+   "skill": "inferences",
+   "level": "easy",
+   "passage": "Many British novelists of the 1860s published their books in weekly magazine installments. Each installment was paid for as it appeared, which gave a writer a steady income while the book was still unfinished. The weekly deadline, however, left little time for revision, and plots sometimes wandered. A number of novelists nonetheless chose this format even when a publisher offered to wait for a finished manuscript. Some of these serials were later reissued as bound volumes. These findings suggest that ______.",
+   "stem": "Which choice most logically completes the text?",
+   "choices": {
+    "A": "some novelists chose installments in order to adjust their plots in response to readers' reactions as the story unfolded",
+    "B": "some novelists valued a steady income while they were writing more than the chance to revise a finished manuscript",
+    "C": "most novelists who wrote in installments cared little about the quality of their finished plots",
+    "D": "some novelists valued a steady income while they were writing, which is why their serials were later reissued as bound volumes"
+   },
+   "answer": "B",
+   "traps": {
+    "A": {
+     "type": "real_world_true",
+     "why": "Plausible real-world serial practice, but the passage never mentions reader reactions or plot adjustment, so it is unsupported; it also sits oddly with the stated lack of revision time."
+    },
+    "C": {
+     "type": "overreach",
+     "why": "Passage says plots sometimes wandered, but 'most novelists' and 'cared little about quality' is a sweeping unsupported leap."
+    },
+    "D": {
+     "type": "half_right",
+     "why": "It copies the correct claim about steady income but adds a causal link to later reissue as bound volumes, which the passage never establishes."
+    }
+   },
+   "status": "Claude-reviewed (pending Sebastian)",
+   "source": "traps-r2-inf #1",
+   "added": "2026-11-24"
+  }
+ ]
+}

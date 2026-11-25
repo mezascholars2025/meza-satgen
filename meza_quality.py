@@ -23,6 +23,8 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from meza_traps import TRAPS  # trap lists per skill
+
 BLANK = "______"
 CHOICE_KEYS = ("A", "B", "C", "D")
 DIFFICULTIES = ("easy", "medium", "hard")
@@ -113,7 +115,7 @@ TARGET_WORDS = {
 OVERUSED_TOPICS = ["bee", "pollinat", "sunflower", "bean seedling", "sea turtle", "mangrove", "octopus",
                    "crow", "coral reef", "urban heat island"]
 ABSOLUTES = ["only", "always", "never", "all", "every", "none", "entirely", "completely", "proves",
-             "proved", "impossible", "best", "certainly", "solely", "exclusively"]
+             "proved", "impossible", "best", "certainly", "solely", "exclusively", "greatest"]
 TRANSITION_GROUPS = {
     "contrast": ["however", "nevertheless", "nonetheless", "by contrast", "in contrast", "still", "even so",
                  "on the other hand", "conversely", "instead", "rather", "yet"],
@@ -173,6 +175,83 @@ def reading_text(passage: str) -> str:
         keep.append(s)
     text = " ".join(x for x in keep if x)
     return re.sub(r"</?u>", "", text)
+
+
+def absolutes_in(choice: str) -> list[str]:
+    """Absolute words in a choice, ignoring logic phrases ("only if", "not only") and quoted text."""
+    text = re.sub(r"[\"\u201c][^\"\u201d]*[\"\u201d]", " ", choice.lower())
+    text = re.sub(r"\b(only if|if only|not only|not all|not every)\b", " ", text)
+    return [a for a in ABSOLUTES if has_word(text, a)]
+
+
+def common_core_problems(choices: dict, answer: str) -> list[str]:
+    """The "common core" tell: a wrong answer that is the key plus an extra claim (or the key is a wrong answer plus
+    an extra claim). Test-wise students pick the shared core, or the most complete choice, without reading."""
+    def cw(s: str) -> list[str]:
+        return [w for w in words(s) if w not in STOP]
+
+    key = cw(choices.get(answer, ""))
+    ks = set(key)
+    out = []
+    if len(key) < 4:
+        return out
+    for k, v in choices.items():
+        if k == answer:
+            continue
+        w = cw(v)
+        ws = set(w)
+        if len(ks & ws) / len(ks) >= 0.85 and len(w) >= len(key) + 3:
+            out.append(f"Choice {k} is the correct answer plus an extra claim, so students can pick the shared core "
+                       "without reading. Build twins by SWAPPING one element (the cause, direction, group, or result) "
+                       "and keep the same length, never by adding a clause to the key.")
+        elif ws and len(ks & ws) / len(ws) >= 0.85 and len(key) >= len(w) + 3:
+            out.append(f"The correct answer is choice {k} plus an extra part, so it stands out as the most complete "
+                       "choice. Give the wrong answers the same number of parts as the key.")
+    return out
+
+
+def _norm(text: str) -> str:
+    text = re.sub(r"</?u>", "", text).replace("\u2019", "'").replace("\u2018", "'")
+    text = text.replace("\u201c", '"').replace("\u201d", '"').replace("\u2014", " - ").replace("\u2013", "-")
+    return " ".join(text.lower().split())
+
+
+def proof_problems(passage: str, proof: object, level: str) -> list[str]:
+    """Read between the lines (Sebastian, Nov 25): at medium/hard, the writer names two exact excerpts from different
+    sentences that together prove the correct answer, so the key has to connect them rather than restate one."""
+    if level == "easy":
+        return []
+    ask = ('Add a "proof" field: a list of two excerpts copied word for word from the passage, from two different '
+           "sentences, that together prove the correct answer (no single sentence should say it).")
+    if not isinstance(proof, list) or len([p for p in proof if isinstance(p, str) and p.strip()]) < 2:
+        return [ask]
+    sentences = [_norm(x) for x in re.split(r"(?<=[.!?])\s+", strip_intro(passage)) if x.strip()]
+    whole = _norm(passage)
+    found = []
+    for ex in proof[:4]:
+        e = _norm(str(ex)).strip(" .\"'")
+        if len(e.split()) < 3 or e not in whole:
+            return [f'The proof excerpt "{str(ex)[:60]}" is not copied word for word from the passage. ' + ask]
+        found.append(next((i for i, x in enumerate(sentences) if e in x), -1))
+    if len({i for i in found if i >= 0}) < 2:
+        return ["Both proof excerpts come from the same sentence, so the correct answer only restates it. Base the "
+                "correct answer on two different sentences that a student must connect."]
+    return []
+
+
+def key_echo_problems(passage: str, choices: dict, answer: str) -> list[str]:
+    """At medium/hard, the correct answer should not copy the passage's wording more than every wrong answer does:
+    the word-matching choice should be a trap (Reiteration), and the key a conclusion in new words."""
+    def cw(text: str) -> list[str]:
+        return [w for w in words(re.sub(r"</?u>", "", text)) if w not in STOP]
+
+    ps = {w[:5] for w in cw(passage)}
+    echo = {k: sum(w[:5] in ps for w in cw(v)) / max(1, len(cw(v))) for k, v in choices.items()}
+    if answer in echo and len(echo) == 4 and echo[answer] > max(v for k, v in echo.items() if k != answer):
+        return ["The correct answer copies the passage's wording more than any wrong answer, so a student can match "
+                "words instead of reading. Reword the correct answer as a conclusion in new words, and let a wrong "
+                "answer (Reiteration) borrow the passage's wording instead."]
+    return []
 
 
 def fingerprint(passage: str, stem: str) -> str:
@@ -491,13 +570,16 @@ def lint(qtype: str, passage: str, stem: str, choices: dict[str, str], answer: s
         if min(lens.values()) and longest / min(lens.values()) > 2.6:
             r.warns.append("Choice lengths vary a lot; real choices look parallel.")
 
-        abs_wrong = [w for w in wrong if any(has_word(w, a) for a in ABSOLUTES)]
-        abs_key = any(has_word(key, a) for a in ABSOLUTES)
-        if len(abs_wrong) >= 2 and not abs_key and t != "command_of_evidence_quotation":  # quotes may say "never"
-            found = sorted({a for w in abs_wrong for a in ABSOLUTES if has_word(w, a)})
-            r.fails.append(f"Absolute words ({', '.join(found)}) appear only in wrong answers, so students can "
-                           f"eliminate them without reading. Keep at most one overstated distractor and make the "
-                           f"others wrong for reasons that need the passage.")
+        # Disguise (Sebastian, Nov 24): students learn the Always/Never trap, so a wrong answer that carries an
+        # absolute word the key lacks can be crossed out without reading. Overstate through the claim, not the word.
+        abs_wrong = [w for w in wrong if absolutes_in(w)]
+        abs_key = bool(absolutes_in(key))
+        if abs_wrong and not abs_key and t != "command_of_evidence_quotation":  # quotes may say "never"
+            found = sorted({a for w in abs_wrong for a in absolutes_in(w)})
+            r.fails.append(f"Absolute words ({', '.join(found)}) appear only in wrong answers, so a student who knows "
+                           f"the Always/Never trap crosses them out without reading. Disguise the overstatement: make "
+                           f"the claim go too far (a bigger scope, a firmer cause, a wider group) in ordinary words.")
+        r.fails += common_core_problems(choices, answer)
 
         content = lambda s: {w for w in words(s) if w not in STOP and len(w) > 3}  # noqa: E731
         ptext = content(text)
@@ -734,18 +816,7 @@ def choice_mix_problems(choices: dict[str, str], answer: str, mix: dict[str, int
 # Real wrong answers are built from the passage's own content and are wrong about its PURPOSE or SHAPE.
 # A wrong answer that brings in a topic, comparison, or claim the passage never touches is too easy to cross out.
 
-TSP_TRAPS = {
-    "too_narrow": "states the role of one detail or one sentence as if it were the purpose of the whole text",
-    "too_broad": "claims the text does more, or covers more, than it actually does",
-    "wrong_action": "right content, wrong action or strength (argues, criticizes, or proves where the text only "
-                    "describes or suggests; or the reverse)",
-    "wrong_relationship": "gets how the parts relate backwards (says a detail supports a claim it actually "
-                          "complicates, or that a view is rejected when it is only qualified)",
-    "wrong_order": "lists moves the text really makes, but in the wrong sequence",
-    "partial": "describes only some of the text's moves and leaves out a key one",
-    "wrong_target": "describes the role of a different sentence or part of the text",
-    "misread_stance": "misjudges the author's or speaker's attitude (too strong, too weak, or the wrong feeling)",
-}
+TSP_TRAPS = TRAPS["tsp"]  # kept for older imports; every skill's list lives in meza_traps.py
 TRAP_CRITIC_SYSTEM = "You are a veteran Digital SAT item reviewer who judges how well wrong answers are built."
 TRAP_CRITIC_PROMPT = """Here is a Reading and Writing question with its correct answer marked.
 
@@ -773,21 +844,23 @@ Reply with JSON only, keyed by letter, for the three wrong answers:
 {{"<letter>": {{"accurate_content": true, "on_topic": true, "tempting": 3, "trap": "<type>", "why": "<one short sentence>"}}}}"""
 
 
-def trap_label_problems(traps: object, answer: str, level: str) -> list[str]:
+def trap_label_problems(traps: object, answer: str, level: str, family: str = "tsp") -> list[str]:
     """Checks the writer's own labels: one valid trap type per wrong answer; harder items mix types."""
+    taxonomy = TRAPS[family]
     wrong = [k for k in CHOICE_KEYS if k != answer]
-    if not isinstance(traps, dict) or any(str(traps.get(k, "")).strip() not in TSP_TRAPS for k in wrong):
+    if not isinstance(traps, dict) or any(str(traps.get(k, "")).strip() not in taxonomy for k in wrong):
         return ['Add a "traps" field to the JSON that maps each WRONG answer\'s letter to one trap type from: '
-                + ", ".join(TSP_TRAPS) + "."]
+                + ", ".join(taxonomy) + "."]
     kinds = {str(traps[k]).strip() for k in wrong}
     if level in ("medium", "hard") and len(kinds) < 2:
         return ["Use at least two different trap types among the wrong answers."]
     return []
 
 
-def trap_critic_problems(verdict: dict, answer: str, level: str) -> list[str]:
-    """Off-topic or 'none' traps always fail. At least two wrong answers must be accurate about the passage's
-    content (wrong only in role/scope). Medium/hard: every wrong answer tempting >= 3; easy: at most one below 3."""
+def trap_critic_problems(verdict: dict, answer: str, level: str, family: str = "tsp") -> list[str]:
+    """Off-topic or 'none' (filler) traps always fail. Text Structure only: at least two wrong answers must be accurate
+    about the passage (other skills' wrong answers are often unsupported by design). Medium/hard: every wrong answer
+    tempting >= 3 (medium may keep one 2); easy: at most one below 3."""
     wrong = [k for k in CHOICE_KEYS if k != answer]
     if not isinstance(verdict, dict) or not any(isinstance(verdict.get(k), dict) for k in wrong):
         return []  # critic unavailable: don't block on it
@@ -798,10 +871,10 @@ def trap_critic_problems(verdict: dict, answer: str, level: str) -> list[str]:
             continue
         why = str(v.get("why", "")).strip()
         label = f"{k} ({why})" if why else k
-        if v.get("on_topic") is False or str(v.get("trap", "")).lower() == "none":
+        if (v.get("on_topic") is False and family != "wic") or str(v.get("trap", "")).lower() == "none":
             off.append(label)
             continue
-        if v.get("accurate_content") is False:
+        if v.get("accurate_content") is False and family == "tsp":
             inaccurate.append(label)
         try:
             t = int(v.get("tempting", 3))
@@ -812,18 +885,31 @@ def trap_critic_problems(verdict: dict, answer: str, level: str) -> list[str]:
             if t <= 1:
                 very_weak.append(label)
     out = []
+    rebuild = {
+        "tsp": "Rebuild each from the passage's own content, wrong only about its purpose, structure, or the role of a "
+               "part.",
+        "wic": "Replace each with a word a student who half-knows the vocabulary could pick: the everyday meaning, "
+               "another real meaning, a near-synonym with the wrong connotation or strength, or a word that fits "
+               "another idea in the passage.",
+    }.get(family, "Rebuild each on the passage's own topic and details, built on one of the trap types.")
     if off:
-        out.append("These wrong answers bring in content the passage never mentions or target no real mistake, so "
-                   "students can cross them out without understanding the text: " + "; ".join(off) + ". Rebuild each "
-                   "from the passage's own content, wrong only about its purpose, structure, or the role of a part.")
+        out.append("These wrong answers bring in content the passage never mentions or target no real mistake (filler), "
+                   "so students can cross them out without understanding the text: " + "; ".join(off) + ". " + rebuild)
     if len(inaccurate) > 1:
         out.append("Too many wrong answers misstate the passage's content: " + "; ".join(inaccurate) + ". At least two "
                    "wrong answers must describe what the passage really says, accurately, and be wrong only about its "
                    "purpose, scope, order, or role, so a student who skimmed would accept them.")
+    obvious = [k for k in wrong if isinstance(verdict.get(k), dict) and verdict[k].get("obvious") is True]
+    if len(obvious) > (1 if level == "easy" else 0):
+        out.append("These wrong answers can be ruled out from their wording alone, without the passage: "
+                   + ", ".join(obvious) + ". Disguise them: each must look as reasonable as the key until a student "
+                   "checks the passage (no absolute words, no clause tacked onto another choice, the same measured "
+                   "tone and length as the key).")
     allowed = {"easy": 1, "medium": 1, "hard": 0}.get(level, 0)
     if len(weak) > allowed or (level != "easy" and very_weak):
-        out.append("These wrong answers are too easy to rule out: " + "; ".join(weak) + ". Make each a near miss: an "
-                   "accurate statement about the passage with the wrong scope, action, relationship, order, or target.")
+        near = ("an accurate statement about the passage with the wrong scope, action, relationship, order, or target"
+                if family == "tsp" else "built on one of the trap types so a careful student would still consider it")
+        out.append("These wrong answers are too easy to rule out: " + "; ".join(weak) + f". Make each a near miss: {near}.")
     return out
 
 
@@ -891,9 +977,12 @@ def probe_votes(ask, stem: str, choices: dict[str, str], answer: str, runs: int 
 
 def probe_feedback(hits: list[bool]) -> str:
     return (f"A test-taker who could NOT see the passage still picked the correct answer {sum(hits)} of "
-            f"{len(hits)} times, using only the choices. The key stands out on its own (it may be the most "
-            f"balanced, the most hedged, the most complete, or the only one that sounds reasonable). Rewrite "
-            f"the wrong answers so each one sounds just as reasonable as the key until you check the passage.")
+            f"{len(hits)} times, using only the choices. The key stands out on its own: it may say what students "
+            f"already believe about the topic, be the most balanced or complete choice, or be the choice the others "
+            f"are variations of. You may change what the correct answer says, not only the wrong answers: make it a "
+            f"less obvious conclusion that only the passage supports (connect two of its sentences), and give the "
+            f"common-sense or word-matching answer to a trap. Each wrong answer must sound just as reasonable as the "
+            f"key until you check the passage.")
 
 
 # ----------------------------------------------------------------------------- CLI

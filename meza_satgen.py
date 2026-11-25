@@ -37,12 +37,18 @@ from pathlib import Path
 
 from meza_quality import (PROBE_TYPES, base_type, describe, difficulty_of, features, lint, probe_feedback,
                           probe_votes, rhythm_check, vocab_used)
+from meza_traps import CRITIC_GUIDANCE, CRITIC_SYSTEM, critic_prompt, family_of, format_examples
+from meza_traps import DISGUISE, load_bank, pick_examples, reused_topic, trap_menu
 from meza_quality import FOCUS_CRITIC_PROMPT, FOCUS_CRITIC_SYSTEM, fingerprint, focus_problems
-from meza_quality import (TRAP_CRITIC_PROMPT, TRAP_CRITIC_SYSTEM, TSP_BANDS, TSP_TRAPS, TSP_TYPES, TSP_VERBS,
+from meza_quality import key_echo_problems, proof_problems
+from meza_quality import (TSP_BANDS, TSP_TYPES, TSP_VERBS,
                           lead_verb, trap_critic_problems, trap_label_problems)
 from meza_quality import (advanced_in, central_stem_kind, choice_mix_problems, detail_stem_family, leadin_kinds,
                           word_tier)
-from satgen import cli, pipeline
+from satgen import cli, cost, pipeline
+
+# Prices satgen's table doesn't list yet (USD per million tokens, input/output; platform.claude.com pricing, Nov 2026).
+cost.PRICES.setdefault("claude-opus-5-5", (4.00, 20.00))
 from satgen.answers import CHOICES, normalize_spr
 from satgen.llm import SimulatedClient
 from satgen.models import MCQ, SPR, Question
@@ -115,7 +121,7 @@ TRAP_LINE = (
     "SKIM TEST: at least two wrong answers must be accurate statements about what the passage says, wrong only in "
     "purpose, scope, order, or role, so a student who skimmed would accept them. Never build a wrong answer on a word "
     "the passage barely touches, and never let one contradict an explicit statement.\n"
-    "{level_rule} Add a \"traps\" field to the JSON mapping each wrong answer's letter to its trap type."
+    "{disguise}\n{level_rule} Add a \"traps\" field to the JSON mapping each wrong answer's letter to its trap type."
 )
 TRAP_LEVEL_RULE = {
     "easy": "Even at easy, every wrong answer stays on topic; easy items just use plainer traps (too narrow, wrong target).",
@@ -123,6 +129,36 @@ TRAP_LEVEL_RULE = {
     "hard": "Use at least two different trap types; every wrong answer should be a near miss that is right about "
             "most of the text.",
 }
+# Every other skill with a trap list (vocabulary, Central Ideas and Details, Inferences, Command of Evidence).
+TRAP_LINE_GENERAL = (
+    "\nWRONG ANSWERS FOR THIS ITEM: {guidance} Build each wrong answer on one of these trap types (grouped by "
+    "Meza's five trap categories):\n{traps}\n"
+    "No filler: every wrong answer must target a real mistake a careful student could make.\n{disguise}\n"
+    "{level_rule} Add a \"traps\" field to the JSON mapping each wrong answer's letter to its trap type."
+)
+TRAP_LEVEL_RULE_GENERAL = {
+    "easy": "Easy items may use plainer traps, but each must still be on the passage's topic.",
+    "medium": "Use at least two different trap types; at least one wrong answer should need a second look.",
+    "hard": "Use at least two different trap types; every wrong answer should be a near miss.",
+}
+# Read between the lines (Sebastian, Nov 25): at medium/hard, the correct answer connects two parts of the passage
+# instead of restating one, and the writer drafts the tempting word-matching trap before the key.
+BETWEEN_LINES = {
+    "easy": "\nCORRECT ANSWER: at the easy level it may restate one sentence of the passage, in fresh words.",
+    "medium": (
+        "\nCORRECT ANSWER (read between the lines). Write the choices in this order: (1) pick two different sentences "
+        "of the passage that TOGETHER prove the answer; (2) write the most tempting wrong answer first, one that copies "
+        "the passage's own words or says what a student would already believe about the topic; (3) only then write "
+        "the correct answer: a conclusion that combines the two sentences, in words the passage does not use. No "
+        "single sentence may say it, and a student must not be able to know or guess it without reading the passage. "
+        "It must still be the only defensible answer. Add a \"proof\" field to the JSON: a list of the two excerpts, "
+        "copied word for word from the passage, that together prove the correct answer."),
+}
+BETWEEN_LINES["hard"] = BETWEEN_LINES["medium"] + (
+    " At the hard level the link between the two excerpts is never stated in the passage: the student must notice it "
+    "(for example, people acting against what a test told them shows they doubted the test).")
+BETWEEN_TYPES = ("central_ideas", "details", "inferences")
+TRAP_EXAMPLES = int(os.environ.get("MEZA_TRAP_EXAMPLES", "2"))  # proven examples shown per question (0 = none)
 TRAP_CRITIC = os.environ.get("MEZA_TRAP_CRITIC", "on").lower()  # on / off
 TSP_LINE = (
     "\nANSWER CHOICE LENGTH FOR THIS ITEM: every choice is {lo}-{hi} words ({style})."
@@ -584,6 +620,7 @@ class MezaPipeline(pipeline.Pipeline):
         type(self).seed = seed
         type(self).keys = key_plan(count, seed)
         self.vocab = VocabBank(VOCAB_PATH, seed)
+        self.trap_bank = load_bank()
         self._recent = {}
         print(f"Subject seed: {seed} (set MEZA_SUBJECT_SEED={seed} to repeat this order)", file=sys.stderr)
         if QUALITY != "off":
@@ -634,11 +671,11 @@ class MezaPipeline(pipeline.Pipeline):
         except (ValueError, KeyError, TypeError):
             return {}
 
-    def _trap_critic(self, q: Question) -> dict:
+    def _trap_critic(self, q: Question, family: str = "tsp") -> dict:
         """The reviewer model rates each wrong answer: on topic? how tempting? which trap?"""
-        prompt = TRAP_CRITIC_PROMPT.format(question=q.to_prompt(), answer=q.answer, traps=", ".join(TSP_TRAPS))
+        prompt = critic_prompt(family, q.to_prompt(), q.answer)
         try:
-            return pipeline.parse_json(self._call(self.reviewer, "trap_critic", prompt, system=TRAP_CRITIC_SYSTEM,
+            return pipeline.parse_json(self._call(self.reviewer, "trap_critic", prompt, system=CRITIC_SYSTEM,
                                                   json_mode=True))
         except (ValueError, KeyError, TypeError):
             return {}
@@ -693,7 +730,7 @@ class MezaPipeline(pipeline.Pipeline):
             base_prompt += TSP_LINE.format(lo=band[0], hi=band[1], style=f"{style} style", verbs=", ".join(verbs[:9]),
                                            avoid=avoid)
             base_prompt += TRAP_LINE.format(
-                traps="\n".join(f"  - {k}: {v}" for k, v in TSP_TRAPS.items()),
+                traps=trap_menu("tsp"), disguise=DISGUISE,
                 level_rule=TRAP_LEVEL_RULE.get(difficulty_of(qtype, index) or "medium", ""))
         if base_type(qtype) == "text_structure_function":
             rng = random.Random(f"function:{index}:{len(self.plan)}")
@@ -707,6 +744,19 @@ class MezaPipeline(pipeline.Pipeline):
             base_prompt += STEM_LINE.format(stem=stem_text)
         if "_recent" not in self.__dict__:
             self._recent = {}
+        if "trap_bank" not in self.__dict__:
+            self.trap_bank = load_bank()
+        trap_fam = family_of(base_type(qtype)) if fmt == MCQ and QUALITY != "off" else None
+        if trap_fam and trap_fam != "tsp":
+            lvl = difficulty_of(qtype, index) or "medium"
+            base_prompt += TRAP_LINE_GENERAL.format(
+                guidance=CRITIC_GUIDANCE[trap_fam], traps=trap_menu(trap_fam), disguise=DISGUISE,
+                level_rule=TRAP_LEVEL_RULE_GENERAL.get(lvl, ""))
+        examples = []
+        if trap_fam and TRAP_EXAMPLES:
+            examples = pick_examples(self.trap_bank, base_type(qtype), difficulty_of(qtype, index) or "medium",
+                                     n=TRAP_EXAMPLES, seed=f"{index}:{len(self.plan)}")
+            base_prompt += format_examples(examples)
         if "vocab" not in self.__dict__:
             self.vocab = VocabBank(VOCAB_PATH, index)
         level = difficulty_of(qtype, index) or "medium"
@@ -723,6 +773,8 @@ class MezaPipeline(pipeline.Pipeline):
             base_prompt += SHAPE_LINE.format(desc=INF_SHAPES[inf["shape"]])
             base_prompt += INF_LINE.format(ending=INF_ENDINGS[inf["ending"]], leadin=INF_LEADINS[inf["leadin"]],
                                            blank=INF_BLANKS[inf["blank"]])
+        if base_type(qtype) in BETWEEN_TYPES and QUALITY != "off":
+            base_prompt += BETWEEN_LINES[level]
         coe: dict = {}
         if base_type(qtype).startswith("command_of_evidence"):
             coe = coe_assignment(qtype, level, self.seed, index)
@@ -813,11 +865,16 @@ class MezaPipeline(pipeline.Pipeline):
             # Judgment calls (the reviewer-model critics and the passage-free probe) are "soft": after the last rewrite
             # they flag the question for human review instead of discarding it. Everything else must pass.
             soft: list[str] = []
-            if base_type(qtype) in TSP_TYPES:
-                problems += trap_label_problems(data.get("traps"), q.answer, level)
+            problems += reused_topic(q.passage, examples)
+            if base_type(qtype) in BETWEEN_TYPES and QUALITY != "off":
+                problems += proof_problems(q.passage, data.get("proof"), level)
+                if level != "easy" and base_type(qtype) != "inferences":
+                    problems += key_echo_problems(q.passage, q.choices, q.answer)
+            if trap_fam:
+                problems += trap_label_problems(data.get("traps"), q.answer, level, trap_fam)
                 if not problems and QUALITY == "on" and TRAP_CRITIC == "on":
-                    critic = self._trap_critic(q)
-                    soft += trap_critic_problems(critic, q.answer, level)
+                    critic = self._trap_critic(q, trap_fam)
+                    soft += trap_critic_problems(critic, q.answer, level, trap_fam)
             focus: dict = {}
             if role == "detail" and not problems and QUALITY == "on" and FOCUS_CRITIC == "on":
                 focus = self._focus_critic(q)
@@ -835,6 +892,7 @@ class MezaPipeline(pipeline.Pipeline):
                          "traps": data.get("traps"), "trap_critic": critic, "vocab": vocab, "vocab_used": used,
                          "choice_plan": plan, "word_role": role, "focus": focus,
                          "stem": stem_kind, "cid": cid, "inf": inf, "coe": coe,
+                         "choices": q.choices, "answer": q.answer, "proof": data.get("proof"),  # before shuffling; maps trap labels later
                          "problems": problems, "passed": not problems or flagged,
                          "flagged": soft if flagged else [], "fingerprint": fingerprint(q.passage, q.stem)})
             if not problems or flagged:

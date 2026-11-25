@@ -5,6 +5,8 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 os.environ.setdefault("MEZA_QUALITY", "on")
@@ -114,7 +116,14 @@ class FakeWriter:
     def complete(self, prompt, system="", temperature=0.7, json_mode=False):
         self.prompts.append(prompt)
         choices = GOOD if "FAILED QUALITY CHECKS" in prompt else TELL
-        out = {"passage": PASSAGE, "stem": STEM, "choices": choices, "answer": "B", "explanation": EXPL}
+        out = {
+            "passage": PASSAGE,
+            "stem": STEM,
+            "choices": choices,
+            "answer": "B",
+            "explanation": EXPL,
+            "traps": {"A": "never_said", "C": "opposite", "D": "half_right"},
+        }
         return json.dumps(out), 100, 100
 
 
@@ -850,7 +859,7 @@ INF_P = (
 )
 INF_CH = {
     "A": "earthworms may harm forests whose native plants rely on a thick layer of fallen leaves.",
-    "B": "earthworms improve the soil of every forest they reach by mixing leaves into it.",
+    "B": "earthworms improve the soil of the northern forests they reach by mixing leaves into it.",
     "C": "native seedlings grow fastest in forests where the litter layer is very thin.",
     "D": "most gardeners in northern regions have stopped adding earthworms to their soil.",
 }
@@ -1031,3 +1040,248 @@ def test_hard_quotation_slot_is_written_as_medium(monkeypatch):
     first = writer.prompts[0]
     assert "command_of_evidence_quotation_medium" in first and "REQUIRED VARIATION FOR THIS EVIDENCE ITEM" in first
     assert "an invented literary work" in first
+
+
+# --- trap types for every skill, the bank of model wrong answers, and the learning loop ---
+
+import csv  # noqa: E402
+
+import meza_traps  # noqa: E402
+
+
+def test_every_reading_skill_has_a_trap_list():
+    fam = meza_traps.family_of
+    assert fam("text_structure_function") == "tsp" and fam("words_in_context_meaning") == "wic"
+    assert fam("details") == fam("central_ideas") == "cid" and fam("inferences") == "inf"
+    assert fam("command_of_evidence_quantitative") == "coe" and fam("transitions") is None
+    assert set(meza_traps.TRAPS) == set(meza_traps.CRITIC_GUIDANCE)
+    assert "never_said" in meza_traps.critic_prompt("cid", "Q", "B")
+
+
+def test_trap_labels_use_the_skills_own_list():
+    from meza_quality import trap_critic_problems, trap_label_problems
+
+    assert (
+        trap_label_problems({"A": "most_common_meaning", "B": "reversal", "D": "wrong_degree"}, "C", "medium", "wic")
+        == []
+    )
+    tsp_labels = {"A": "too_narrow", "B": "wrong_target", "D": "partial"}
+    assert trap_label_problems(tsp_labels, "C", "medium", "wic")  # Text Structure labels don't count for vocabulary
+    # Central Ideas wrong answers are often unsupported on purpose: no accuracy rule there, but filler still fails
+    unsupported = {k: {"accurate_content": False, "on_topic": True, "tempting": 4, "trap": "never_said"} for k in "ABD"}
+    assert trap_critic_problems(unsupported, "C", "hard", "cid") == []
+    assert trap_critic_problems(unsupported, "C", "hard", "tsp")
+    filler = dict(unsupported, B={"on_topic": True, "tempting": 1, "trap": "none"})
+    assert any("filler" in x for x in trap_critic_problems(filler, "C", "medium", "cid"))
+
+
+def test_trap_bank_is_valid_and_original():
+    bank = meza_traps.load_bank()
+    assert len(bank) >= 9 and len({e["id"] for e in bank}) == len(bank)
+    for e in bank:
+        fam = meza_traps.family_of(e["skill"])
+        assert fam and e["level"] in meza_traps.DIFFICULTIES and set(e["choices"]) == set("ABCD")
+        assert set(e["traps"]) == set("ABCD") - {e["answer"]}
+        assert all(t["type"] in meza_traps.TRAPS[fam] and t["why"] for t in e["traps"].values())
+        assert "college board" not in json.dumps(e).lower()  # Source rule: original questions only
+    assert {meza_traps.family_of(e["skill"]) for e in bank} == set(meza_traps.TRAPS)
+
+
+def test_examples_prefer_same_skill_level_and_approved():
+    bank = [
+        {"id": "t1", "skill": "details", "level": "hard", "status": "seed"},
+        {"id": "t2", "skill": "details", "level": "easy", "status": "seed"},
+        {"id": "t3", "skill": "details", "level": "easy", "status": "approved (Sebastian)"},
+        {"id": "t4", "skill": "central_ideas", "level": "easy", "status": "approved (Sebastian)"},
+    ]
+    picked = meza_traps.pick_examples(bank, "details", "easy", n=2, seed="1")
+    assert [e["id"] for e in picked] == ["t3", "t2"]
+    assert [e["id"] for e in meza_traps.pick_examples(bank, "central_ideas", "hard", n=1)] == ["t4"]
+    assert meza_traps.pick_examples(bank, "inferences", "easy") == []  # no same-family examples: show none
+    shown = meza_traps.format_examples(meza_traps.load_bank()[:1])
+    assert "Never reuse" in shown and "Correct:" in shown
+
+
+def test_writer_sees_trap_types_and_model_examples(monkeypatch):
+    monkeypatch.setattr(meza_satgen, "LOG_PATH", "")
+    writer = FakeWriter()
+    p = meza_satgen.MezaPipeline(writer, FakeSolver(), FakeSolver(), context="rules")
+    p.plan = [5]
+    p.generate(0, "central_ideas_easy")
+    assert "never_said" in writer.prompts[0] and "MODEL WRONG ANSWERS" in writer.prompts[0]
+    monkeypatch.setattr(meza_satgen, "TRAP_EXAMPLES", 0)
+    writer2 = FakeWriter()
+    p2 = meza_satgen.MezaPipeline(writer2, FakeSolver(), FakeSolver(), context="rules")
+    p2.plan = [5]
+    p2.generate(0, "central_ideas_easy")
+    assert "MODEL WRONG ANSWERS" not in writer2.prompts[0]
+
+
+def test_learn_adds_marked_questions_with_traps_on_final_letters(tmp_path):
+    run = tmp_path / "run"
+    run.mkdir()
+    final = {
+        "passage": "P one.",
+        "stem": "S?",
+        "choices": {"A": "w3", "B": "key", "C": "w1", "D": "w2"},
+        "answer": "B",
+        "type": "details_hard",
+    }
+    other = dict(final, passage="P two.")
+    (run / "questions.json").write_text(json.dumps([final, other]))
+    entry = {
+        "qtype": "details_hard",
+        "passed": True,
+        "fingerprint": meza_quality.fingerprint("P one.", "S?"),
+        "choices": {"A": "key", "B": "w1", "C": "w2", "D": "w3"},
+        "answer": "A",  # before the shuffle
+        "traps": {"B": "never_said", "C": "twin", "D": "opposite"},
+        "trap_critic": {"C": {"tempting": 5, "why": "one element swapped"}},
+    }
+    (run / "quality.jsonl").write_text(json.dumps(entry) + "\n")
+    with open(run / "questions.csv", "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["#", "Review status", "Reviewer notes"])
+        w.writerows([[1, "GOOD TRAPS", ""], [2, "ok", ""]])
+    bank_path = tmp_path / "bank.json"
+    assert meza_traps.learn(run, bank_path) == ["t001"]
+    ex = meza_traps.load_bank(bank_path)[0]
+    assert ex["skill"] == "details" and ex["level"] == "hard" and ex["status"].startswith("approved")
+    assert ex["traps"] == {
+        "A": {"type": "opposite", "why": ""},
+        "C": {"type": "never_said", "why": ""},
+        "D": {"type": "twin", "why": "one element swapped"},
+    }
+    assert meza_traps.learn(run, bank_path) == []  # already in the bank
+
+
+def test_learn_with_picks_reads_level_from_explanation(tmp_path):
+    run = tmp_path / "run"
+    run.mkdir()
+    q = {
+        "passage": "P.",
+        "stem": "S?",
+        "choices": {"A": "k", "B": "w1", "C": "w2", "D": "w3"},
+        "answer": "A",
+        "explanation": "[Domain: Information and Ideas] [Skill: inferences] [Difficulty: Hard] [Subject: History]",
+    }
+    (run / "questions.json").write_text(json.dumps([q]))
+    entry = {
+        "qtype": "inferences",
+        "passed": True,
+        "fingerprint": meza_quality.fingerprint("P.", "S?"),
+        "choices": q["choices"],
+        "answer": "A",
+        "traps": {"B": "twin", "C": "old_view", "D": "overreach"},
+    }
+    (run / "quality.jsonl").write_text(json.dumps(entry) + "\n")
+    bank_path = tmp_path / "bank.json"
+    assert meza_traps.learn(run, bank_path, picks=[1], status="Claude-reviewed") == ["t001"]
+    ex = meza_traps.load_bank(bank_path)[0]
+    assert ex["level"] == "hard" and ex["status"] == "Claude-reviewed"
+
+
+@pytest.mark.parametrize("with_wordfreq", [True, False])
+def test_draft_may_not_reuse_a_model_examples_topic(with_wordfreq, monkeypatch):
+    if not with_wordfreq:
+        monkeypatch.setattr(meza_quality, "_zipf", None)
+    ex = {"passage": "Prince Rupert's drops form when molten glass falls into cold water as tadpole-shaped beads."}
+    copy = "Tadpole-shaped Prince Rupert's drops of molten glass puzzled scientists for centuries."
+    assert meza_traps.reused_topic(copy, [ex])
+    other = "A team of physicists filmed dry spaghetti rods as they were bent until they broke into pieces."
+    assert meza_traps.reused_topic(other, [ex]) == []
+
+
+# --- Sebastian's five trap categories and the disguise rules ---
+
+
+def test_every_trap_type_belongs_to_one_of_sebastians_categories():
+    for fam, traps in meza_traps.TRAPS.items():
+        assert set(meza_traps.CATEGORY_OF[fam]) == set(traps), fam
+        assert set(meza_traps.CATEGORY_OF[fam].values()) <= set(meza_traps.CATEGORIES)
+    assert meza_traps.category_name("cid", "never_said") == "Assumption (never said)"
+    menu = meza_traps.trap_menu("inf")
+    assert "STARTS OFF RIGHT" in menu and "ALWAYS/NEVER" in menu and "overreach" in menu
+
+
+def test_absolute_words_disguised_and_logic_phrases_allowed():
+    from meza_quality import absolutes_in
+
+    assert absolutes_in("It is the only explanation the team considers.") == ["only"]
+    assert absolutes_in("would recover only if host fish returned") == []
+    assert absolutes_in('It quotes the line "every changing wind" to show his scorn.') == []
+
+
+def test_common_core_tell():
+    from meza_quality import common_core_problems
+
+    added = {
+        "A": "It is a teaching aid that models how swells move around islands.",
+        "B": "It is a teaching aid that uses small shells to model how swells move around islands.",
+        "C": "It is a memory aid that lays out the routes canoes take between islands.",
+        "D": "It is a navigation chart that records distances between islands at a consistent scale.",
+    }
+    assert any("plus an extra claim" in x for x in common_core_problems(added, "A"))
+    swapped = dict(added, B="It is a teaching aid that models how winds move across the open ocean.")
+    assert common_core_problems(swapped, "A") == []
+    assert any("most complete" in x for x in common_core_problems(added, "B"))
+
+
+def test_critic_flags_wrong_answers_that_are_obvious_without_the_passage():
+    from meza_quality import trap_critic_problems
+
+    v = {
+        k: {"accurate_content": True, "on_topic": True, "obvious": False, "tempting": 4, "trap": "twin"} for k in "BCD"
+    }
+    assert trap_critic_problems(v, "A", "hard", "inf") == []
+    v["C"] = dict(v["C"], obvious=True)
+    assert any("wording alone" in x for x in trap_critic_problems(v, "A", "hard", "inf"))
+    assert trap_critic_problems(v, "A", "easy", "inf") == []  # easy may keep one plain trap
+
+
+# --- read between the lines (Sebastian, Nov 25) ---
+
+BRIDGE = (
+    "Early wind tests showed that the new footbridge swayed only slightly. Even so, the engineers fitted "
+    "heavy dampers beneath the deck before opening day."
+)
+
+
+def test_proof_must_quote_two_different_sentences():
+    from meza_quality import proof_problems
+
+    good = ["the new footbridge swayed only slightly", "the engineers fitted heavy dampers"]
+    assert proof_problems(BRIDGE, good, "medium") == []
+    assert proof_problems(BRIDGE, None, "easy") == []  # easy may restate one sentence
+    assert proof_problems(BRIDGE, None, "hard")
+    assert any(
+        "same sentence" in x
+        for x in proof_problems(BRIDGE, ["Early wind tests showed", "swayed only slightly"], "hard")
+    )
+    assert any("word for word" in x for x in proof_problems(BRIDGE, ["the bridge barely moved", good[1]], "medium"))
+
+
+def test_key_should_not_copy_the_passage_most():
+    from meza_quality import key_echo_problems
+
+    copying = {
+        "A": "The engineers fitted heavy dampers beneath the deck before opening day.",
+        "B": "The engineers trusted the early wind tests completely.",
+        "C": "The footbridge was closed after opening day.",
+        "D": "The dampers were removed once the sway stopped.",
+    }
+    assert key_echo_problems(BRIDGE, copying, "A")
+    between = dict(copying, B="The engineers were not fully convinced by what the early tests showed.")
+    assert key_echo_problems(BRIDGE, between, "B") == []
+
+
+def test_writer_gets_between_the_lines_steps_at_medium_only(monkeypatch):
+    monkeypatch.setattr(meza_satgen, "LOG_PATH", "")
+    assert '"proof" field' in meza_satgen.BETWEEN_LINES["medium"]
+    assert "never stated" in meza_satgen.BETWEEN_LINES["hard"]
+    assert "proof" not in meza_satgen.BETWEEN_LINES["easy"]
+    writer = FakeWriter()
+    p = meza_satgen.MezaPipeline(writer, FakeSolver(), FakeSolver(), context="rules")
+    p.plan = [5]
+    p.generate(0, "central_ideas_easy")
+    assert "CORRECT ANSWER: at the easy level" in writer.prompts[0]

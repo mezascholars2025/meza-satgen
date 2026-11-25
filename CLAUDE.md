@@ -18,7 +18,9 @@ Update it in the same pull request whenever you add a rule or change how somethi
 | `meza_satgen.py` | Wraps satgen: assigns subject areas, clue structures, passage shapes, question wordings, vocabulary, and answer-choice plans in code; runs the quality gate; rewrites failing drafts. |
 | `meza_quality.py` | Free, deterministic checks (lint, rhythm, vocabulary) and the passage-free probe. `python meza_quality.py runs/<run>/questions.json` lints an old run with no API calls. |
 | `meza_context.txt` | The item-writing rulebook the writer model follows. |
-| `meza_export.py` | Builds `review.html` and `questions.csv` for human review. |
+| `meza_export.py` | Builds `review.html` and `questions.csv` for human review (each wrong answer's trap type shows under "Answer & explanation"). |
+| `meza_traps.py` | Trap types per skill, the reviewer-model trap critic prompt, and the bank of model wrong answers. `python meza_traps.py learn runs/<run>` adds questions marked GOOD TRAPS; `candidates`, `list`, `approve`, `remove`. |
+| `data/trap_bank.json` | Reviewed questions with strong wrong answers, each labeled with its trap type; 2 are shown to the writer per question. Original questions only. |
 | `data/meza_vocab_bank.json` | 1,961 unique words merged from three public Anki decks Sebastian chose (words and parts of speech only), tiered by word frequency: 1,069 advanced, 691 mid, 201 common; 103 flagged as having a second meaning (used for underlined-word items). |
 
 Run tests with `pytest` (no network). Offline smoke run: `python meza_satgen.py run --offline --count 6`.
@@ -33,7 +35,7 @@ Optional but recommended: `pip install wordfreq` so the checker can judge the le
    logic, table task, or quotation genre). Every question also gets the letter its correct answer will
    sit at, planned for the whole batch.
 2. The writer (Claude Sonnet) drafts it from `meza_context.txt` plus those assignments, plus a summary of the
-   last 5 questions of the same type.
+   last 5 questions of the same type, plus this skill's trap types and 2 model questions from the trap bank.
 3. Quality gate (before satgen's solvers): lint → rhythm check → vocabulary check → passage-free probe.
    A failing draft goes back to the writer with the exact problems, up to `MEZA_MAX_REPAIRS` (default 2) times.
 4. satgen's normal pipeline: the key is moved to its planned letter (the wrong answers are shuffled around it),
@@ -179,6 +181,71 @@ Each rule below came from auditing output or from Sebastian's review rounds agai
     change only the flagged choices; Text Structure gets one extra rewrite; broken-JSON drafts are retried for free.
   - The quality log now records every problem in full ("problems" field).
 
+- **Trap types and model wrong answers for every reading skill (Sebastian, Nov 24).** Asked that the generator learn
+  from the best trap answers in vocabulary, Text Structure, and Information and Ideas, not only Text Structure. The
+  model itself can't be retrained, so: (1) each skill family has its own trap list in `meza_traps.py` (Words in
+  Context: most common meaning, other real meaning, wrong connotation, wrong degree, reversal, borrowed from the
+  passage, imprecise fit; Central Ideas and Details, Inferences, and Command of Evidence use the trap names already in
+  their rulebook sections); the writer labels every wrong answer and the reviewer-model critic rates each one, as
+  Text Structure already did. The "at least two accurate wrong answers" rule stays Text Structure only, because
+  "Never said" traps are unsupported on purpose. (2) `data/trap_bank.json` holds reviewed questions with strong
+  wrong answers; the writer sees 2 per question (same skill first, then same level, approved before seeds, rotated)
+  and is told never to reuse their content. (3) Learning loop: Sebastian writes GOOD TRAPS in a question's Review
+  status, then `python meza_traps.py learn runs/<run>` adds it. The bank started with 9 seeds marked pending review:
+  5 from the Nov 24 Information and Ideas run and 4 written by Claude (2 vocabulary, 2 Text Structure). Approve with
+  `python meza_traps.py approve t001 ...`, prune with `remove`. Turn the examples off with MEZA_TRAP_EXAMPLES=0.
+
+- **Trap-learning runs (Nov 24, 50 questions: 10 per skill in two rounds of 5).** 44 shipped (30 with a Review flag),
+  about $11. After round 1, Claude picked the 5 strongest items (one per skill) into the bank; round 2 used them.
+  Critic scores barely moved (average tempting 2.67 → 2.76; wrong answers rated 1-2: 42% → 40%), so the examples
+  alone are not enough yet. The main blocker is the key standing out without the passage (most Text Structure and
+  Central Ideas drafts failed the probe at least once): the correct answer is often the only complete or balanced
+  choice. One round 2 draft copied an example's topic (Prince Rupert's drops). → `reused_topic` rejects a draft
+  that shares 3+ distinctive words with a model example it was shown. 8 Claude-picked examples were added
+  (status "Claude-reviewed (pending Sebastian)"); `learn --pick 2,5 --status ...` adds chosen numbers, and the
+  level now comes from the explanation tag. Runs: `runs/traps-r1-*`, `runs/traps-r2-*`.
+
+- **Disguised traps and Sebastian's five categories (Sebastian, Nov 24).** The trap runs showed the key was obvious
+  more often than the traps were weak. Three tells: a wrong answer that is the key plus a tacked-on clause (students
+  pick the shared core), the key as the only balanced or complete choice, and overstatement carried by words like
+  "only" or "every". Sebastian teaches students five trap categories on the portal flashcards (Starts off right,
+  Assumption, Reiteration, Opposite, Always/Never), so a trap that wears its category's label is crossed out without
+  reading. → those five categories are now the main labels: every skill's trap types are grouped under them
+  (`CATEGORY_OF` in `meza_traps.py`; Words in Context adds "Wrong sense"), in the writer's prompt, the rulebook's
+  answer-choice rules, and review.html. A DISGUISE rule tells the writer each wrong answer must need the passage
+  to rule out, twins must swap an element rather than add one, and the key must not be the only balanced choice.
+  Code: lint fails any absolute word that appears only in wrong answers (was: two or more; "only if" and quoted text
+  are ignored), and `common_core_problems` fails a wrong answer that is the key plus 3+ words (or the key that is a
+  wrong answer plus 3+ words); on the 42 trap-run questions it caught 3 real cases and none of the good "swap"
+  twins. The trap critic also marks each wrong answer "obvious" (rule-out-able without the passage); any obvious
+  wrong answer at medium/hard is a soft problem (easy may keep one).
+- **Writer model (Nov 24).** Opus 5.5 costs twice Sonnet 5.5 ($4/$20 vs $2/$10 per million tokens). Set
+  SATGEN_GEN_MODEL and SATGEN_REVIEW_MODEL in .env to switch; keep the critic at least as strong as the writer and
+  Haiku as the blind solver. Opus pricing is added to satgen's cost table from `meza_satgen.py`.
+
+- **Opus vs Sonnet (Nov 24, 15 Opus questions vs the 28 Sonnet trap-run questions in the same three skills).**
+  Opus wrote and reviewed with the new disguise rules; both sets were then graded by the same judges (Opus trap
+  critic, Haiku answering 5 times without the passage). Haiku found the key without the passage 83% of the time for
+  Opus vs 72% for Sonnet; trap scores 2.79 vs 2.70; wording tells (absolutes, key plus extra) 0 vs 7; cost $0.51 vs
+  $0.25 per question. So Opus is not worth double yet, and the disguise rules removed the wording tells but not the
+  guessability. Asked to explain its picks, Haiku named three tells: (1) outside knowledge: the passages were
+  well-known findings (McAdam's roads, the doorway effect, the flowing-glass myth), so the key matches what a
+  student already knows; Opus picks famous findings more often than Sonnet; (2) the key is the "center" of the
+  choices (each wrong answer varies it in a different direction; true for 15 of 28 Sonnet keys, about twice chance);
+  (3) the key is the only balanced or concessive choice. Runs: `runs/opus-tsp`, `runs/opus-cid`, `runs/opus-inf`.
+
+- **Read between the lines (Sebastian, Nov 25).** Asked that the correct answer be something you have to read between
+  the lines to see, not a direct summary. → for Central Ideas and Details and Inferences at medium/hard, the writer
+  picks two sentences that together prove the answer, writes the tempting word-matching or common-sense trap first,
+  then writes the key as a conclusion in new words (`BETWEEN_LINES`); a "proof" field must quote both excerpts word
+  for word from two different sentences (`proof_problems`); a Central Ideas key may not copy the passage more than
+  every wrong answer (`key_echo_problems`); the probe's rewrite message now lets the writer change what the key
+  says. Test (10 slots per model, same judges as before): blind solver found the key 60% of the time for Opus
+  (Inferences 48%) vs 88% for Opus last night; Sonnet 80% vs 74%. Opus shipped 9 of 10 with 2 flagged, Sonnet 7 of
+  10 with 6 flagged (Sonnet follows the multi-step recipe less reliably). Cost about $0.44 vs $0.35 per shipped
+  question, but about $0.57 vs $2.45 per question shipped without a flag. Small samples (7-9 graded each).
+  Runs: `runs/btl-sonnet-*`, `runs/btl-opus-*`.
+
 - **Second real run: 1 of 10 shipped.** Stacked judgment checks rejected nearly everything. → the reviewer-model
   critics and the passage-free probe are now "soft": after the last rewrite, a question whose only remaining
   problems are soft ships with a yellow Review flag in review.html (and "FLAGGED: ..." in the CSV's Review status)
@@ -222,7 +289,9 @@ Audit decisions (Nov 24):
 2. Generate 3-5 questions of that skill (or ask Claude to write a round by hand to the current rules).
 3. Review them against the spec and against item-writing quality: clue directness, trap quality (skim test),
    rhythm, vocabulary level, answer-position balance. Do not compare them against official questions.
-4. Turn each finding into (a) a rule in `meza_context.txt`, (b) a check in `meza_quality.py` if it can be checked in
+4. Mark questions whose wrong answers are strong with GOOD TRAPS in questions.csv and run
+   `python meza_traps.py learn runs/<run>`.
+5. Turn each finding into (a) a rule in `meza_context.txt`, (b) a check in `meza_quality.py` if it can be checked in
    code, and (c) a test in `tests/test_meza_quality.py`. Add the reason and its source to the decisions log.
 
 ## Working together
@@ -234,10 +303,15 @@ Audit decisions (Nov 24):
 
 ## Open next steps
 
-- **Trap labels (proposed, not built):** a Words in Context trap list (most common meaning, other real meaning,
-  wrong connotation, wrong degree, reversal, borrowed from elsewhere in the passage, grammatical but imprecise);
-  the writer tags every wrong answer; easy may have one filler, medium/hard none; tags shown in `review.html`.
-  The audit of rounds 5–6 found 9 of 30 wrong answers were filler.
+- Writer model: Opus + between the lines did best for Central Ideas and Inferences; confirm with a larger run (20+)
+  before making Opus the default, and try the same recipe on Text Structure.
+- Guessable keys (see Opus vs Sonnet): (1) topics whose finding is not common knowledge, or where the popular belief
+  is the trap; the probe's rewrite message should allow changing the finding, not only the wrong answers; (2) a code
+  check for the "center" key; (3) the critic checks that at least one wrong answer is as balanced as the key.
+- Topics repeat across runs (glacial varves came up in both trap rounds, in different runs): the rhythm memory only
+  covers the current run. A cross-run topic log would fix it.
+- Trap bank: review the 9 starter seeds and 8 Claude-reviewed picks, approve or remove them, and add GOOD TRAPS from each real run. Watch for
+  the writer copying an example's structure too closely; if it does, show 1 example (MEZA_TRAP_EXAMPLES=1).
 - First real 20-question run with the new gate, then compare the key-longest rate against the 22/30 baseline.
 - Check the ratio of fill-in-the-blank to underlined-word items in `meza_run.sh` (currently 5:4) against real tests.
 - Information and Ideas: rules for all three skills (Central Ideas and Details, Inferences, Command of
