@@ -419,3 +419,256 @@ def test_tables_and_combined_functions():
         want = {"slope": t["M"], "y-intercept": t["B"], "x-intercept": Fraction(-t["B"], t["M"])}[t["ask"]]
         assert value(item.choices[item.key]) == want
         assert sum(value(c) == want for c in item.choices.values()) == 1
+
+
+# ------------------------------------------------- linear functions extras, two-variable equations, systems (Nov 25)
+
+REL = ("≤", "≥", "=")
+
+
+def split_rel(text: str) -> tuple[str, str, str]:
+    for rel in REL:
+        if rel in text:
+            left, right = text.split(rel, 1)
+            return left, rel, right
+    raise AssertionError(text)
+
+
+def line_of(eq: str, **consts) -> tuple[Fraction, Fraction, Fraction]:
+    """(A, B, C) with Ax + By = C for any linear equation in x and y, found by evaluating it at three points."""
+    left, rel, right = split_rel(eq)
+    assert rel == "="
+
+    def f(x, y):
+        return evaluate(left, x=x, y=y, **consts) - evaluate(right, x=x, y=y, **consts)
+
+    f0 = f(0, 0)
+    return f(1, 0) - f0, f(0, 1) - f0, -f0
+
+
+def solve2(e1: str, e2: str, **consts):
+    """The solution of a system, or 'none' / 'infinite'."""
+    (a1, b1, c1), (a2, b2, c2) = line_of(e1, **consts), line_of(e2, **consts)
+    det = a1 * b2 - a2 * b1
+    if det:
+        return ((c1 * b2 - c2 * b1) / det, (a1 * c2 - a2 * c1) / det)
+    same = a1 * c2 == a2 * c1 and b1 * c2 == b2 * c1
+    return "infinite" if same else "none"
+
+
+def table_rows(text: str) -> list[tuple[Fraction, Fraction]]:
+    rows = [r for r in text.splitlines() if r.startswith("|") and not r.startswith("|---")][1:]
+    return [tuple(value(c.strip()) for c in r.strip("|").split("|")) for r in rows]
+
+
+def test_plane_graphs_and_which_equation():
+    for item in gen("graph_which_equation", 100):
+        assert item.figure.count('stroke="#cfcfcf"') >= 34  # 17 lines each way: −8 to 8
+        m, b = item.truth["m"], item.truth["b"]
+        for k, eq in item.choices.items():
+            on = all(line_of(eq)[0] * x + line_of(eq)[1] * (m * x + b) == line_of(eq)[2] for x in (0, 3))
+            assert on == (k == item.key), eq
+
+
+def test_evaluate_function_and_unit_conversion():
+    for item in gen("evaluate_function"):
+        rule = re.search(r"defined by \w\(x\) = (.+?)(?:, where|\. )", item.stem).group(1)
+        key = value(item.choices[item.key])
+        if item.level == "easy":
+            x = int(re.search(r"value of \w\((\d+)\)", item.stem).group(1))
+            assert evaluate(rule, x=x) == key
+        elif item.level == "medium":
+            v = value(re.search(r"\(k\) = (−?[\d,]+)", item.stem).group(1))
+            assert evaluate(rule, x=key) == v
+        else:
+            x1, y1, x2 = re.search(r"If \w\((\d+)\) = (−?\d+), what is the value of \w\((\d+)\)", item.stem).groups()
+            c = value(y1) - evaluate(rule, x=int(x1), c=0)
+            assert evaluate(rule, x=int(x2), c=c) == key
+    for item in gen("unit_conversion_function"):
+        t = item.truth
+        for k, eq in item.choices.items():
+            fits = all(evaluate(rhs(eq), **{t["var"]: w}) == Fraction(t["r"] * w + t["s"], t["k"]) for w in (0, 3))
+            assert fits == (k == item.key), eq
+
+
+def test_two_lines_graph_keys():
+    for item in gen("two_lines_graph"):
+        t = item.truth
+        (m1, m2), (b1, b2) = t["m"], t["b"]
+        assert m1 * t["xi"] + b1 == m2 * t["xi"] + b2 == t["yi"] and m1 > m2 and 0 <= b1 < b2
+        key = value(item.choices[item.key])
+        if item.level == "medium":
+            assert key == t["xi"]
+        else:
+            period = value(re.search(r"during each ([\d.]+)-", item.stem).group(1))
+            assert key == period * (m1 - m2)
+        assert "Plant A" in item.figure or "Tank P" in item.figure or "stroke-dasharray" in item.figure
+
+
+def test_two_variable_equation_choices():
+    for item in gen("two_var_equation"):
+        t = item.truth
+        for k, text in item.choices.items():
+            left, rel, right = split_rel(text)
+            ok = (
+                evaluate(left, x=1, y=0) == t["a"]
+                and evaluate(left, x=0, y=1) == t["b"]
+                and evaluate(left, x=0, y=0) == 0
+                and evaluate(right) == t["c"]
+                and rel == t["rel"]
+            )
+            assert ok == (k == item.key), (item.stem, text)
+        if item.level == "medium":
+            assert ("at least" in item.stem) == (t["rel"] == "≥")
+    for item in gen("table_for_equation"):
+        eq = re.search(r"for the equation (.+)\?$", item.stem).group(1)
+        for k, text in item.choices.items():
+            A, B, C = line_of(eq)
+            fits = all(A * x + B * y == C for x, y in table_rows(text))
+            assert fits == (k == item.key), (eq, text)
+
+
+def test_tradeoff_slope_point_and_isosceles():
+    for item in gen("tradeoff"):
+        a, b = item.truth["a"], item.truth["b"]
+        key = value(item.choices[item.key])
+        if item.level == "hard":
+            assert key == Fraction(a, b)
+        else:
+            k = int(re.search(r"(\d+) (?:more|fewer)", item.stem.split(". ")[-1]).group(1))
+            assert key == (Fraction(a * k, b) if item.level == "easy" else Fraction(b * k, a))
+    for item in gen("slope_point_line"):
+        m = item.truth["m"]
+        x1, y1 = item.truth["pt"]
+        if item.level == "hard":
+            A, B, _ = line_of(re.search(r"parallel to the line (.+?) and passes", item.stem).group(1))
+            assert -A / B == m
+        for k, eq in item.choices.items():
+            f = rhs(eq)
+            ok = evaluate(f, x=x1) == y1 and evaluate(f, x=1) - evaluate(f, x=0) == m
+            assert ok == (k == item.key), eq
+    for item in gen("isosceles_perimeter"):
+        P = int(re.search(r"perimeter of the triangle is (\d+)", item.stem).group(1))
+        feet_perimeter = "is " + str(P) + " feet" in item.stem
+        third_in_feet = "y feet long" in item.stem
+        want = (2, 12 if third_in_feet else 1, 12 * P if feet_perimeter else P)
+        for k, eq in item.choices.items():
+            left, right = sides(eq)
+            got = (evaluate(left, x=1, y=0), evaluate(left, x=0, y=1), evaluate(right))
+            assert (got == want) == (k == item.key), eq
+
+
+def test_perpendicular_and_tables_with_unknowns():
+    for item in gen("perpendicular_vertical"):
+        given = re.search(r"to the line ([xy]) = ", item.stem).group(1)
+        key = item.choices[item.key]
+        if item.level == "easy":
+            assert key == ("0" if given == "x" else "The slope is undefined.")
+        else:
+            px, py = re.search(r"point \((−?\d+), (−?\d+)\)", item.stem).groups()
+            assert key == (f"y = {py}" if given == "x" else f"x = {px}")
+    for item in gen("perpendicular_lines"):
+        given = re.search(r"to the line (.+?)(?:\. What| and passes)", item.stem).group(1)
+        A, B, _ = line_of(given)
+        m = -A / B
+        if item.level != "medium":
+            for k, text in item.choices.items():
+                assert (value(text) * m == -1) == (k == item.key), (given, text)
+        else:
+            px, py = (value(v) for v in re.search(r"point \((−?\d+), (−?\d+)\)", item.stem).groups())
+            for k, eq in item.choices.items():
+                f = rhs(eq)
+                ok = (evaluate(f, x=1) - evaluate(f, x=0)) * m == -1 and evaluate(f, x=px) == py
+                assert ok == (k == item.key), (given, eq)
+    for item in gen("table_unknowns"):
+        rows = [r for r in item.passage.splitlines()[2:]]
+        cells = [r.strip("|").split("|") for r in rows]
+        known = [(value(x.strip()), value(y.strip())) for x, y in cells if y.strip() != "k"]
+        xk = next(value(x.strip()) for x, y in cells if y.strip() == "k")
+        (xa, ya), (xb, yb) = known
+        assert value(item.choices[item.key]) == ya + (yb - ya) / (xb - xa) * (xk - xa)
+    for item in gen("interpret_coefficients"):
+        assert item.choices[item.key] == item.key_text and len(set(item.choices.values())) == 4
+
+
+def test_systems_which_property_and_constants():
+    for item in gen("system_which_property"):
+        want = item.truth["want"]
+        for k, text in item.choices.items():
+            sol = solve2(*text.split("\n"))
+            kind = sol if isinstance(sol, str) else "one"
+            assert (kind == want) == (k == item.key), text
+    for item in gen("system_constant_r"):
+        letter = item.truth["letter"]
+        e1, e2 = item.passage.split("\n")
+        for k, text in item.choices.items():
+            sol = solve2(e1, e2, **{letter: value(text)})
+            if "infinitely many" in item.stem:
+                hit = sol == "infinite"
+            else:  # "no solution", or the value that CANNOT give exactly one solution
+                hit = sol == "none"
+            assert hit == (k == item.key), (item.passage, text)
+
+
+def test_systems_coordinates_pairs_and_letters():
+    for item in gen("system_coordinate"):
+        x0, y0 = solve2(*item.passage.split("\n"))
+        asked = re.search(r"value of (.+)\?$", item.stem).group(1)
+        want = evaluate(asked, x=x0, y=y0)
+        for k, text in item.choices.items():
+            assert (value(text) == want) == (k == item.key), (item.passage, asked, text)
+    for item in gen("system_solve_pair"):
+        for k, text in item.choices.items():
+            px, py = (value(v) for v in text.strip("()").split(", "))
+            if item.passage:
+                ok = all(
+                    evaluate(sides(e)[0], x=px, y=py) == evaluate(sides(e)[1], x=px, y=py)
+                    for e in item.passage.split("\n")
+                )
+            else:  # graphed: the point is on both drawn lines
+                ok = (px, py) == item.truth["sol"]
+            assert ok == (k == item.key), (item.passage, text)
+    for item in gen("system_cancel_letters"):
+        e1, e2 = item.passage.split("\n")
+        asked = "x" if "value of x" in item.stem else "y"
+        for consts in ({"a": 2, "b": 3, "k": 2, "c": 5, "r": 7}, {"a": 7, "b": 1, "k": -4, "c": 1, "r": 3}):
+            names = {v: consts[v] for v in item.truth["letters"]}
+            sol = solve2(e1, e2, **names)
+            want = sol[0] if asked == "x" else sol[1]
+            assert value(item.choices[item.key]) == want
+            assert sum(value(c) == want for c in item.choices.values()) == 1
+
+
+def test_systems_from_words_and_graphs():
+    for item in gen("system_word_setup"):
+        x, y = item.truth["sol"]
+        for k, text in item.choices.items():
+            holds = all(evaluate(sides(e)[0], x=x, y=y) == evaluate(sides(e)[1]) for e in text.split("\n"))
+            assert holds == (k == item.key), (item.stem, text)
+    for item in gen("system_graph_equations"):
+        lines = item.truth["lines"]
+        for k, text in item.choices.items():
+            if item.level == "hard":
+                ok = solve2(*text.split("\n")) == tuple(Fraction(v) for v in item.truth["sol"])
+            else:
+                got = set()
+                for e in text.split("\n"):
+                    A, B, C = line_of(e)
+                    got.add((-A / B, C / B))
+                ok = got == {(Fraction(m), Fraction(b)) for m, b in lines}
+            assert ok == (k == item.key), text
+        if item.level == "hard":
+            (m1, b1), (m2, b2) = lines
+            x0, y0 = item.truth["sol"]
+            assert m1 * x0 + b1 == y0 == m2 * x0 + b2
+    for item in gen("system_times_more"):
+        t = item.truth
+        assert t["a"] == t["k"] * t["b"] + t["extra"]
+        given = [
+            value(v) for v in re.findall(r"(?<![\w.])(\d[\d,]*)(?= (?:more|students|cookies|pine|votes))", item.stem)
+        ]
+        if t["level"] == "easy":
+            assert t["a"] + t["b"] in given
+        else:
+            assert t["a"] - t["b"] in given
+        assert value(item.choices[item.key]) == t[t["ask"]]

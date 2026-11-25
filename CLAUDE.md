@@ -307,6 +307,47 @@ asking," Desmos tips) and example questions he described.
     defines g?"; traps shift the wrong way or forget to multiply the inside shift by the slope), and `sum_functions`
     (f and g given, h(x) = f(x) + g(x) or f(x) − g(x); the slope, the y-intercept, or the x-intercept of h; traps
     multiply, use only f, or combine the two x-intercepts).
+  - More from Sebastian (Nov 25): `graph_which_equation` (a line in the xy-plane; "What is an equation of the line
+    shown?"; hard choices in standard form; traps flip the slope's or intercept's sign or flip the slope),
+    `evaluate_function` (easy f(6); medium f(k) = 31, find k; hard f(x) = 4x + c with f(3) = 19, find f(5)),
+    `unit_conversion_function` (inches a week, height in feet: h(w) = (2w + 18)/12 on medium, simplified on hard;
+    traps leave it in inches, convert only the rate or only the start, or multiply), and `two_lines_graph` (two
+    labeled lines on one real-world graph: when are they equal, or how many more per 4-week period, so the
+    per-week difference is a trap).
+- **Linear equations in two variables** (Sebastian, Nov 25):
+  - `two_var_equation`: easy "3x + 5y = 240" from a story; medium "at least"/"at most" makes it ≥/≤ (the flipped
+    sign is the main trap); hard the limit is in a bigger unit (pounds of flour, tons, hours) and must be converted.
+  - `table_for_equation`: the choices are x/y tables (review.html draws them as tables); traps flip the slope's or
+    intercept's sign, swap x and y, or swap slope and intercept; hard gives the equation in standard form.
+  - `tradeoff` (6x + 8y = 600: buy 4 more pounds of chicken, how many fewer pounds of beef? a·k/b; medium the other
+    way; hard per single unit, a fraction): k is chosen so the flipped ratio, the main trap, is also whole.
+  - `slope_point_line` (slope and a point; hard: parallel to a standard-form line), `isosceles_perimeter` (2x + y = P;
+    medium perimeter in feet; hard the third side in feet: 2x + 12y = P), `perpendicular_vertical` (perpendicular to
+    x = 4: slope 0, or y = −3 through a point), `perpendicular_lines` (negative reciprocal; medium the full
+    equation through a point; hard the given line in standard form), `interpret_coefficients` (6x + 15y = 300:
+    what does 15 / 300 / the point (20, 0) mean?), `table_unknowns` (a linear table with a missing k; hard puts k
+    between unevenly spaced x-values, so "halfway between" is the trap).
+- **Systems of two linear equations** (Sebastian, Nov 25; skill "Systems of two linear equations in two variables"):
+  - `system_which_property` ("Which system has no solution / infinitely many / exactly one?"). Every choice shares
+    the first equation and the second equations are near misses of each other (the same line scaled, the same slope
+    with another constant, a sign flipped, the coefficients swapped), per Sebastian: wrong answers must be close.
+  - `system_coordinate` (x or y of the solution; medium sometimes asks for 2x − y; hard sometimes asks for the sum
+    or difference of the two left sides, so adding the equations is the shortcut), `system_cancel_letters` (medium
+    "2x + ky = 6 + 5k; 7x + ky = 21 + 5k": subtract and k cancels; hard "ax + by = 3a + 5b; 2x − by = 6 − 5b" with a
+    and b positive: add, factor (a + 2)x = 3(a + 2), so x = 3, then plug back in for y), `system_constant_r` (the
+    constant for no solution or infinitely many; hard a non-whole ratio or "exactly one solution ... CANNOT be r"),
+    `system_solve_pair` (choices are ordered pairs; easy can be a graph; traps swap x and y, flip signs, or are on
+    only one line), `system_word_setup` (pick the system: a total x + y = 120 plus a value or percent equation,
+    0.3x + 0.25y = 33; hard uses mixtures, interest, survey percents, nickels and dimes; traps swap the totals or
+    rates, write percents as whole numbers, or move the decimal point), `system_graph_equations` (two lines on a
+    graph, choices are systems: easy the xy-plane, medium a real-world graph, hard "which system has the same
+    solution as the system graphed?", where the traps' solutions are the point with x and y swapped or a sign
+    flipped), and `system_times_more` ("three times as many chose soccer as tennis, and 40 more chose soccer: how
+    many chose tennis?"; easy gives a total; hard "4 more than three times"; traps divide by 3 instead of 2, give
+    the other group, or leave out the extra).
+  - Graphs now also come in the full xy-plane (axes through the origin, −8 to 8, "x"/"y" and O), and two lines on a
+    real-world graph get a key below it (solid and dashed). A choice that is a table or a system renders as one in
+    review.html. Tests solve every system and check every choice independently.
 - **Choices.** Numbers in ascending order, as on the SAT. A whole-number answer gets whole-number wrong choices (a
   stray fraction stands out), except medium `expression_value`, where x itself is the trap. Keys: among the letters
   the real mistakes can produce, each question takes the letter used least so far in the batch, so keys spread over
@@ -374,9 +415,12 @@ Audit decisions (Nov 24):
 - Math: solving a formula for one variable ("A = ½h(b + c); which equation gives h?") belongs with Advanced Math
   (equivalent expressions), per Sebastian; build it there.
 - Math: graphs need image support in the portal when questions move there (the review page shows the SVG).
-- Math: more Linear functions types if Sebastian adds them, then more Algebra from his deck (systems of equations: number of solutions; absolute value;
-  function notation and composite functions; slopes, parallel and perpendicular lines; inequalities), then the other
-  math domains. He describes question types; Claude builds them in code and tests offline (no API batches).
+- Math: the rest of Algebra from his deck (linear inequalities, absolute value, function notation and composite
+  functions), then the other math domains. He describes question types; Claude builds them in code and tests offline
+  (no API batches).
+- Math: more two-variable and systems types worth adding: the x- and y-intercepts of ax + by = c, which point lies on
+  a line, the line through two points, parallel lines (same slope, the system has no solution), systems of
+  inequalities (which point is in the solution region; needs shaded graphs).
 
 - **Trap labels (proposed, not built):** a Words in Context trap list (most common meaning, other real meaning,
   wrong connotation, wrong degree, reversal, borrowed from elsewhere in the passage, grammatical but imprecise);
