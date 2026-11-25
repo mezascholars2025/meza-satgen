@@ -206,6 +206,29 @@ asking," Desmos tips) and example questions he described.
     N be left? Hard: two readings, start not given; when will the job be finished? Main trap: "how many MORE hours"
     versus "how many hours after starting"; others: time to do the remaining part, the whole job, the rate itself,
     using the amount left as the amount done.
+  - Added from Sebastian's list (Nov 25):
+    - `solve_simple` ("r + 23 = 61. What is the value of r?"; medium "45 − r = 17"): traps are the wrong operation,
+      subtracting in the wrong order, stopping at −r, and copying the right side.
+    - `solve_combine` ("7x − 3x + 5 = 29. What value of x is the solution to the given equation?"; medium: the
+      combined coefficient is negative): adding the coefficients, sign slips, not dividing, leaving out a term. The
+      constant is a multiple of the combined coefficient so the mistakes come out as whole numbers.
+    - `one_solution_cannot` ("x(r + 3) + 5 = 7x − 2 ... exactly one solution ... CANNOT be the value of r?"; hard
+      adds another x-term): r that makes the x-coefficients equal; traps ignore the number in the parentheses,
+      flip its sign, or flip the answer's sign. Multiple choice only.
+    - `infinite_constant` ("3(2x + 5) − x = kx + 15 ... infinitely many solutions ... value of k?"; hard: "= 5(x + k)",
+      so k is inside parentheses): traps leave out a term, skip distributing, or forget to divide.
+    - `three_kinds_equation` (three kinds of one thing; the first is m times the second, the third is known, the
+      total is known; "which equation represents this situation?"; medium: x is the first kind, so the second is
+      x/m): choices are equations; traps add m instead of multiplying, reverse which is m times the other, leave
+      out a kind, or add the known amount to the total.
+    - `payment_equation` (a down payment, sign-up fee, or first deposit plus equal repeated payments equals a total;
+      "which equation?"; medium: the payment amount is unknown and the number of payments is given).
+    - `interpret_parts` (the same situations as an equation: "What does 625 / 25m / 1,075 represent?"; medium asks
+      about the product, the part students mislabel most). Wrong choices are what the other parts represent.
+  - Equations are shown on their own line above the question (the `passage` field), as on the SAT. Families with
+    choices that are equations or phrases put the key at the letter used least so far in the batch.
+    `tests/test_meza_math.py` checks every choice by substitution: only the key solves the equation, makes the
+    coefficients match, or holds for the true value in the story.
 - **Choices.** Numbers in ascending order, as on the SAT. A whole-number answer gets whole-number wrong choices (a
   stray fraction stands out), except medium `expression_value`, where x itself is the trap. Keys: among the letters
   the real mistakes can produce, each question takes the letter used least so far in the batch, so keys spread over
@@ -270,9 +293,9 @@ Audit decisions (Nov 24):
 
 ## Open next steps
 
-- Math: Sebastian reviews `runs/math-first` and `runs/math-stories`; then more Algebra families from his deck
-  (systems of equations: number of solutions; absolute value; function notation and composite functions; slopes,
-  parallel and perpendicular lines; inequalities; "which equation models this situation"), then the other math domains.
+- Math: more Algebra families from Sebastian's deck (systems of equations: number of solutions; absolute value;
+  function notation and composite functions; slopes, parallel and perpendicular lines; inequalities), then the other
+  math domains. He describes question types; Claude builds them in code and tests offline (no API batches).
 
 - **Trap labels (proposed, not built):** a Words in Context trap list (most common meaning, other real meaning,
   wrong connotation, wrong degree, reversal, borrowed from elsewhere in the passage, grammatical but imprecise);

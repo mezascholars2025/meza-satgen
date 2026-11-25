@@ -79,6 +79,9 @@ class MathItem:
     story: dict | None = None  # facts for the story writer (word problems only)
     choices: dict[str, str] = field(default_factory=dict)
     key: str = ""
+    passage: str = ""  # the equation, shown on its own line above the question (as on the SAT)
+    positive_only: bool = True  # numeric choices: keep wrong answers positive (word problems, counts)
+    key_text: str = ""  # for choices that are equations or phrases instead of numbers
 
     def build_choices(self, rng: random.Random, used: dict[str, int] | None = None) -> None:
         """Four numeric choices in ascending order (as on the SAT): the answer plus three distinct real mistakes. The
@@ -87,10 +90,14 @@ class MathItem:
         fills in only when a question has fewer than three real mistakes."""
         if self.fmt != "mcq":
             return
+        if self.key_text:
+            self._build_text_choices(rng, used)
+            return
         whole = not (self.family == "expression_value" and self.level == "medium")  # there, x itself is the trap
         seen, real = {self.answer}, []
         for value, why in self.mistakes:
-            if value not in seen and value > 0 and (value.denominator == 1 or not whole):
+            ok_sign = value > 0 if self.positive_only else value != 0 or self.answer == 0
+            if value not in seen and ok_sign and (value.denominator == 1 or not whole):
                 seen.add(value)
                 real.append((value, why))
         below = sorted([m for m in real if m[0] < self.answer], key=lambda m: m[0])
@@ -109,7 +116,7 @@ class MathItem:
             for v in (self.answer + o * step for n in range(1, 60) for o in (n, -n)):
                 if len(wrong) >= 3:
                     break
-                if v not in seen and v > 0:
+                if v not in seen and (v > 0 or not self.positive_only):
                     seen.add(v)
                     wrong.append((v, "an arithmetic slip near the correct value"))
         values = sorted([(self.answer, "")] + wrong[:3], key=lambda v: v[0])
@@ -119,6 +126,25 @@ class MathItem:
         if used is not None:
             used[self.key] = used.get(self.key, 0) + 1
 
+    def _build_text_choices(self, rng: random.Random, used: dict[str, int] | None) -> None:
+        """Equations or phrases: the key goes to the letter used least so far; the three most common mistakes fill
+        the other letters in random order."""
+        wrong, seen = [], {self.key_text}
+        for text, why in self.mistakes:
+            if text not in seen:
+                seen.add(text)
+                wrong.append((text, why))
+        assert len(wrong) >= 3, f"{self.family}: needs three distinct wrong choices"
+        wrong = rng.sample(wrong, 3)
+        used = used if used is not None else {}
+        key = min("ABCD", key=lambda k: (used.get(k, 0), rng.random()))
+        rng.shuffle(wrong)
+        others = iter(wrong)
+        self.choices = {k: self.key_text if k == key else next(others)[0] for k in "ABCD"}
+        self.key = key
+        self.mistakes = wrong
+        used[key] = used.get(key, 0) + 1
+
     def explanation(self) -> str:
         lines = [f"[Domain: Algebra] [Skill: {self.skill}] [Difficulty: {self.level.title()}] [Subject: Math]"]
         lines += self.steps
@@ -126,7 +152,7 @@ class MathItem:
             for k, text in self.choices.items():
                 if k == self.key:
                     continue
-                why = next(w for v, w in self.mistakes if num(v) == text)
+                why = next(w for v, w in self.mistakes if (v if self.key_text else num(v)) == text)
                 lines.append(f"Choice {k} ({text}): {why}.")
         return "\n".join(lines)
 
@@ -134,7 +160,7 @@ class MathItem:
         return {
             "type": f"{self.family}_{self.level}",
             "format": self.fmt,
-            "passage": "",
+            "passage": self.passage,
             "stem": self.stem,
             "choices": self.choices,
             "answer": self.key if self.fmt == "mcq" else spr_answer(self.answer),
@@ -470,7 +496,443 @@ def linear_rate(rng: random.Random, level: str, fmt: str) -> MathItem:
     return MathItem("linear_rate", skill, level, fmt, stem, answer, steps, mistakes, story=facts)
 
 
-FAMILIES = {"expression_value": expression_value, "linear_rate": linear_rate}
+# ------------------------------------------------------------------- more linear equations (Sebastian, Nov 25)
+
+SKILL = "Linear equations in one variable"
+UNKNOWNS = ["x", "r", "n", "p", "t", "w", "k"]
+
+
+def plus(n: int) -> str:
+    """' + 5' or ' − 5' (for building equations)."""
+    return f" + {num(n)}" if n >= 0 else f" {MINUS} {num(-n)}"
+
+
+def solve_simple(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'r + 23 = 61. What is the value of r?'  Medium: the unknown is subtracted ('45 − r = 17')."""
+    v = rng.choice(UNKNOWNS)
+    ask = rng.choice([f"What is the value of {v}?", f"What value of {v} is the solution to the given equation?"])
+    if level == "easy":
+        while True:
+            c, ans = rng.choice([n for n in range(-60, 61) if abs(n) >= 3]), rng.randint(-20, 90)
+            d = ans + c
+            if ans and d and abs(d) < 150 and len({ans, d, d + c, c - d}) == 4:
+                break
+        passage = f"{v}{plus(c)} = {num(d)}"
+        mistakes = [
+            (
+                Fraction(d + c),
+                f"this {'adds' if c > 0 else 'subtracts'} {num(abs(c))} instead of "
+                f"{'subtracting' if c > 0 else 'adding'} it",
+            ),
+            (Fraction(c - d), "this subtracts in the wrong order"),
+            (Fraction(d), "this is the right side of the equation, not the value of " + v),
+        ]
+        steps = [
+            f"{'Subtract' if c > 0 else 'Add'} {num(abs(c))} {'from' if c > 0 else 'to'} both sides: "
+            f"{v} = {num(d)} {MINUS + ' ' + num(c) if c > 0 else '+ ' + num(-c)} = {num(ans)}."
+        ]
+    else:
+        while True:
+            c, d = rng.randint(10, 90), rng.choice([n for n in range(-40, 80) if n])
+            ans = c - d
+            if ans and len({ans, d - c, c + d, d}) == 4:
+                break
+        passage = f"{num(c)} {MINUS} {v} = {num(d)}"
+        mistakes = [
+            (Fraction(d - c), f"this stops at {MINUS}{v} = {num(d - c)} and forgets to divide by {MINUS}1"),
+            (Fraction(c + d), f"this adds {num(d)} to {num(c)} instead of subtracting"),
+            (Fraction(d), "this is the right side of the equation, not the value of " + v),
+        ]
+        steps = [
+            f"Subtract {num(c)} from both sides: {MINUS}{v} = {num(d - c)}.",
+            f"Divide both sides by {MINUS}1: {v} = {num(ans)}.",
+        ]
+    return MathItem(
+        "solve_simple", SKILL, level, fmt, ask, Fraction(ans), steps, mistakes, passage=passage, positive_only=False
+    )
+
+
+def solve_combine(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'7x − 3x + 5 = 29. What value of x is the solution to the given equation?'  Combine the x-terms first.
+    Medium: the second x-term is bigger, so the combined coefficient is negative."""
+    v = rng.choice(UNKNOWNS)
+    while True:
+        a, b = rng.randint(2, 14), rng.randint(1, 13)
+        if level == "easy" and a - b < 2 or level != "easy" and b - a < 2:
+            continue
+        x = rng.randint(1, 15) if level == "easy" else rng.choice([n for n in range(-12, 13) if n])
+        g = abs(a - b)  # a constant that is a multiple of the combined coefficient keeps the mistakes whole numbers
+        c = g * rng.choice([n for n in range(-30 // g - 1, 30 // g + 2) if n])
+        d = (a - b) * x + c
+        if d and abs(c) >= 2:
+            break
+    passage = f"{term(a, v)} {MINUS} {term(b, v)}{plus(c)} = {num(d)}"
+    ask = rng.choice([f"What value of {v} is the solution to the given equation?", f"What is the value of {v}?"])
+    mistakes = [
+        (Fraction(d - c, a + b), f"this adds {term(a, v)} and {term(b, v)} instead of subtracting"),
+        (
+            Fraction(d + c, a - b),
+            f"this {'adds' if c > 0 else 'subtracts'} {num(abs(c))} instead of "
+            f"{'subtracting' if c > 0 else 'adding'} it",
+        ),
+        (Fraction(d - c), f"this stops before dividing by {num(a - b)}"),
+        (Fraction(d - c, a), f"this leaves out the {term(b, v)} term"),
+        (
+            Fraction(d, a - b),
+            f"this divides {num(d)} by {num(a - b)} without first {'subtracting' if c > 0 else 'adding'} {num(abs(c))}",
+        ),
+        (Fraction(d - c, b - a), f"this combines the {v}-terms as {term(b - a, v)} (the wrong sign)"),
+    ]
+    steps = [
+        f"Combine the {v}-terms: {term(a - b, v)}{plus(c)} = {num(d)}.",
+        f"{'Subtract' if c > 0 else 'Add'} {num(abs(c))}: {term(a - b, v)} = {num(d - c)}.",
+        f"Divide by {num(a - b)}: {v} = {num(x)}.",
+    ]
+    return MathItem(
+        "solve_combine", SKILL, level, fmt, ask, Fraction(x), steps, mistakes, passage=passage, positive_only=False
+    )
+
+
+def one_solution_cannot(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'x(r + 3) + 5 = 7x − 2 ... If the equation has exactly one solution, which of the following CANNOT be the value
+    of r?'  Exactly one solution means the x-coefficients differ, so r cannot make them equal.
+    Hard adds another x-term on the left."""
+    while True:
+        a = rng.choice([n for n in range(-9, 10) if n])
+        cc = rng.randint(2, 12)
+        e = rng.choice([n for n in range(-6, 7) if n]) if level == "hard" else 0
+        b, d = rng.choice([n for n in range(-15, 16) if n]), rng.choice([n for n in range(-15, 16) if n])
+        bad = cc - a - e  # the value of r that makes the x-coefficients equal
+        if bad and b != d:
+            break
+    left = f"x(r{plus(a)})" + (f" + {term(e)}" if e > 0 else f" {MINUS} {term(-e)}" if e else "") + plus(b)
+    passage = f"{left} = {lin(cc, d)}"
+    stem = (
+        "In the given equation, r is an integer constant. If the equation has exactly one solution, which of the "
+        "following CANNOT be the value of r?"
+    )
+    mistakes = [
+        (
+            Fraction(cc),
+            f"this sets r equal to {cc}, ignoring the {num(a)} inside the parentheses"
+            + (f" and the {term(e)} term" if e else ""),
+        ),
+        (Fraction(cc + a - e), f"this moves the {num(a)} to the other side without changing its sign"),
+        (Fraction(-bad), "this has the right size but the wrong sign"),
+    ]
+    if e:
+        mistakes.insert(1, (Fraction(cc - a), f"this leaves out the {term(e)} term on the left"))
+    coef = f"r{plus(a)}" + (plus(e) if e else "")
+    steps = [
+        f"Collect the x-terms on the left: the coefficient of x is {coef}"
+        + (f" = r{plus(a + e)}" if e else "")
+        + f"; on the right it is {cc}.",
+        "The equation has exactly one solution unless the two coefficients are equal.",
+        f"They are equal when r{plus(a + e)} = {cc}, that is, r = {num(bad)}. Then the x-terms cancel and the "
+        f"equation has no solution, so r cannot be {num(bad)}.",
+    ]
+    return MathItem(
+        "one_solution_cannot",
+        SKILL,
+        level,
+        "mcq",
+        stem,
+        Fraction(bad),
+        steps,
+        mistakes,
+        passage=passage,
+        positive_only=False,
+    )
+
+
+def infinite_constant(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'3(2x + 5) − x = kx + 15 ... The equation has infinitely many solutions. What is the value of k?'
+    Medium: k is a coefficient. Hard: k is inside parentheses on the right, '5(x + k)'."""
+    k = rng.choice(["k", "n", "m", "c"])
+    while True:
+        a, p_, q = rng.randint(2, 6), rng.randint(1, 5), rng.choice([n for n in range(-9, 10) if n])
+        e = rng.choice([n for n in range(-5, 6) if n])
+        A, B = a * p_ - e, a * q  # left side = Ax + B
+        if level != "hard" and A > 0 and A != a * p_:
+            break
+        if level == "hard" and A > 1 and B % A == 0 and B // A not in (0, q, B):
+            break
+    inner = lin(p_, q)
+    left = f"{a}({inner})" + (f" {MINUS} {term(e)}" if e > 0 else f" + {term(-e)}")
+    stem = (
+        f"In the given equation, {k} is a constant. The equation has infinitely many solutions. What is the value "
+        f"of {k}?"
+    )
+    if level != "hard":
+        passage = f"{left} = {k}x{plus(B)}"
+        ans = Fraction(A)
+        mistakes = [
+            (Fraction(a * p_), f"this leaves out the {MINUS if e > 0 else '+'}{term(abs(e))} term"),
+            (
+                Fraction(a * p_ + e),
+                f"this {'adds' if e > 0 else 'subtracts'} the {term(abs(e))} term "
+                f"instead of {'subtracting' if e > 0 else 'adding'} it",
+            ),
+            (Fraction(p_ - e), f"this forgets to multiply {term(p_)} by {a}"),
+            (Fraction(-A), "this has the right size but the wrong sign"),
+        ]
+        steps = [
+            f"Distribute and combine on the left: {lin(a * p_, B)} {MINUS if e > 0 else '+'} {term(abs(e))} = "
+            f"{lin(A, B)}.",
+            f"Infinitely many solutions means both sides are the same expression: {lin(A, B)} = {k}x{plus(B)}.",
+            f"So {k} = {A}.",
+        ]
+    else:
+        passage = f"{left} = {A}(x + {k})"
+        ans = Fraction(B, A)
+        mistakes = [
+            (Fraction(B), f"this matches {num(B)} with {k} and forgets that {k} is multiplied by {A}"),
+            (Fraction(q), f"this matches the constants before distributing the {a}"),
+            (Fraction(-B, A), "this has the right size but the wrong sign"),
+            (Fraction(B, a * p_), f"this divides by {a * p_}, leaving out the {term(abs(e))} term"),
+            (Fraction(B - A), f"this subtracts {A} instead of dividing by {A}"),
+        ]
+        steps = [
+            f"Distribute and combine on the left: {lin(A, B)}.",
+            f"Distribute on the right: {lin(A, 0)} + {A}{k}.",
+            f"Infinitely many solutions means the constants match too: {A}{k} = {num(B)}, so {k} = {num(ans)}.",
+        ]
+    return MathItem(
+        "infinite_constant", SKILL, level, fmt, stem, ans, steps, mistakes, passage=passage, positive_only=False
+    )
+
+
+THREE_KINDS = [
+    dict(who="A bakery", short="the bakery", verb="baked", item="muffins", kinds=("blueberry", "banana", "corn")),
+    dict(who="A furniture workshop", short="the workshop", verb="built", item="chairs", kinds=("oak", "pine", "maple")),
+    dict(who="A florist", short="the florist", verb="arranged", item="bouquets", kinds=("rose", "tulip", "lily")),
+    dict(who="A school club", short="the club", verb="sold", item="T-shirts", kinds=("small", "medium", "large")),
+    dict(who="A food truck", short="the food truck", verb="made", item="tacos", kinds=("chicken", "beef", "vegetable")),
+    dict(who="A bike shop", short="the shop", verb="repaired", item="bikes", kinds=("road", "mountain", "kids'")),
+]
+
+
+def three_kinds_equation(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """Three kinds of one thing: the first is m times the second, the third is a known number, and the total is known.
+    'Which equation represents this situation?'  Medium: x is the FIRST kind, so the second is x/m."""
+    f = rng.choice(THREE_KINDS)
+    m, s, k3 = rng.randint(2, 6), rng.randint(8, 60), rng.randint(12, 150)
+    T = m * s + s + k3
+    k1, k2, k3n = f["kinds"]
+    it = f["item"]
+    setup = (
+        f"{f['who']} {f['verb']} three kinds of {it}: {k1}, {k2}, and {k3n}. The number of {k1} {it} was {m} "
+        f"times the number of {k2} {it}, and {k3} of the {it} were {k3n}. In all, {f['short']} {f['verb']} {T} "
+        f"{it}."
+    )
+    if level == "easy":
+        question = f"If x represents the number of {k2} {it}, which equation represents this situation?"
+        key = f"{m}x + x + {k3} = {T}"
+        mistakes = [
+            (f"x + {m} + {k3} = {T}", f"this adds {m} instead of multiplying by {m}"),
+            (f"{m}x + {k3} = {T}", f"this leaves out the {k2} {it}"),
+            (f"x/{m} + x + {k3} = {T}", f"this makes the {k2} {it} {m} times the {k1} {it}, the reverse"),
+            (f"{m}x + x = {T} + {k3}", f"this adds the {k3} {k3n} {it} to the total instead of subtracting"),
+        ]
+        steps = [
+            f"The number of {k2} {it} is x, so the number of {k1} {it} is {m}x.",
+            f"Add all three kinds and set the sum equal to the total: {m}x + x + {k3} = {T}.",
+        ]
+    else:
+        question = f"If x represents the number of {k1} {it}, which equation represents this situation?"
+        key = f"x + x/{m} + {k3} = {T}"
+        mistakes = [
+            (f"x + {m}x + {k3} = {T}", f"this makes the {k2} {it} {m} times the {k1} {it}, the reverse"),
+            (f"x/{m} + {k3} = {T}", f"this leaves out the {k1} {it}"),
+            (f"x + x/{m} = {T} + {k3}", f"this adds the {k3} {k3n} {it} to the total instead of subtracting"),
+            (f"x + x {MINUS} {m} + {k3} = {T}", f"this subtracts {m} instead of dividing by {m}"),
+        ]
+        steps = [
+            f"The number of {k1} {it} is x. It is {m} times the number of {k2} {it}, so there are x/{m} {k2} {it}.",
+            f"Add all three kinds and set the sum equal to the total: x + x/{m} + {k3} = {T}.",
+        ]
+    item = MathItem(
+        "three_kinds_equation", SKILL, level, "mcq", f"{setup} {question}", Fraction(0), steps, mistakes, key_text=key
+    )
+    item.story = dict(
+        kind="setup",
+        level=level,
+        setup=setup,
+        question=question,
+        given=[m, k3, T],
+        truth=s if level == "easy" else m * s,
+        situation=f"{f['who'].lower()} {f['verb']} three kinds of {it} ({k1}, {k2}, {k3n})",
+    )
+    return item
+
+
+PLANS = [
+    dict(
+        name="laptop",
+        var="p",
+        each_var="a",
+        setup="{n} bought a laptop on a payment plan. {n} paid a down payment of ${D} and then made monthly payments "
+        "of ${M} each. In all, {n} paid ${T} for the laptop.",
+        setup_n="{n} bought a laptop on a payment plan. {n} paid a down payment of ${D} and then made {k} equal "
+        "monthly payments. In all, {n} paid ${T} for the laptop.",
+        var_def="p is the number of monthly payments {n} made",
+        each_def="a is the amount, in dollars, of each monthly payment",
+        start="The down payment, in dollars",
+        each="The amount, in dollars, of each monthly payment",
+        product="The total amount, in dollars, of all of {n}'s monthly payments",
+        total="The total amount, in dollars, {n} paid for the laptop",
+        eq="the total amount, in dollars, {n} paid for a laptop",
+    ),
+    dict(
+        name="gym",
+        var="m",
+        each_var="f",
+        setup="{n} joined a gym that charges a one-time sign-up fee of ${D} plus a membership fee of ${M} each "
+        "month. {n} paid a total of ${T} in fees.",
+        setup_n="{n} joined a gym that charges a one-time sign-up fee of ${D} plus the same membership fee each "
+        "month. After {k} months, {n} had paid a total of ${T} in fees.",
+        var_def="m is the number of months {n} paid for",
+        each_def="f is the monthly membership fee, in dollars",
+        start="The sign-up fee, in dollars",
+        each="The membership fee, in dollars, for one month",
+        product="The total amount, in dollars, of the monthly membership fees {n} paid",
+        total="The total amount, in dollars, {n} paid in fees",
+        eq="the total amount, in dollars, {n} paid in gym fees",
+    ),
+    dict(
+        name="savings",
+        var="w",
+        each_var="d",
+        setup="{n} opened a savings account with a deposit of ${D}. After that, {n} deposited ${M} into the account "
+        "every week and made no withdrawals. The account then held ${T}.",
+        setup_n="{n} opened a savings account with a deposit of ${D}. After that, {n} deposited the same amount every "
+        "week for {k} weeks and made no withdrawals. The account then held ${T}.",
+        var_def="w is the number of weekly deposits {n} made",
+        each_def="d is the amount, in dollars, of each weekly deposit",
+        start="The first deposit, in dollars",
+        each="The amount, in dollars, of each weekly deposit",
+        product="The total amount, in dollars, of {n}'s weekly deposits",
+        total="The amount, in dollars, in the account after the weekly deposits",
+        eq="the amount, in dollars, in {n}'s savings account",
+    ),
+]
+
+
+def _plan_numbers(rng: random.Random) -> tuple[dict, str, int, int, int, int]:
+    f, n = rng.choice(PLANS), rng.choice(NAMES)
+    D = rng.choice(range(50, 1001, 25))
+    M = rng.choice(range(15, 301, 5))
+    k = rng.randint(4, 24)
+    return f, n, D, M, k, D + M * k
+
+
+def payment_equation(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """A start amount plus a repeated payment equals a total. 'Which equation represents this situation?'
+    Easy: the number of payments is unknown. Medium: the amount of each payment is unknown."""
+    f, n, D, M, k, T = _plan_numbers(rng)
+    Ds, Ms, Ts = num(D), num(M), num(T)
+    if level == "easy":
+        v = f["var"]
+        setup = f["setup"].format(n=n, D=Ds, M=Ms, T=Ts)
+        question = f"Which equation represents this situation, where {f['var_def'].format(n=n)}?"
+        key = f"{Ds} + {Ms}{v} = {Ts}"
+        mistakes = [
+            (f"{Ds}{v} + {Ms} = {Ts}", "this swaps the one-time amount and the repeated amount"),
+            (f"({Ds} + {Ms}){v} = {Ts}", f"this multiplies the one-time ${Ds} by {v} too"),
+            (f"{Ms}{v} {MINUS} {Ds} = {Ts}", f"this subtracts the ${Ds} instead of adding it"),
+            (f"{Ds} + {Ms} + {v} = {Ts}", f"this adds {v} instead of multiplying ${Ms} by {v}"),
+        ]
+        steps = [
+            f"The one-time amount is ${Ds}, and each of the {v} repeated amounts is ${Ms}, so they add up to {Ms}{v}.",
+            f"Together they equal the total: {Ds} + {Ms}{v} = {Ts}.",
+        ]
+        given = [D, M, T]
+    else:
+        v = f["each_var"]
+        setup = f["setup_n"].format(n=n, D=Ds, k=k, T=Ts)
+        question = f"Which equation represents this situation, where {f['each_def']}?"
+        key = f"{Ds} + {k}{v} = {Ts}"
+        mistakes = [
+            (f"{Ds}{v} + {k} = {Ts}", f"this multiplies the ${Ds} by {v} and adds {k}"),
+            (f"{k}({Ds} + {v}) = {Ts}", f"this counts the ${Ds} {k} times instead of once"),
+            (f"{k}{v} = {Ts} + {Ds}", f"this adds the ${Ds} to the total instead of subtracting it"),
+            (f"{Ds} + {v} = {Ts}", f"this leaves out that there were {k} payments"),
+        ]
+        steps = [
+            f"There were {k} payments of {v} dollars each, which add up to {k}{v}.",
+            f"Together with the one-time ${Ds}, they equal the total: {Ds} + {k}{v} = {Ts}.",
+        ]
+        given = [D, k, T]
+    item = MathItem(
+        "payment_equation", SKILL, level, "mcq", f"{setup} {question}", Fraction(0), steps, mistakes, key_text=key
+    )
+    item.story = dict(
+        kind="setup",
+        level=level,
+        setup=setup,
+        question=question,
+        given=given,
+        truth=k if level == "easy" else M,
+        situation=f"{n}: {f['name']} plan with a one-time amount plus equal repeated amounts",
+    )
+    return item
+
+
+def interpret_parts(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'The equation 150 + 45p = 690 represents ... What does 45 represent?'  Easy asks about one number; medium asks
+    about the product (45p), the part students most often mislabel."""
+    f, n, D, M, k, T = _plan_numbers(rng)
+    v = f["var"]
+    Ds, Ms, Ts = num(D), num(M), num(T)
+    eq = f"{Ds} + {Ms}{v} = {Ts}"
+    phrases = {part: f[part].format(n=n) for part in ("start", "each", "product", "total")}
+    target = rng.choice(["start", "each", "total"]) if level == "easy" else "product"
+    shown = {"start": Ds, "each": Ms, "product": f"{Ms}{v}", "total": Ts}
+    why = {
+        "start": f"this is what {Ds} represents",
+        "each": f"this is what {Ms} represents",
+        "product": f"this is what {Ms}{v} represents",
+        "total": f"this is what {Ts} represents",
+    }
+    stem = (
+        f"The equation {eq} represents {f['eq'].format(n=n)}, where {f['var_def'].format(n=n)}. What does "
+        f"{shown[target]} represent in this equation?"
+    )
+    mistakes = [(phrases[p], why[p]) for p in ("product", "each", "start", "total") if p != target]
+    steps = [
+        f"In {eq}, {Ds} is added once ({phrases['start'].lower()}), {Ms} is multiplied by {v} "
+        f"({phrases['each'].lower()}), so {Ms}{v} is {phrases['product'][0].lower() + phrases['product'][1:]}, "
+        f"and {Ts} is {phrases['total'][0].lower() + phrases['total'][1:]}.",
+        f"So {shown[target]} represents {phrases[target][0].lower() + phrases[target][1:]}.",
+    ]
+    return MathItem(
+        "interpret_parts", SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=phrases[target]
+    )
+
+
+FAMILY_LEVELS = {
+    "expression_value": LEVELS,
+    "linear_rate": LEVELS,
+    "solve_simple": ("easy", "medium"),
+    "solve_combine": ("easy", "medium"),
+    "one_solution_cannot": ("medium", "hard"),
+    "infinite_constant": ("medium", "hard"),
+    "three_kinds_equation": ("easy", "medium"),
+    "payment_equation": ("easy", "medium"),
+    "interpret_parts": ("easy", "medium"),
+}
+
+FAMILIES = {
+    "expression_value": expression_value,
+    "linear_rate": linear_rate,
+    "solve_simple": solve_simple,
+    "solve_combine": solve_combine,
+    "one_solution_cannot": one_solution_cannot,
+    "infinite_constant": infinite_constant,
+    "three_kinds_equation": three_kinds_equation,
+    "payment_equation": payment_equation,
+    "interpret_parts": interpret_parts,
+}
 
 
 # ----------------------------------------------------------------------------- stories (word problems)
@@ -492,6 +954,17 @@ what is being counted (total hours since starting versus more hours). Do not exp
 The plan, as a plain template: {template}
 Reply with JSON only: {{"stem": "<the full word problem>"}}"""
 SOLVE_PROMPT = 'Solve this SAT math question. Reply with JSON only: {{"answer": "<number>"}}\n\n{stem}'
+SETUP_PROMPT = """Write the setup for a Digital SAT Math word problem (Algebra, {level}).
+
+Situation: {situation}.
+Numbers to use, each exactly once, in this order, written exactly like this: {numbers}. Do not add any other numbers.
+Plain version (keep every fact, the role of every number, the people's names, and the names of the items, because the
+question refers to them; you may reword it and add one natural detail): {setup}
+
+Write 2 to 4 short, natural sentences. Do NOT write the question; this exact question will follow your text:
+"{question}"
+Reply with JSON only: {{"setup": "<the sentences>"}}"""
+SOLVE_MCQ_PROMPT = 'Answer this SAT math question. Reply with JSON only: {{"answer": "<A, B, C, or D>"}}\n\n{question}'
 
 
 def story_numbers_ok(stem: str, given: list[int]) -> list[str]:
@@ -525,15 +998,27 @@ class Story:
             return
         f = item.story
         numbers = ", ".join(num(n) for n in f["given"])
+        setup_kind = f.get("kind") == "setup"
         for attempt in range(self.tries):
-            text = self.writer(STORY_PROMPT.format(numbers=numbers, template=item.stem, **f))
+            if setup_kind:  # the writer words the setup; the exact question is added by code
+                text = self.writer(SETUP_PROMPT.format(numbers=numbers, **f))
+            else:
+                text = self.writer(STORY_PROMPT.format(numbers=numbers, template=item.stem, **f))
             try:
-                stem = json.loads(re.search(r"\{.*\}", text, re.S).group(0))["stem"].strip()
+                got = json.loads(re.search(r"\{.*\}", text, re.S).group(0))
+                stem = (got["setup"].strip() + " " + f["question"]) if setup_kind else got["stem"].strip()
             except (AttributeError, ValueError, KeyError):
                 continue
             problems = story_numbers_ok(stem, f["given"])
             votes = []
-            if not problems and self.solver:
+            if not problems and self.solver and item.key_text:
+                shown = "\n".join([item.passage, stem] + [f"{k}) {v}" for k, v in item.choices.items()]).strip()
+                for _ in range(3):
+                    m = re.search(r'"answer"\s*:\s*"?\s*([A-D])', self.solver(SOLVE_MCQ_PROMPT.format(question=shown)))
+                    votes.append(m.group(1) if m else None)
+                if sum(v == item.key for v in votes) < 2:
+                    problems.append(f"a blind solver chose {votes}, not {item.key}")
+            elif not problems and self.solver:
                 for _ in range(3):
                     reply = self.solver(SOLVE_PROMPT.format(stem=stem))
                     m = re.search(r'"answer"\s*:\s*"?\s*(-?[\d,./]+)', reply)
@@ -571,7 +1056,8 @@ def plan(count: int, families: list[str], rng: random.Random) -> list[tuple[str,
     slots = []
     for i in range(count):
         fam = families[i % len(families)]
-        level = LEVELS[(i // len(families)) % 3]
+        levels = FAMILY_LEVELS.get(fam, LEVELS)
+        level = levels[(i // len(families)) % len(levels)]
         fmt = "spr" if rng.random() < 0.25 else "mcq"
         slots.append((fam, level, fmt))
     return slots

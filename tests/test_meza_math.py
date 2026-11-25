@@ -69,19 +69,22 @@ def test_choices_are_four_real_mistakes_in_ascending_order():
     used: dict[str, int] = {}
     for seed in range(300):
         rng = random.Random(seed)
-        for fam in mm.FAMILIES.values():
-            for level in mm.LEVELS:
+        for name, fam in mm.FAMILIES.items():
+            for level in mm.FAMILY_LEVELS[name]:
                 item = fam(rng, level, "mcq")
                 item.build_choices(rng, used)
-                vals = [value(v) for v in item.choices.values()]
-                assert len(set(vals)) == 4 and vals == sorted(vals) and min(vals) > 0
+                assert len(set(item.choices.values())) == 4
                 assert len(item.mistakes) == 3 and all(w for _, w in item.mistakes)
-                filler += sum("arithmetic slip" in w for _, w in item.mistakes)
                 total += 1
+                if item.key_text:  # equations or phrases
+                    continue
+                vals = [value(v) for v in item.choices.values()]
+                assert vals == sorted(vals) and (min(vals) > 0 or not item.positive_only)
+                filler += sum("arithmetic slip" in w for _, w in item.mistakes)
                 if level != "medium" or item.family != "expression_value":
                     assert all(v.denominator == 1 for v in vals)  # no stray fraction among whole numbers
     assert filler / total < 0.05
-    assert min(used.values()) / max(used.values()) > 0.6  # keys spread over A-D
+    assert min(used.values()) / max(used.values()) > 0.8  # keys spread over A-D across a mixed batch
 
 
 def test_story_checks():
@@ -131,3 +134,89 @@ def test_default_run_is_free_and_writes_review_files(tmp_path, monkeypatch):
     qs = json.loads((tmp_path / "questions.json").read_text())
     assert len(qs) == 6 and (tmp_path / "review.html").exists()
     assert all(q["explanation"].startswith("[Domain: Algebra]") for q in qs)
+
+
+# --- the linear-equation families added Nov 25: checked by substitution, independently of how they were built ---
+
+
+def evaluate(expr: str, **values) -> Fraction:
+    """Evaluate an SAT-style expression ('5x + x + 99', 'x(r − 3) + 4x', '24f', 'x/6') exactly."""
+    e = expr.replace(mm.MINUS, "-")
+    e = re.sub(r"(?<=\d),(?=\d{3})", "", e)  # thousands commas
+    e = re.sub(r"\d+", lambda m: f"F({m.group(0)})", e)
+    e = re.sub(r"(\))\s*(?=[A-Za-z(])", r"\1*", e)  # ")x", ")(" -> ")*x"
+    e = re.sub(r"\b([a-z])\s*(?=\()", r"\1*", e)  # "x(" -> "x*("
+    e = re.sub(r"(?<![A-Za-z])([a-z])(?=[a-z])", r"\1*", e)
+    names = {"F": Fraction, **{k: Fraction(v) for k, v in values.items()}}
+    return eval(e, {"__builtins__": {}}, names)  # noqa: S307 (test-only, our own generated text)
+
+
+def sides(equation: str):
+    left, right = equation.split("=")
+    return left, right
+
+
+def gen(family: str, n: int = 150):
+    for seed in range(n):
+        rng = random.Random(seed)
+        for level in mm.FAMILY_LEVELS[family]:
+            item = mm.FAMILIES[family](rng, level, "mcq")
+            item.build_choices(rng, {})
+            yield item
+
+
+def test_simple_and_combine_solutions_check_by_substitution():
+    for family in ("solve_simple", "solve_combine"):
+        for item in gen(family):
+            v = re.search(r"value of (\w)", item.stem).group(1)
+            left, right = sides(item.passage)
+            for k, text in item.choices.items():
+                holds = evaluate(left, **{v: value(text)}) == evaluate(right, **{v: value(text)})
+                assert holds == (k == item.key), (item.passage, text)
+
+
+def test_cannot_value_is_the_only_choice_without_exactly_one_solution():
+    for item in gen("one_solution_cannot"):
+        left, right = sides(item.passage)
+        for k, text in item.choices.items():
+            r = value(text)
+            slope = (evaluate(left, x=1, r=r) - evaluate(right, x=1, r=r)) - (
+                evaluate(left, x=0, r=r) - evaluate(right, x=0, r=r)
+            )
+            assert (slope == 0) == (k == item.key), (item.passage, text)
+
+
+def test_infinite_constant_makes_both_sides_identical():
+    for item in gen("infinite_constant"):
+        c = re.search(r"equation, (\w) is a constant", item.stem).group(1)
+        left, right = sides(item.passage)
+        for k, text in item.choices.items():
+            same = all(
+                evaluate(left, x=x, **{c: value(text)}) == evaluate(right, x=x, **{c: value(text)}) for x in (0, 1, 2)
+            )
+            assert same == (k == item.key), (item.passage, text)
+
+
+def test_which_equation_choices_hold_only_for_the_key():
+    for family in ("three_kinds_equation", "payment_equation"):
+        for item in gen(family):
+            v = re.search(r"where (\w) is|If (\w) represents", item.stem)
+            v = v.group(1) or v.group(2)
+            for k, text in item.choices.items():
+                left, right = sides(text)
+                holds = evaluate(left, **{v: item.story["truth"]}) == evaluate(right, **{v: item.story["truth"]})
+                assert holds == (k == item.key), (item.stem, text)
+
+
+def test_interpret_parts_asks_about_a_number_in_the_equation():
+    for item in gen("interpret_parts"):
+        eq = re.search(r"The equation (.+?) represents", item.stem).group(1)
+        asked = re.search(r"What does (.+?) represent", item.stem).group(1)
+        assert asked in eq and len(set(item.choices.values())) == 4 and item.choices[item.key] == item.key_text
+
+
+def test_new_families_rarely_need_filler():
+    for family in ("solve_simple", "solve_combine", "one_solution_cannot", "infinite_constant"):
+        items = list(gen(family))
+        filler = sum(any("slip" in w for _, w in i.mistakes) for i in items)
+        assert filler / len(items) < 0.1, family
