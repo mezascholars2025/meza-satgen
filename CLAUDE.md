@@ -19,7 +19,7 @@ Update it in the same pull request whenever you add a rule or change how somethi
 | `meza_quality.py` | Free, deterministic checks (lint, rhythm, vocabulary) and the passage-free probe. `python meza_quality.py runs/<run>/questions.json` lints an old run with no API calls. |
 | `meza_context.txt` | The item-writing rulebook the writer model follows. |
 | `meza_export.py` | Builds `review.html` and `questions.csv` for human review. |
-| `meza_math.py` | Math questions built in code: numbers, answer, and wrong choices are computed, so every key is right. `python meza_math.py run --count 12` writes `runs/math-<date_time>/` with review.html; `--families linear_rate`, `--offline` (template stories, no API). See "Math" below. |
+| `meza_math.py` | Math questions built in code: numbers, answer, and wrong choices are computed, so every key is right. `python meza_math.py run --count 12` writes `runs/math-<date_time>/` with review.html and makes no API calls (template stories); `--ai-stories` lets the writer model word the word problems (uses credits); `--families linear_rate`. See "Math" below. |
 | `data/meza_vocab_bank.json` | 1,961 unique words merged from three public Anki decks Sebastian chose (words and parts of speech only), tiered by word frequency: 1,069 advanced, 691 mid, 201 common; 103 flagged as having a second meaning (used for underlined-word items). |
 
 Run tests with `pytest` (no network). Offline smoke run: `python meza_satgen.py run --offline --count 6`.
@@ -216,7 +216,9 @@ asking," Desmos tips) and example questions he described.
   (Sonnet; MEZA_MATH_WRITER) wraps the fixed numbers; code checks that every planned number appears exactly once, in
   the planned order (first story run: one draft relabeled the numbers and kept the same answer by coincidence), with
   no other numbers and thousands commas, and a blind solver (Haiku; MEZA_MATH_SOLVER) must reach the computed
-  answer in 2 of 3 tries. Otherwise the plain template story is used. First runs: 15 of 16 stories passed on the
+  answer in 2 of 3 tries. Otherwise the plain template story is used. Runs are free by default (template stories,
+  no API calls); AI stories only with `--ai-stories` (Sebastian, Nov 25: work on the generator, not on generating
+  batches, to save API credits; test changes offline). First runs: 15 of 16 stories passed on the
   first try. Runs: `runs/math-first`, `runs/math-stories`.
 
 ## Source rule (Sebastian, Nov 24; do not break)

@@ -122,8 +122,12 @@ def test_settings_rotate_within_a_batch():
     assert len({i.story["role"] for i in items}) == 6
 
 
-def test_offline_run_writes_review_files(tmp_path):
-    assert mm.main(["run", "--count", "6", "--offline", "--seed", "5", "--out", str(tmp_path)]) == 0
+def test_default_run_is_free_and_writes_review_files(tmp_path, monkeypatch):
+    def no_api(*a, **k):
+        raise AssertionError("a default run must not call the API")
+
+    monkeypatch.setattr(mm, "claude_caller", no_api)
+    assert mm.main(["run", "--count", "6", "--seed", "5", "--out", str(tmp_path)]) == 0
     qs = json.loads((tmp_path / "questions.json").read_text())
     assert len(qs) == 6 and (tmp_path / "review.html").exists()
     assert all(q["explanation"].startswith("[Domain: Algebra]") for q in qs)

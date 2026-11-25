@@ -6,8 +6,9 @@ something else, the deck's golden rule "know exactly what the question is asking
 writer model wraps the fixed numbers in 4-5 sentences about a named person; code checks every number, and a blind
 solver must reach the computed answer, or the plain template story is used instead.
 
-    python meza_math.py run --count 8                              # all algebra families, runs/math-<date_time>/
-    python meza_math.py run --count 6 --families linear_rate --offline   # no API calls (template stories)
+    python meza_math.py run --count 8                          # free: no API calls, template stories
+    python meza_math.py run --count 8 --ai-stories             # the writer model words the word problems (uses credits)
+    python meza_math.py run --count 6 --families linear_rate   # one family only
 """
 
 from __future__ import annotations
@@ -597,14 +598,19 @@ def main(argv: list[str]) -> int:
     run.add_argument("--count", type=int, default=8)
     run.add_argument("--families", default=",".join(FAMILIES))
     run.add_argument("--seed", type=int, default=None)
-    run.add_argument("--offline", action="store_true", help="no API calls: template stories")
+    run.add_argument(
+        "--ai-stories",
+        action="store_true",
+        help="let the writer model word the word problems (uses API credits); default: free templates",
+    )
+    run.add_argument("--offline", action="store_true", help="kept for old commands; runs are offline by default")
     run.add_argument("--out", type=Path, default=None)
     args = ap.parse_args(argv)
     seed = args.seed if args.seed is not None else random.randrange(10**6)
     out = args.out or Path("runs") / f"math-{datetime.now():%Y-%m-%d_%H%M%S}"
     out.mkdir(parents=True, exist_ok=True)
     story = None
-    if not args.offline:
+    if args.ai_stories and not args.offline:
         story = Story(
             claude_caller(os.environ.get("MEZA_MATH_WRITER", "claude-sonnet-5-5")),
             claude_caller(os.environ.get("MEZA_MATH_SOLVER", "claude-haiku-5-5"), temperature=0.0),
