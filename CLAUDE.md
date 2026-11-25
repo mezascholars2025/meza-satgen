@@ -209,11 +209,9 @@ Audit decisions (Nov 24):
   Question Bank.
 - Review-round rules (Nov 24): kept. Sebastian built them with Claude, without College Board material.
 - Bundled satgen eval questions: checked; hand-written by the satgen author, no official items.
-- **OPEN (Nov 24, merge of Information and Ideas):** the Central Ideas and Details, Inferences, and Command of
-  Evidence rules were written before this source rule existed and say they come from "reviews of real practice
-  items" (33, 21, and 21 items). If those items were official College Board questions (Bluebook, Question Bank, or
-  official practice tests), the rules and statistics derived from them break the rule above. Confirm the source
-  before relying on them; if official, re-ground each rule in the public spec text or remove it.
+- Information and Ideas rules (Central Ideas and Details, Inferences, Command of Evidence): kept. The "real
+  practice items" they were built from (33, 21, and 21 items) are Meza's own questions, not College Board material
+  (Sebastian, Nov 24).
 - Literary introductions differ by skill on purpose (for now): Words in Context and Text Structure use a specific
   invented author/title/year intro; Central Ideas and Details use a plain intro ("from a novel"). The lint enforces
   the specific intro only outside Central Ideas and Details.
