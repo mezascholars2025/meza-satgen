@@ -10,7 +10,7 @@ Update it in the same pull request whenever you add a rule or change how somethi
   key hidden, confirms any key change, and removes near-duplicates. **Don't edit `src/satgen/`.** Pull upstream
   fixes with `git fetch upstream && git merge upstream/main`.
 - Everything Meza-specific lives in the `meza_*` files, `data/meza_vocab_bank.json`, and `tests/test_meza_quality.py`.
-- Scope right now: **Reading and Writing only.**
+- Scope right now: **Reading and Writing**, and **Math, starting with Algebra** (`meza_math.py`, Nov 25).
 
 | File | What it does |
 |---|---|
@@ -19,6 +19,7 @@ Update it in the same pull request whenever you add a rule or change how somethi
 | `meza_quality.py` | Free, deterministic checks (lint, rhythm, vocabulary) and the passage-free probe. `python meza_quality.py runs/<run>/questions.json` lints an old run with no API calls. |
 | `meza_context.txt` | The item-writing rulebook the writer model follows. |
 | `meza_export.py` | Builds `review.html` and `questions.csv` for human review. |
+| `meza_math.py` | Math questions built in code: numbers, answer, and wrong choices are computed, so every key is right. `python meza_math.py run --count 12` writes `runs/math-<date_time>/` with review.html and makes no API calls (template stories); `--ai-stories` lets the writer model word the word problems (uses credits); `--families linear_rate`. See "Math" below. |
 | `data/meza_vocab_bank.json` | 1,961 unique words merged from three public Anki decks Sebastian chose (words and parts of speech only), tiered by word frequency: 1,069 advanced, 691 mid, 201 common; 103 flagged as having a second meaning (used for underlined-word items). |
 
 Run tests with `pytest` (no network). Offline smoke run: `python meza_satgen.py run --offline --count 6`.
@@ -185,6 +186,212 @@ Each rule below came from auditing output or from Sebastian's review rounds agai
   instead of being discarded. Format, length, stems, vocabulary, and rhythm rules still block. Also fixed: bank
   phrases like "grapple with" could never be matched in a passage.
 
+## Math (Sebastian, Nov 25)
+
+Sebastian paused the reading work to make the math generator really good, starting with Algebra. Sources: his own
+"Mastering SAT Algebra" lesson deck (Meza's own material: 8 topics, the golden rule "know exactly what the question is
+asking," Desmos tips) and example questions he described.
+
+- **Built in code, not written by the AI.** Reading answers need judgment; math answers can be computed. Each question
+  family picks numbers that come out even, computes the answer exactly (fractions, no rounding), and builds each wrong
+  choice from a named student mistake, so the explanation can say which mistake each wrong answer comes from.
+  `tests/test_meza_math.py` re-solves every equation with a separate parser, so the key is checked twice.
+- **Families so far** (skill: Linear equations in one variable):
+  - `expression_value` ("If 4x + 5 = 29, what is the value of 9x − 7?"). Easy: solve, then substitute. Medium: x is
+    an awkward fraction and the target is a multiple of the given side plus a constant, so scaling is the fast route.
+    Hard: parentheses and x on both sides. Main trap at every level: the value of x (the golden rule); others: the
+    constant dropped or with the wrong sign, a distribution error, a sign error when moving a term.
+  - `linear_rate` (Sebastian's trucker: a job done at a constant rate). Easy: rate given; when will N be left?
+    Medium: start amount and one later reading, so the rate must be worked out; how many hours after starting will
+    N be left? Hard: two readings, start not given; when will the job be finished? Main trap: "how many MORE hours"
+    versus "how many hours after starting"; others: time to do the remaining part, the whole job, the rate itself,
+    using the amount left as the amount done.
+  - Added from Sebastian's list (Nov 25):
+    - `solve_simple` ("r + 23 = 61. What is the value of r?"; medium "45 − r = 17"): traps are the wrong operation,
+      subtracting in the wrong order, stopping at −r, and copying the right side.
+    - `solve_combine` ("7x − 3x + 5 = 29. What value of x is the solution to the given equation?"; medium: the
+      combined coefficient is negative): adding the coefficients, sign slips, not dividing, leaving out a term. The
+      constant is a multiple of the combined coefficient so the mistakes come out as whole numbers.
+    - `one_solution_cannot` ("x(r + 3) + 5 = 7x − 2 ... exactly one solution ... CANNOT be the value of r?"; hard
+      adds another x-term): r that makes the x-coefficients equal; traps ignore the number in the parentheses,
+      flip its sign, or flip the answer's sign. Multiple choice only.
+    - `infinite_constant` ("3(2x + 5) − x = kx + 15 ... infinitely many solutions ... value of k?"; hard: "= 5(x + k)",
+      so k is inside parentheses): traps leave out a term, skip distributing, or forget to divide.
+    - `three_kinds_equation` (three kinds of one thing; the first is m times the second, the third is known, the
+      total is known; "which equation represents this situation?"; medium: x is the first kind, so the second is
+      x/m): choices are equations; traps add m instead of multiplying, reverse which is m times the other, leave
+      out a kind, or add the known amount to the total.
+    - `payment_equation` (a down payment, sign-up fee, or first deposit plus equal repeated payments equals a total;
+      "which equation?"; medium: the payment amount is unknown and the number of payments is given).
+    - `interpret_parts` (the same situations as an equation: "What does 625 / 25m / 1,075 represent?"; medium asks
+      about the product, the part students mislabel most). Wrong choices are what the other parts represent.
+    - `in_terms_of` ("3(2x + 10) − 4 = 5(x + 5) + 8. If x is the solution to the given equation, what is the value
+      of x + 5?"): both sides are built from the same group, so students can let k = x + 5 (2x + 10 = 2k) and solve
+      for k directly, or solve for x and add. Medium: the left group is 2(x + c); hard: 2 or 3 times, c and the
+      answer can be negative. Traps: the value of x (the golden rule), the value of 2x + 10, forgetting the factor
+      of 2, a sign slip on a constant, the opposite sign.
+    - `reciprocal_ratio` ("If x/4 = 6, what is the value of 4/x?"; medium asks c/x with a different numerator, so
+      the flip alone is not enough): traps are the value of x/4, the value of x, flipping when it doesn't apply.
+      Fraction choices are natural here.
+    - `same_product` ("If 6(4x) = 72, what is the value of 4x?"; medium adds a constant): no need to find x; traps
+      are x itself, dividing by the wrong number, multiplying again, not dividing.
+    - `no_solution_parens` ("(r − 4)x = 9 ... no solution ... value of r?"; medium "(r + 3)x = 7x + 5"): the
+      x-coefficient must be 0 (or match the other side); traps are the wrong sign, setting the coefficient equal to
+      the constant or to 1, ignoring the number in the parentheses.
+    - `no_solution_k` ("3(kx − 2) = 5x + 1 ... no solution ... value of k?"): set the x-coefficients equal, 3k = 5;
+      medium k is a whole number, hard a fraction; traps forget the 3, flip the fraction, multiply, or flip the sign.
+    - `how_many_solutions` (both sides built up; "How many solutions does the given equation have?"): choices are
+      always Zero / Exactly one / Exactly two / Infinitely many in that order; the key is decided by whether the
+      x-coefficients and constants match. Hard adds an x-term to each side.
+    - `infinite_two_constants` ("a(2x + 3) + 4x = 14x + b ... infinitely many solutions ... value of b / a / a + b?"):
+      match the x-terms to find a, then the constants to find b. Medium has no extra x-term; hard adds it and can
+      ask for a + b.
+    - `fraction_decimal`: easy "0.4x + 1.2 = 3.6" (choices shown as decimals; traps move the decimal point,
+      stop before dividing, or divide too early), medium "x/3 + x/4 = 7" (traps add the denominators, leave out a
+      term, multiply only one side by the LCD), hard "(x + 4)/3 = (x − 2)/5" (traps cross multiply the wrong way or
+      without distributing, or give the value of each fraction).
+    - `word_solve` (word problems that ask for a number): easy a fixed fee plus a cost per unit (phone texts, taxi
+      miles, plumber hours, parking hours; each setting has a realistic fee range, and the fee is at least two units
+      of the rate); medium a rectangle whose length is m times or k more than its width, given the perimeter, asking
+      for the width or the length; hard the sum of three or four consecutive (even/odd) integers, asking for the
+      least or greatest. Traps: leaving out the fee, the other dimension, treating it as a square, counting each
+      side once, the middle integer, the other end, counting by 1 instead of 2. Stories can be AI-worded like the
+      rest (`--ai-stories`); story checks now handle decimals such as $0.10.
+    - `which_has_property` ("Which equation has no solution?", or infinitely many, or exactly one): four equations
+      with the same left side; each choice's right side changes the x-coefficient, the constant, or both, and each
+      wrong choice's explanation names the property it does have. Hard builds up the left side and factors some
+      right sides.
+  - Equations are shown on their own line above the question (the `passage` field), as on the SAT. Families with
+    choices that are equations or phrases put the key at the letter used least so far in the batch.
+    `tests/test_meza_math.py` checks every choice by substitution: only the key solves the equation, makes the
+    coefficients match, or holds for the true value in the story.
+- **Linear functions** (Sebastian, Nov 25; skill tag "Linear functions"):
+  - `interpret_models` ("Which of the following is the best interpretation of 2.5 in this context?"): real-world
+    models in y = mx + b form (two plants growing, two candles burning, two tanks draining, two friends saving, two
+    hikers descending; decreasing models print a negative slope, and the question asks about the number as printed).
+    Hard, as Sebastian described: two models in about four long sentences, so the wrong answers can also put the
+    number in the other thing's equation (always one such choice) or turn it into a comparison ("grew 2.5 cm more
+    each week than plant B"). Medium: one model. Other traps: slope vs. starting value, a total instead of a rate,
+    the rate flipped ("took 2.5 weeks to grow 1 cm"), the value at the end instead of the start. Choice explanations
+    for phrase or equation choices now give only the letter and the reason.
+  - **Graphs** (Sebastian: "definitely super important"): `graph_svg` draws an SAT-style graph in code: a light
+    grid with at least 10 lines each way (10-14), dark axes, numbered ticks (every other line when crowded), italic
+    axis titles with units, the line clipped to the grid, optional dots. Steps are 1, 2, 2.5, or 5 times a power of
+    10, chosen per problem. Lines pass through grid intersections, so the value a student reads is exact. The SVG is
+    stored in the question's `figure` field and shown in review.html and the copy-for-slides block.
+  - `graph_estimate` ("Based on the graph, what is the estimated value of y when x = 160?"; hard asks for x given
+    y): six settings (van fuel, pool filling, phone battery, tree height, plane altitude, kayak cost). Traps: the
+    grid line above or below, one vertical grid line over, the starting value, the wrong axis.
+  - `graph_slope` ("what is the change in the amount of fuel for each additional mile driven?"; hard: "each
+    additional 40 minutes"): choices are phrases with a direction and an amount; traps are the opposite direction,
+    the rate flipped, the starting value, the change over the whole graph, the change for one grid step or one unit.
+  - `rate_total_function` ("$18 per hour; 6 hours Saturday and x hours Sunday. Which function f gives the total?"):
+    f(x) = 18x + 108 or 18(x + 6); traps add the hours instead of the earnings, add to the rate, leave out a day.
+  - `intercept_meaning` (best interpretation of the x- or y-intercept of y = f(x) for a draining tank, candle, gift
+    card, phone battery): traps include the other intercept's true statement and the right number in the wrong role.
+  - `two_points_function` ("f(5) = 7 and f(2) = 19. Which equation defines f?"): traps flip the slope's sign, use an
+    output as the y-intercept, or flip the slope.
+  - `intercept_from_slope` ("slope 3, y-intercept (0, −12): x-coordinate of the x-intercept?", or the reverse;
+    hard uses fraction slopes).
+  - `cost_function`: easy a one-time fee plus a monthly charge; medium Sebastian's "first 2 (or 3) hours at one rate,
+    then another rate, x = hours past the first 2," so the first hours' cost becomes the y-intercept; hard the same
+    with x = total hours (x ≥ 2), simplified (C(x) = 10(x − 3) + 105 = 10x + 75).
+  - `function_change` (F(c) = (9/5)c + 32, a print shop's cost, K(f) = (5/9)(f − 32) + 273.15, ocean pressure
+    0.43d + 14.7: "If the input increases by 18, by how much does the output increase?"): slope × change; traps add a
+    visible constant (273.15) or give the input change.
+  - `table_equation` (a titled table of real-life values: hours studied and test scores, oven temperature, ticket
+    costs, a draining tank; "Which equation represents the relationship?"): rows step by 2 or 3 on hard, so the
+    change between rows is a trap; the first y-value (x ≠ 0) as the y-intercept is another.
+  - Sebastian's alternatives (Nov 25): `table_mb` (same tables, "f(x) = mx + b ... What is the value of m / b?"),
+    `table_shift` (a table of f, then g(x) = f(x) ± c (medium) or f(x − c) / f(x + c) (hard); "Which equation
+    defines g?"; traps shift the wrong way or forget to multiply the inside shift by the slope), and `sum_functions`
+    (f and g given, h(x) = f(x) + g(x) or f(x) − g(x); the slope, the y-intercept, or the x-intercept of h; traps
+    multiply, use only f, or combine the two x-intercepts).
+  - More from Sebastian (Nov 25): `graph_which_equation` (a line in the xy-plane; "What is an equation of the line
+    shown?"; hard choices in standard form; traps flip the slope's or intercept's sign or flip the slope),
+    `evaluate_function` (easy f(6); medium f(k) = 31, find k; hard f(x) = 4x + c with f(3) = 19, find f(5)),
+    `unit_conversion_function` (inches a week, height in feet: h(w) = (2w + 18)/12 on medium, simplified on hard;
+    traps leave it in inches, convert only the rate or only the start, or multiply), and `two_lines_graph` (two
+    labeled lines on one real-world graph: when are they equal, or how many more per 4-week period, so the
+    per-week difference is a trap).
+- **Linear equations in two variables** (Sebastian, Nov 25):
+  - `two_var_equation`: easy "3x + 5y = 240" from a story; medium "at least"/"at most" makes it ≥/≤ (the flipped
+    sign is the main trap); hard the limit is in a bigger unit (pounds of flour, tons, hours) and must be converted.
+  - `table_for_equation`: the choices are x/y tables (review.html draws them as tables); traps flip the slope's or
+    intercept's sign, swap x and y, or swap slope and intercept; hard gives the equation in standard form.
+  - `tradeoff` (6x + 8y = 600: buy 4 more pounds of chicken, how many fewer pounds of beef? a·k/b; medium the other
+    way; hard per single unit, a fraction): k is chosen so the flipped ratio, the main trap, is also whole.
+  - `slope_point_line` (slope and a point; hard: parallel to a standard-form line), `isosceles_perimeter` (2x + y = P;
+    medium perimeter in feet; hard the third side in feet: 2x + 12y = P), `perpendicular_vertical` (perpendicular to
+    x = 4: slope 0, or y = −3 through a point), `perpendicular_lines` (negative reciprocal; medium the full
+    equation through a point; hard the given line in standard form), `interpret_coefficients` (6x + 15y = 300:
+    what does 15 / 300 / the point (20, 0) mean?), `table_unknowns` (a linear table with a missing k; hard puts k
+    between unevenly spaced x-values, so "halfway between" is the trap).
+- **Systems of two linear equations** (Sebastian, Nov 25; skill "Systems of two linear equations in two variables"):
+  - `system_which_property` ("Which system has no solution / infinitely many / exactly one?"). Every choice shares
+    the first equation and the second equations are near misses of each other (the same line scaled, the same slope
+    with another constant, a sign flipped, the coefficients swapped), per Sebastian: wrong answers must be close.
+  - `system_coordinate` (x or y of the solution; medium sometimes asks for 2x − y; hard sometimes asks for the sum
+    or difference of the two left sides, so adding the equations is the shortcut), `system_cancel_letters` (medium
+    "2x + ky = 6 + 5k; 7x + ky = 21 + 5k": subtract and k cancels; hard "ax + by = 3a + 5b; 2x − by = 6 − 5b" with a
+    and b positive: add, factor (a + 2)x = 3(a + 2), so x = 3, then plug back in for y), `system_constant_r` (the
+    constant for no solution or infinitely many; hard a non-whole ratio or "exactly one solution ... CANNOT be r"),
+    `system_solve_pair` (choices are ordered pairs; easy can be a graph; traps swap x and y, flip signs, or are on
+    only one line), `system_word_setup` (pick the system: a total x + y = 120 plus a value or percent equation,
+    0.3x + 0.25y = 33; hard uses mixtures, interest, survey percents, nickels and dimes; traps swap the totals or
+    rates, write percents as whole numbers, or move the decimal point), `system_graph_equations` (two lines on a
+    graph, choices are systems: easy the xy-plane, medium a real-world graph, hard "which system has the same
+    solution as the system graphed?", where the traps' solutions are the point with x and y swapped or a sign
+    flipped), and `system_times_more` ("three times as many chose soccer as tennis, and 40 more chose soccer: how
+    many chose tennis?"; easy gives a total; hard "4 more than three times"; traps divide by 3 instead of 2, give
+    the other group, or leave out the extra).
+- **Linear inequalities in one or two variables** (Sebastian, Nov 25):
+  - `ineq_max_word` (budget or weight limit with a fixed part: the greatest number of games / boxes / gigabytes,
+    rounded down; medium "at least" goals rounded up; hard two variables, "if she buys 6 binders, how many
+    notebooks?"). Traps round the wrong way, leave out the fixed part, add it, or add it to each item's price.
+  - `ineq_setup` (which inequality: at most ≤, at least ≥, more than >, less than <; hard a range "at least $400 and
+    at most $750": 400 ≤ 125 + 20x ≤ 750). Traps flip the sign, use the wrong kind (strict vs. not), swap the fixed
+    part and the rate, or leave the fixed part out.
+  - `ineq_graph` (a shaded region with a solid or dashed line: which inequality? easy the four signs on one line;
+    medium one choice flips the slope's sign; hard standard form, where a negative y-coefficient flips the sign).
+  - `ineq_system_points` (two inequalities, one solid and one strict; which point is / is NOT a solution; the main
+    trap sits exactly on the dashed boundary; hard uses decimal slopes).
+  - `ineq_fence_range` (Sebastian's fencing problem: at most 100 yards of fence, one side 32 yards; medium
+    0 < x ≤ 18; hard adds "area at least / more than 200 square yards": 6.25 ≤ x ≤ 18. Traps fence each side once,
+    count one side once, use the wrong kind of inequality at the area limit, or drop the area limit).
+  - graph_svg shades a half-plane (shade=[(m, b, "above")]) and draws strict boundaries dashed (dashed=(0,)).
+  - `ineq_system_graph` (two shaded half-planes, one solid and one dashed boundary, darker where they overlap: which
+    point is a solution? hard: which system is shown?).
+- More two-variable types (Nov 25): `intercepts_std` (x- or y-intercept of 3x + 4y = 24; hard: find k from the
+  x-intercept), `point_on_line` (which point lies on the line; hard: (k, 5) lies on 4x − 3y = 9), `line_two_points`
+  (the line through two points; hard: its y-intercept), `parallel_lines` (which line is parallel; hard all in
+  standard form, where flipping the y-coefficient's sign or swapping coefficients are the traps).
+  - Graphs now also come in the full xy-plane (axes through the origin, −8 to 8, "x"/"y" and O), and two lines on a
+    real-world graph get a key below it (solid and dashed). A choice that is a table or a system renders as one in
+    review.html. Tests solve every system and check every choice independently.
+- **Where the answer lands (Sebastian, Nov 25).** Equation, phrase, table, and system choices: the key goes to the
+  letter used least so far in the batch (random among ties), so it is evenly spread. Number choices are listed in
+  ascending order, as on the SAT, so the letter follows from the values: the generator picks which real mistakes to
+  show so the key lands on the least-used letter it can reach. A test requires every family to use at least three
+  letters (10%+ each). Eight families still rarely put the key at D (ineq_max_word, tradeoff, word_solve,
+  system_cancel_letters, reciprocal_ratio, same_product, no_solution_k, system_times_more) because their real
+  mistakes almost all make the number bigger; how_many_solutions never uses C because "Exactly two" is never right.
+  A mixed batch is still even overall.
+- **Choices.** Numbers in ascending order, as on the SAT. A whole-number answer gets whole-number wrong choices (a
+  stray fraction stands out), except medium `expression_value`, where x itself is the trap. Keys: among the letters
+  the real mistakes can produce, each question takes the letter used least so far in the batch, so keys spread over
+  A-D without filler; a labeled near miss fills in only when fewer than three real mistakes exist (under 6% of
+  questions). About 1 in 4 questions is grid-in (student-produced response).
+- **Stories.** Word problems get 4-5 sentences about a named person in a rotating setting (trucker, food bank
+  volunteer, print shop, warehouse, baker, farmworker; a batch uses every setting before repeating). The writer model
+  (Sonnet; MEZA_MATH_WRITER) wraps the fixed numbers; code checks that every planned number appears exactly once, in
+  the planned order (first story run: one draft relabeled the numbers and kept the same answer by coincidence), with
+  no other numbers and thousands commas, and a blind solver (Haiku; MEZA_MATH_SOLVER) must reach the computed
+  answer in 2 of 3 tries. Otherwise the plain template story is used. Runs are free by default (template stories,
+  no API calls); AI stories only with `--ai-stories` (Sebastian, Nov 25: work on the generator, not on generating
+  batches, to save API credits; test changes offline). First runs: 15 of 16 stories passed on the
+  first try. Runs: `runs/math-first`, `runs/math-stories`.
+
 ## Source rule (Sebastian, Nov 24; do not break)
 
 Allowed as source or training material, and nothing else:
@@ -233,6 +440,13 @@ Audit decisions (Nov 24):
 - Run `pytest` before opening a pull request.
 
 ## Open next steps
+
+- Math: solving a formula for one variable ("A = ½h(b + c); which equation gives h?") belongs with Advanced Math
+  (equivalent expressions), per Sebastian; build it there.
+- Math: graphs need image support in the portal when questions move there (the review page shows the SVG).
+- Math: the rest of Algebra from his deck (absolute value, function notation and composite functions), then the
+  other math domains. He describes question types; Claude builds them in code and tests offline
+  (no API batches).
 
 - **Trap labels (proposed, not built):** a Words in Context trap list (most common meaning, other real meaning,
   wrong connotation, wrong degree, reversal, borrowed from elsewhere in the passage, grammatical but imprecise);

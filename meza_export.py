@@ -62,6 +62,15 @@ def render_passage(text: str) -> str:
 
 
 
+def show_choice(v: str) -> str:
+    """A choice that is a small Markdown table (math: "Which table gives values of x and y?") renders as a table."""
+    if "\n|" in v or v.startswith("|"):
+        return render_passage(v).replace('<table class="data">', '<table class="data choice-table">')
+    if "\n" in v:  # a system of equations: one equation per line, lined up after the letter
+        return '<span style="display:inline-block;vertical-align:top">' + esc(v).replace("\n", "<br>") + "</span>"
+    return esc(v)
+
+
 def slide_block(q: dict, with_answer: bool) -> str:
     """Inline-styled HTML that keeps bold, underline and tables when pasted into PowerPoint."""
     font = "font-family:Arial,Helvetica,sans-serif;"
@@ -71,9 +80,9 @@ def slide_block(q: dict, with_answer: bool) -> str:
     passage = passage.replace("<p", f'<p style="{font}font-size:18pt;margin:0 0 8pt;"', ).replace('<p style="' + font + 'font-size:18pt;margin:0 0 8pt;" class="title">',
         f'<p style="{font}font-size:18pt;margin:0 0 8pt;font-weight:bold;">')
     passage = passage.replace("<li>", f'<li style="{font}font-size:18pt;">')
-    choices = "".join(f'<p style="{font}font-size:18pt;margin:0 0 6pt;"><b>{k})</b> {esc(v)}</p>'
+    choices = "".join(f'<p style="{font}font-size:18pt;margin:0 0 6pt;"><b>{k})</b> {show_choice(v)}</p>'
                       for k, v in q.get("choices", {}).items())
-    out = (f'<div>{passage}<p style="{font}font-size:18pt;font-weight:bold;margin:10pt 0 8pt;">'
+    out = (f'<div>{passage}{q.get("figure", "")}<p style="{font}font-size:18pt;font-weight:bold;margin:10pt 0 8pt;">'
            f'{esc(q.get("stem",""))}</p>{choices}')
     if with_answer:
         body = tags(q.get("explanation", ""))["body"]
@@ -126,7 +135,7 @@ def build(run: Path) -> None:
         t = tags(q.get("explanation", ""))
         diff = t["difficulty"].lower()
         choices = "".join(
-            f'<li class="{"right" if k == q.get("answer") else ""}"><b>{k})</b> {esc(v)}</li>'
+            f'<li class="{"right" if k == q.get("answer") else ""}"><b>{k})</b> {show_choice(v)}</li>'
             for k, v in q.get("choices", {}).items())
         words = len(q.get("passage", "").split())
         expl = "".join(f"<p>{esc(p)}</p>" for p in t["body"].splitlines() if p.strip())
@@ -146,7 +155,7 @@ def build(run: Path) -> None:
   {flag_html}
   <div class="src" id="q{i}">{slide_block(q, False)}</div>
   <div class="src" id="a{i}">{slide_block(q, True)}</div>
-  <div class="passage">{render_passage(q.get('passage',''))}</div>
+  <div class="passage">{render_passage(q.get('passage',''))}</div>{q.get('figure', '')}
   <p class="stem">{esc(q.get('stem',''))}</p>
   <ol class="choices">{choices}</ol>
   <details><summary>Answer &amp; explanation</summary>
@@ -174,7 +183,7 @@ main{{max-width:820px;margin:0 auto;padding:20px 16px 60px}}
 .src{{position:fixed;left:0;top:0;width:900px;opacity:0;pointer-events:none;z-index:-1;background:#fff;color:#000}}
 .passage{{border-left:3px solid var(--gold);padding-left:14px}} .passage p{{margin:0 0 8px}} .passage .title{{font-weight:700}}
 table.data{{border-collapse:collapse;margin:6px 0 12px;font-size:15px}} table.data th{{background:var(--navy);color:#fff;font-weight:400;padding:6px 10px;text-align:left}} table.data td{{border-bottom:1px solid var(--line);padding:6px 10px}}
-.stem{{font-weight:700;margin:14px 0 8px}} .choices{{list-style:none;padding:0;margin:0}} .choices li{{padding:6px 8px;border-radius:6px}}
+.stem{{font-weight:700;margin:14px 0 8px}} .choices{{list-style:none;padding:0;margin:0}} .choices li{{padding:6px 8px;border-radius:6px}} .choice-table{{display:inline-table;vertical-align:top;margin:0 0 0 6px}}
 details{{margin-top:12px;background:var(--cream);border-radius:8px;padding:10px 14px}} summary{{cursor:pointer;color:var(--navy);font-weight:700}}
 details[open] ~ .x{{}} .show .choices li.right, details[open] {{}}
 body.reveal .choices li.right{{background:#e3f1e3}}
