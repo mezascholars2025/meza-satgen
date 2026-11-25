@@ -72,7 +72,7 @@ def test_choices_are_four_real_mistakes_in_ascending_order():
         for name, fam in mm.FAMILIES.items():
             for level in mm.FAMILY_LEVELS[name]:
                 item = fam(rng, level, "mcq")
-                item.build_choices(rng, used)
+                item.build_choices(rng, used, order="ascending")
                 assert len(set(item.choices.values())) == 4
                 assert len(item.mistakes) == 3 and all(w for _, w in item.mistakes)
                 total += 1
@@ -758,10 +758,10 @@ def test_fence_range_key_matches_the_constraints():
         side = int(re.search(r"One side of the pen is (\d+) yards", item.stem).group(1))
         fence = int(re.search(r"at most (\d+) yards of fencing", item.stem).group(1))
         area = re.search(r"(at least|more than) ([\d,]+) square yards", item.stem)
-        grid = [Fraction(n, 4) for n in range(1, 4 * 80)]
+        grid = [Fraction(n, 4) for n in range(0, 4 * 80)]
 
         def allowed(x, side=side, fence=fence, area=area):
-            ok = 2 * side + 2 * x <= fence
+            ok = 0 < x and 2 * side + 2 * x <= fence
             if area:
                 a = value(area.group(2))
                 ok &= side * x >= a if area.group(1) == "at least" else side * x > a
@@ -858,3 +858,209 @@ def test_every_family_spreads_its_key_over_at_least_three_letters():
         total = sum(used.values())
         shares = sorted(used.get(k, 0) / total for k in "ABCD")
         assert shares[1] >= 0.1, (name, used)  # three letters at 10% or more each
+
+
+def test_random_order_puts_the_answer_on_any_letter():
+    """The default (Sebastian, Nov 25): number choices in random order, so every family uses all four letters."""
+    assert mm.CHOICE_ORDER == "random"
+    filler = total = 0
+    for name, fam in mm.FAMILIES.items():
+        used: dict[str, int] = {}
+        for seed in range(120):
+            rng = random.Random(seed)
+            for level in mm.FAMILY_LEVELS[name]:
+                item = fam(rng, level, "mcq")
+                item.build_choices(rng, used)
+                assert len(set(item.choices.values())) == 4 and len(item.mistakes) == 3
+                if item.key_text or item.fixed_choices:
+                    continue
+                show = mm.dec if item.decimals else mm.num
+                assert item.choices[item.key] == show(item.answer)
+                assert sorted(v for k, v in item.choices.items() if k != item.key) == sorted(
+                    show(v) for v, _ in item.mistakes
+                )
+                total += 1
+                filler += sum("arithmetic slip" in w for _, w in item.mistakes)
+        if name == "how_many_solutions":  # a fixed list: Zero / Exactly one / Exactly two / Infinitely many
+            continue
+        shares = [used.get(k, 0) / sum(used.values()) for k in "ABCD"]
+        assert min(shares) >= 0.2, (name, used)
+    assert filler / total < 0.05
+
+
+def test_fractions_are_stacked_on_the_review_page():
+    """Sebastian (Nov 25): fractions print vertically, as on the SAT. The data keeps the slash; the export stacks it,
+    and with the styles stripped (pasted somewhere plain) the text still reads the same as the original."""
+    import meza_export as me
+
+    def plain(html_: str) -> str:
+        return re.sub(r"<[^>]+>", "", re.sub(r'<span style="display:none">([^<]*)</span>', r"\1", html_))
+
+    cases = {
+        "a slope of −1/3 and": 1,
+        "y = −(2/3)x − 5": 1,
+        "h(w) = (3w + 42)/12": 1,
+        "x/3 + x/4 = 7": 2,
+        "(x + 4)/3 = (x − 2)/5": 2,
+        "Choice B (5): this is the value of x/5, not 11/x.": 2,
+        "Slope: (17 − 9) / (3 − 1) = 4.": 1,
+        "1,500/1,000": 1,
+        "0.04x + 0.07y = 295 and 3,000 tickets": 0,
+    }
+    me._MATH[0] = True
+    try:
+        for text, n in cases.items():
+            out = me.esc(text)
+            assert out.count('class="frac"') == n, text
+            assert plain(out).replace(" / ", "/") == text.replace(" / ", "/"), (text, plain(out))
+        assert "5," not in re.findall(r'padding:0 \.18em">([^<]*)<', me.esc("value of x/5, not"))
+    finally:
+        me._MATH[0] = False
+    assert me.esc("and/or 1/2") == "and/or 1/2"  # reading questions are left alone
+
+
+def test_answers_cannot_be_guessed_from_the_choices_alone():
+    """Sebastian (Nov 25): no Reading-style giveaway in math. A student who never reads the question and uses a
+    pattern on the four choices (the one most like the others, the odd one out, the longest or shortest, the one
+    the others are a slip away from, the middle, smallest, or largest number) must stay near chance (25%) in every
+    question type; 55% allows for sampling noise around the generator's 50% ceiling."""
+    import collections
+
+    def parts(s):
+        return collections.Counter(re.findall(r"\d+(?:[.,/]\d+)*|[A-Za-z]+|[=<>≤≥+()\-]", s.replace(mm.MINUS, "-")))
+
+    def num_or_none(s):
+        try:
+            return value(s)
+        except (ValueError, ZeroDivisionError):
+            return None
+
+    def picks(ch):
+        out = {}
+        P = {k: parts(v) for k, v in ch.items()}
+        sh = {k: sum(sum((P[k] & P[o]).values()) for o in ch if o != k) for k in ch}
+        L = {k: len(v) for k, v in ch.items()}
+        out["most alike"] = [k for k in ch if sh[k] == max(sh.values())]
+        out["odd one out"] = [k for k in ch if sh[k] == min(sh.values())]
+        out["longest"] = [k for k in ch if L[k] == max(L.values())]
+        out["shortest"] = [k for k in ch if L[k] == min(L.values())]
+        V = {k: num_or_none(v) for k, v in ch.items()}
+        if all(v is not None for v in V.values()):
+
+            def slip(a, b):
+                near = {-a, a + 1, a - 1, a * 2, a / 2, a * 10, a / 10} | ({1 / a, -1 / a} if a else set())
+                return b in near
+
+            r = {k: sum(slip(V[k], V[o]) + slip(V[o], V[k]) for o in V if o != k) for k in V}
+            mean = sum(V.values()) / 4
+            out["slip hub"] = [k for k in V if r[k] == max(r.values())]
+            out["middle"] = [k for k in V if abs(V[k] - mean) == min(abs(v - mean) for v in V.values())]
+            out["smallest"] = [k for k in V if V[k] == min(V.values())]
+            out["largest"] = [k for k in V if V[k] == max(V.values())]
+        return out
+
+    for name, fam in mm.FAMILIES.items():
+        hits = collections.defaultdict(list)
+        for seed in range(500, 560):
+            rng = random.Random(seed)
+            for level in mm.FAMILY_LEVELS[name]:
+                item = fam(rng, level, "mcq")
+                item.build_choices(rng, {})
+                if item.fixed_choices:
+                    continue
+                for rule, chosen in picks(item.choices).items():
+                    hits[rule].append((item.key in chosen) / len(chosen))
+        for rule, h in hits.items():
+            assert sum(h) / len(h) <= 0.55, (name, rule, round(sum(h) / len(h), 2))
+
+
+# ------------------------------------------------- closing out Algebra: inequalities to solve, graphs as choices, ...
+
+
+def solution_set(test, grid=None):
+    grid = grid or [Fraction(n, 2) for n in range(-60, 61)]
+    return [bool(test(x)) for x in grid]
+
+
+def or_chain(text: str):
+    """'x < −4 or x > 0' or a plain chain like '−4 < x ≤ 0'."""
+    parts = [chain(p.strip()) for p in text.split(" or ")]
+    return lambda x: any(p(x) for p in parts)
+
+
+def test_solving_inequalities_and_systems_of_inequalities():
+    for item in gen("ineq_solve"):
+        t = item.truth
+        if item.level == "hard":
+
+            def truth(x, t=t):
+                v = t["a"] * x + t["b"]
+                return holds(t["r1"], t["L"], v) and holds(t["r2"], v, t["R"])
+        else:
+
+            def truth(x, t=t):
+                return holds(t["rel"], t["a"] * x + t["b"], t["c"])
+
+        want = solution_set(truth)
+        for k, text in item.choices.items():
+            assert (solution_set(chain(text)) == want) == (k == item.key), (item.stem, text)
+    for item in gen("ineq_system_setup"):
+        t = item.truth
+        for k, text in item.choices.items():
+            e1, e2 = text.split("\n")
+            l1, r1, rhs1 = split_rel(e1)
+            l2, r2, rhs2 = split_rel(e2)
+            ok = (
+                evaluate(l1, x=1, y=0) == evaluate(l1, x=0, y=1) == 1
+                and r1 == t["crel"]
+                and value(rhs1) == t["c"]
+                and evaluate(l2, x=1, y=0) == t["a"]
+                and evaluate(l2, x=0, y=1) == t["b"]
+                and r2 == t["mrel"]
+                and value(rhs2) == t["M"]
+            )
+            assert ok == (k == item.key), (item.stem, text)
+
+
+def test_graph_choices_only_the_key_shows_the_right_line_or_region():
+    for item in gen("graph_choices"):
+        t = item.truth
+        want = (t["m"], t["b"]) if item.level != "hard" else (t["side"], t["dashed"])
+        for k, svg in item.choices.items():
+            assert svg.startswith("<svg") and svg.count('stroke="#cfcfcf"') >= 26
+            assert (t["cells"][svg] == want) == (k == item.key)
+            if item.level == "hard":
+                assert "<polygon" in svg and (("stroke-dasharray" in svg) == t["cells"][svg][1])
+
+
+def test_function_notation_abs_value_and_points():
+    for item in gen("function_notation"):
+        t = item.truth
+        if t["kind"] == "shift":
+            for k, expr in item.choices.items():
+                ok = all(evaluate(expr, x=x) == t["a"] * (x + t["c"]) + t["b"] for x in (0, 1, 2))
+                assert ok == (k == item.key), (item.stem, expr)
+        elif t["kind"] == "scale":
+            for k, eq in item.choices.items():
+                ok = all(evaluate(rhs(eq), x=x) == t["k"] * (t["a"] * x + t["b"]) + t["d"] for x in (0, 1, 2))
+                assert ok == (k == item.key), (item.stem, eq)
+        else:
+            (a, b), (a2, b2), n = t["f"], t["g"], t["n"]
+            assert value(item.choices[item.key]) == a * (a2 * n + b2) + b
+    for item in gen("abs_value"):
+        t = item.truth
+        if item.level == "easy":
+            sols = [x for x in range(-60, 61) if abs(x - t["h"]) == t["r"]]
+            assert value(item.choices[item.key]) == sum(sols) and len(sols) == 2
+        elif item.level == "medium":
+            sols = [Fraction(n, t["a"]) for n in range(-300, 301) if abs(n + t["c"]) == t["r"]]
+            assert value(item.choices[item.key]) == max(sols)
+        else:
+            want = solution_set(lambda x, t=t: holds(t["rel"], abs(x - t["h"]), t["r"]))
+            for k, text in item.choices.items():
+                assert (solution_set(or_chain(text)) == want) == (k == item.key), (item.stem, text)
+    for item in gen("point_meaning"):
+        t = item.truth
+        key = item.choices[item.key]
+        assert "every" not in key and key.index(mm.num(t["y0"])) >= 0
+        assert sum(mm.num(t["y0"]) in c and str(t["x0"]) in c for c in item.choices.values()) == 4

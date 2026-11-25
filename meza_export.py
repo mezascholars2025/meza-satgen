@@ -24,9 +24,48 @@ def tags(explanation: str) -> dict:
             "difficulty": found.get("difficulty", ""), "subject": found.get("subject", ""), "body": body}
 
 
+_MATH = [False]  # set while a Math question is drawn: fractions are then stacked (numerator over denominator)
+
+
 def esc(text: str) -> str:
     out = html.escape(text)
-    return out.replace("&lt;u&gt;", "<u>").replace("&lt;/u&gt;", "</u>")
+    out = out.replace("&lt;u&gt;", "<u>").replace("&lt;/u&gt;", "</u>")
+    return stack_fractions(out) if _MATH[0] else out
+
+
+# A fraction part: a number (1,000 / 2.5), a number with a letter (3w), or one letter (x).
+_ATOM = r"(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]+)?[a-z]?|[a-z]"
+
+
+def frac_html(top: str, bottom: str) -> str:
+    """A vertical fraction, as the SAT prints it (Sebastian, Nov 25). Inline styles only, so it survives being
+    copied into slides; the slash and any parentheses are hidden, so if a program drops the styles the text still
+    reads "(3w + 42)/12" instead of running the numbers together."""
+    def part(x: str) -> str:
+        return f'<span style="display:none">(</span>{x}<span style="display:none">)</span>' if " " in x else x
+    return ('<span class="frac" style="display:inline-flex;flex-direction:column;align-items:center;'
+            'vertical-align:middle;line-height:1.15;margin:0 .12em;font-size:.88em">'
+            f'<span style="border-bottom:1.4px solid currentColor;padding:0 .18em">{part(top)}</span>'
+            '<span style="display:none">/</span>'
+            f'<span style="padding:0 .18em">{part(bottom)}</span></span>')
+
+
+def stack_fractions(text: str) -> str:
+    """'−1/3' -> −(1 over 3); '(2/3)x' -> (2 over 3)x; '(3w + 42)/12' -> (3w + 42 over 12); 'x/5' -> (x over 5);
+    '(17 − 9) / (3 − 1)' in an explanation -> stacked too. Plain-text data (JSON, CSV) keeps the slash."""
+    saved: list[str] = []
+
+    def keep(html_: str) -> str:
+        saved.append(html_)
+        return f"\x00{len(saved) - 1}\x00"
+
+    text = re.sub(r"\(([^()/]+)\) / \(([^()/]+)\)", lambda m: keep(frac_html(m[1], m[2])), text)
+    text = re.sub(rf"\(([^()/]+)\)/({_ATOM})(?![\w/])", lambda m: keep(frac_html(m[1], m[2])), text)
+    hide = '<span style="display:none">{}</span>'
+    text = re.sub(rf"\(({_ATOM})/({_ATOM})\)(?=[a-z(])",  # a coefficient, (2/3)x: the parentheses only show unstyled
+                  lambda m: keep(hide.format("(") + frac_html(m[1], m[2]) + hide.format(")")), text)
+    text = re.sub(rf"(?<![\w.,/])({_ATOM})/(−?(?:{_ATOM}))(?![\w/])", lambda m: keep(frac_html(m[1], m[2])), text)
+    return re.sub("\x00(\\d+)\x00", lambda m: saved[int(m[1])], text)
 
 
 def render_passage(text: str) -> str:
@@ -63,7 +102,10 @@ def render_passage(text: str) -> str:
 
 
 def show_choice(v: str) -> str:
-    """A choice that is a small Markdown table (math: "Which table gives values of x and y?") renders as a table."""
+    """A choice that is a small Markdown table (math: "Which table gives values of x and y?") renders as a table; a
+    choice that is a graph (math: "Which graph shows ...?") is an SVG drawn by meza_math and is shown as is."""
+    if v.startswith("<svg"):
+        return f'<span style="display:inline-block;vertical-align:top">{v}</span>'
     if "\n|" in v or v.startswith("|"):
         return render_passage(v).replace('<table class="data">', '<table class="data choice-table">')
     if "\n" in v:  # a system of equations: one equation per line, lined up after the letter
@@ -133,6 +175,7 @@ def build(run: Path) -> None:
     cards = []
     for i, q in enumerate(qs, 1):
         t = tags(q.get("explanation", ""))
+        _MATH[0] = t["subject"] == "Math"  # stacked fractions for math questions only
         diff = t["difficulty"].lower()
         choices = "".join(
             f'<li class="{"right" if k == q.get("answer") else ""}"><b>{k})</b> {show_choice(v)}</li>'
@@ -162,6 +205,7 @@ def build(run: Path) -> None:
     <p class="ans">Correct answer: <b>{esc(q.get('answer',''))}</b></p>{expl}</details>
 </article>""")
 
+    _MATH[0] = False
     summary = f"{len(qs)} questions" + (f" · cost ${cost:.2f}" if cost is not None else "")
     page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -183,7 +227,7 @@ main{{max-width:820px;margin:0 auto;padding:20px 16px 60px}}
 .src{{position:fixed;left:0;top:0;width:900px;opacity:0;pointer-events:none;z-index:-1;background:#fff;color:#000}}
 .passage{{border-left:3px solid var(--gold);padding-left:14px}} .passage p{{margin:0 0 8px}} .passage .title{{font-weight:700}}
 table.data{{border-collapse:collapse;margin:6px 0 12px;font-size:15px}} table.data th{{background:var(--navy);color:#fff;font-weight:400;padding:6px 10px;text-align:left}} table.data td{{border-bottom:1px solid var(--line);padding:6px 10px}}
-.stem{{font-weight:700;margin:14px 0 8px}} .choices{{list-style:none;padding:0;margin:0}} .choices li{{padding:6px 8px;border-radius:6px}} .choice-table{{display:inline-table;vertical-align:top;margin:0 0 0 6px}}
+.stem{{font-weight:700;margin:14px 0 8px}} .choices{{list-style:none;padding:0;margin:0}} .choices li{{padding:6px 8px;border-radius:6px}} .choices li:has(svg){{display:inline-block;width:49%;vertical-align:top}} .choice-table{{display:inline-table;vertical-align:top;margin:0 0 0 6px}}
 details{{margin-top:12px;background:var(--cream);border-radius:8px;padding:10px 14px}} summary{{cursor:pointer;color:var(--navy);font-weight:700}}
 details[open] ~ .x{{}} .show .choices li.right, details[open] {{}}
 body.reveal .choices li.right{{background:#e3f1e3}}

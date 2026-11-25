@@ -369,19 +369,53 @@ asking," Desmos tips) and example questions he described.
   - Graphs now also come in the full xy-plane (axes through the origin, −8 to 8, "x"/"y" and O), and two lines on a
     real-world graph get a key below it (solid and dashed). A choice that is a table or a system renders as one in
     review.html. Tests solve every system and check every choice independently.
-- **Where the answer lands (Sebastian, Nov 25).** Equation, phrase, table, and system choices: the key goes to the
-  letter used least so far in the batch (random among ties), so it is evenly spread. Number choices are listed in
-  ascending order, as on the SAT, so the letter follows from the values: the generator picks which real mistakes to
-  show so the key lands on the least-used letter it can reach. A test requires every family to use at least three
-  letters (10%+ each). Eight families still rarely put the key at D (ineq_max_word, tradeoff, word_solve,
-  system_cancel_letters, reciprocal_ratio, same_product, no_solution_k, system_times_more) because their real
-  mistakes almost all make the number bigger; how_many_solutions never uses C because "Exactly two" is never right.
-  A mixed batch is still even overall.
-- **Choices.** Numbers in ascending order, as on the SAT. A whole-number answer gets whole-number wrong choices (a
-  stray fraction stands out), except medium `expression_value`, where x itself is the trap. Keys: among the letters
-  the real mistakes can produce, each question takes the letter used least so far in the batch, so keys spread over
-  A-D without filler; a labeled near miss fills in only when fewer than three real mistakes exist (under 6% of
-  questions). About 1 in 4 questions is grid-in (student-produced response).
+- **Closing out Algebra (Sebastian, Nov 25): six more types.**
+  - `ineq_solve` (easy 4x − 8 > 12; medium a negative coefficient, so dividing flips the sign; hard a compound
+    inequality with a negative coefficient, −11 ≤ −3x + 1 < 7 → −2 < x ≤ 4, where the flip also moves which end is
+    strict). Choices: right or flipped sign (or strict end) x right or wrong value.
+  - `ineq_system_setup` (at least 10 items and at most $150 → x + y ≥ 10 and 12x + 8y ≤ 150; hard uses more than /
+    fewer than and a limit in hours or pounds to convert). Choices: count sign right or flipped x amounts right or
+    swapped / not converted.
+  - `graph_choices` (the choices are graphs: "Which graph shows y = −2x + 3?"; medium gives the line in standard form;
+    hard "Which graph shows the solutions to y ≤ (1/2)x − 2?" with shaded regions, solid or dashed). review.html
+    draws graph choices two per row. The CSV holds the SVG text for those choices.
+  - `function_notation` (f(x + 2); g(x) = 2f(x) − 1; f(g(5)) with traps g(f(5)), the product, the sum, g(5)).
+  - `abs_value` (from Sebastian's deck: sum of the solutions of |x − 4| = 7; the greater solution of |2x + 3| = 9;
+    hard |x − 5| < 3 → 2 < x < 8, a 2x2 of between/outside x strict/not strict). The SAT may count absolute value
+    under Advanced Math; it lives here because the deck teaches it with Algebra.
+  - `point_meaning` ("(4, 250) lies on the graph of f": the right roles or swapped x a value at one time or a change
+    over time; hard says f(6) = 330 instead of the point).
+- **Where the answer lands (Sebastian, Nov 25): random by default.** Every question's answer goes to the letter
+  used least so far in the batch (ties broken at random) and the wrong answers fill the other letters in random
+  order, so any letter can be the answer and a batch is evenly spread. Sebastian chose this over the SAT's habit of
+  listing numbers from least to greatest. `--order ascending` (or `CHOICE_ORDER = "ascending"`) brings back SAT order
+  for full mock tests and for practicing plugging in the choices; in that mode the letter follows from the values,
+  and eight families rarely put the key at D because their real mistakes almost all make the number bigger.
+  how_many_solutions keeps its fixed list (Zero / Exactly one / Exactly two / Infinitely many). Tests: every family
+  uses all four letters (20%+ each) in random mode, and at least three letters in ascending mode.
+- **No guessing from the choices alone (Sebastian, Nov 25; the math version of the Reading passage-free probe).** A
+  free test tried to pick the key from the four choices without the question, using patterns a test-wise student
+  might use: the choice most like the others, the odd one out, the longest or shortest, the number the others are a
+  slip away from (sign, flip, ±1, ×/÷2, ×/÷10), the middle, smallest, or largest number. About 15 of 62 types beat
+  chance (25%) by a lot: graph_slope and rate_total_function 100%, table_equation 98%, unit_conversion_function
+  74%, ineq_fence_range 69%, because each wrong answer was the key with one thing changed, so the key sat in the
+  middle of the group. Fixes: (1) `least_telling` picks, from all the real mistakes, the three that give the key away
+  least (`tell_score`); (2) `grid2` builds the choices as a 2x2 of two decisions (direction x amount, slope x
+  intercept, divide x swap, this object x the other, ...), so every choice shares one part with two others; (3)
+  when a real mistake is a plain slip of the answer (sign, decimal point, factor of 2, flip), the same slip on top of
+  another mistake is offered as a double mistake, so the wrong answers pair up with each other. Result: every type
+  at 50% or less on every rule (most about 25-35%). `test_answers_cannot_be_guessed_from_the_choices_alone` keeps it
+  there (55% limit for sampling noise). Also found by this work: a payment item could have equal one-time and
+  repeated amounts, which made the swapped choice true (fixed).
+- **Fractions print vertically (Sebastian, Nov 25)**, as on the SAT and because they are easier to read. The data
+  (questions.json, CSV) keeps plain text ("−1/3", "(2/3)x", "(3w + 42)/12"); `meza_export.stack_fractions` draws
+  them stacked in review.html and the copy-for-slides block, for Math questions only. The slash and any parentheses
+  are kept as hidden text, so a program that drops the styles still shows "(3w + 42)/12", never "3w + 4212". The
+  portal will need the same treatment (for example KaTeX) when the questions move there.
+- **Choices.** A whole-number answer gets whole-number wrong choices (a stray fraction stands out), except medium
+  `expression_value`, where x itself is the trap. The three most common real mistakes are shown; a labeled near miss
+  fills in only when fewer than three real mistakes exist (under 5% of questions). About 1 in 4 questions is grid-in
+  (student-produced response).
 - **Stories.** Word problems get 4-5 sentences about a named person in a rotating setting (trucker, food bank
   volunteer, print shop, warehouse, baker, farmworker; a batch uses every setting before repeating). The writer model
   (Sonnet; MEZA_MATH_WRITER) wraps the fixed numbers; code checks that every planned number appears exactly once, in
@@ -391,6 +425,11 @@ asking," Desmos tips) and example questions he described.
   no API calls); AI stories only with `--ai-stories` (Sebastian, Nov 25: work on the generator, not on generating
   batches, to save API credits; test changes offline). First runs: 15 of 16 stories passed on the
   first try. Runs: `runs/math-first`, `runs/math-stories`.
+  Cost (Nov 25 test, 30 questions spread over every topic, 4 of them word problems): 4 Sonnet calls and 12 Haiku
+  calls, $0.0154 in all; all 4 AI stories passed on the first try. A run with `--ai-stories` prints its token use and
+  dollar cost and writes `usage.json` (prices in `PRICES`, per million tokens: Sonnet 5.5 $2 in / $10 out, Haiku 5.5
+  $0.10 / $0.50). Batches shuffle the family order and start each family at a random level, so a 30-question run
+  samples every topic and mixes easy, medium, and hard instead of taking the first 30 families at their first level.
 
 ## Source rule (Sebastian, Nov 24; do not break)
 
@@ -443,9 +482,10 @@ Audit decisions (Nov 24):
 
 - Math: solving a formula for one variable ("A = ½h(b + c); which equation gives h?") belongs with Advanced Math
   (equivalent expressions), per Sebastian; build it there.
-- Math: graphs need image support in the portal when questions move there (the review page shows the SVG).
-- Math: the rest of Algebra from his deck (absolute value, function notation and composite functions), then the
-  other math domains. He describes question types; Claude builds them in code and tests offline
+- Math: graphs need image support in the portal when questions move there (the review page shows the SVG), and
+  fractions need to be stacked there too (the data stores them as "a/b").
+- Math: Algebra is closed out (Nov 25); next, the other math domains (Advanced Math, Problem-Solving and Data
+  Analysis, Geometry and Trigonometry). He describes question types; Claude builds them in code and tests offline
   (no API batches).
 
 - **Trap labels (proposed, not built):** a Words in Context trap list (most common meaning, other real meaning,
