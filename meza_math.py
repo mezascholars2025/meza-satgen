@@ -1607,6 +1607,7 @@ def word_solve(rng: random.Random, level: str, fmt: str) -> MathItem:
             ((T + F) / r, f"this adds the {money(F)} instead of subtracting it"),
             (T - F, f"this stops before dividing by {money(r)}"),
             (Fraction(fee_units), f"this divides the {money(F)} by {money(r)}"),
+            (T / (r + F), f"this adds the {money(F)} to the cost of each unit"),
         ]
         steps = [
             f"Subtract the fixed {money(F)}: {money(T)} {MINUS} {money(F)} = {money(T - F)}.",
@@ -1677,7 +1678,7 @@ def word_solve(rng: random.Random, level: str, fmt: str) -> MathItem:
                 + (f"; the length is {w} + {more} = {L_}." if ask == "length" else "."),
             ]
         )
-        item = MathItem("word_solve", SKILL, level, fmt, f"{setup} {question}", Fraction(ans), steps, mistakes[:3])
+        item = MathItem("word_solve", SKILL, level, fmt, f"{setup} {question}", Fraction(ans), steps, mistakes)
         item.story = dict(
             kind="setup",
             level=level,
@@ -2680,7 +2681,10 @@ def function_change(rng: random.Random, level: str, fmt: str) -> MathItem:
         (ans + f["shown"], f"this adds {dec(f['shown'])}, a constant that cancels when you subtract two outputs"),
         (d + f["shown"], f"this adds {dec(f['shown'])} to the change in the input"),
         (m, "this is the change for an increase of 1, not of " + str(d)),
+        (Fraction(d, m.denominator), f"this divides by {m.denominator} but leaves out the {m.numerator} in the rate"),
+        (Fraction(d * m.numerator), f"this multiplies by {m.numerator} but does not divide by {m.denominator}"),
     ]
+    mistakes = [(v, w) for v, w in mistakes if not (m.numerator == 1 and "leaves out the 1" in w) and v != ans]
     mistakes = [(v, w) for v, w in mistakes if terminating(v)]
     steps = [
         f"The output changes by the slope, {dec(m)}, for each 1 the input increases; the constant terms cancel.",
@@ -3249,6 +3253,7 @@ def two_lines_graph(rng: random.Random, level: str, fmt: str) -> MathItem:
             (xi - xs, "this reads one grid line too far to the left"),
             (b2 - b1, "this is the difference between the two starting values"),
             ((b2 - b1) / m1, f"this is when {said[0]} reaches the starting value of {said[1]}"),
+            (m1 - m2, f"this is how many more {f['yu']} per {f['per']} {said[0]} gains, not a time"),
         ]
         steps = [f"The two lines cross at ({dec(xi)}, {dec(yi)}).", f"So {f['what']} {dec(xi)} {f['when']}."]
     else:
@@ -5019,6 +5024,10 @@ def ineq_max_word(rng: random.Random, level: str, fmt: str) -> MathItem:
             (Fraction(B // a), f"this leaves out the {y} binders"),
             (Fraction(left // b), f"this divides by ${b}, the price of a binder"),
             (Fraction(B // a) - y, f"this subtracts {y} notebooks instead of the cost of {y} binders"),
+            (
+                ans - 1,
+                f"{num(ans - 1)} notebooks fit the budget, but so do {num(ans)}; the question asks for the greatest",
+            ),
         ]
         steps = [
             f"{coef(a)} + {b}({y}) ≤ {B}, so {coef(a)} ≤ {left} and x ≤ {num(Fraction(left, a))}.",
@@ -5045,6 +5054,7 @@ def ineq_max_word(rng: random.Random, level: str, fmt: str) -> MathItem:
             (Fraction(math.floor(Fraction(B) / r)), f"this leaves out the {show(F_)} at the start"),
             (Fraction(math.floor(Fraction(B + F_) / r)), f"this adds the {show(F_)} instead of subtracting it"),
             (Fraction(math.floor(Fraction(B) / (r + F_))), f"this adds the {show(F_)} to the cost of each one"),
+            (ans - 1, f"{num(ans - 1)} fits the limit, but so does {num(ans)}; the question asks for the greatest"),
         ]
         rel = "≤"
     else:
@@ -5054,6 +5064,7 @@ def ineq_max_word(rng: random.Random, level: str, fmt: str) -> MathItem:
             (Fraction(math.ceil(Fraction(B) / r)), f"this leaves out the {show(F_)} already there"),
             (Fraction(math.ceil(Fraction(B + F_) / r)), f"this adds the {show(F_)} instead of subtracting it"),
             (Fraction(math.ceil(Fraction(B) / (r + F_))), f"this adds the {show(F_)} to the amount for each one"),
+            (ans + 1, f"{num(ans + 1)} reaches the goal, but so does {num(ans)}; the question asks for the least"),
         ]
         rel = "≥"
     steps = [
@@ -5397,6 +5408,341 @@ def ineq_fence_range(rng: random.Random, level: str, fmt: str) -> MathItem:
     return item
 
 
+# ------------------------------------------------------- two variables and inequalities: more (Sebastian, Nov 25)
+
+
+def pos_axby(A, B, C) -> str:
+    """axby with a positive x-coefficient (−10x + 6y = 11 is written 10x − 6y = −11)."""
+    return axby(-A, -B, -C) if A < 0 else axby(A, B, C)
+
+
+def _pt(x, y) -> str:
+    return f"({num(x)}, {num(y)})"
+
+
+def intercepts_std(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """Easy: 'What is the x-intercept of the graph of 3x + 4y = 24 in the xy-plane?' (8, 0). Medium: the
+    y-intercept, with a negative y-coefficient (5x − 2y = 20 gives (0, −10)). Hard: 'The graph of kx + 3y = 24 has an
+    x-intercept at (6, 0). What is the value of k?' Traps: the other intercept, dividing by the wrong coefficient,
+    the sign, forgetting to divide."""
+    while True:
+        A, B = rng.randint(2, 9), rng.choice(nz(-9, 9))
+        if abs(B) > 1 and A != abs(B):
+            break
+    C = A * abs(B) * rng.choice([1, 2])
+    xi, yi = Fraction(C, A), Fraction(C, B)
+    eq = axby(A, B, C)
+    if level == "hard":
+        k_ = A
+        stem = (
+            f"In the xy-plane, the graph of kx {'+' if B > 0 else MINUS} {coef(abs(B), 'y')} = {num(C)}, where k "
+            f"is a constant, has an x-intercept at {_pt(xi, 0)}. What is the value of k?"
+        )
+        ans = Fraction(k_)
+        mistakes = [
+            (yi if yi > 0 else -yi, f"this divides {num(C)} by {num(B)}, the y-coefficient"),
+            (Fraction(C) - xi, f"this subtracts {num(xi)} instead of dividing"),
+            (xi, "this is the x-intercept itself, not k"),
+            (Fraction(C) * xi, "this multiplies instead of dividing"),
+        ]
+        steps = [f"At {_pt(xi, 0)}, y = 0, so k({num(xi)}) = {num(C)}.", f"So k = {num(C)} ÷ {num(xi)} = {num(ans)}."]
+        item = MathItem("intercepts_std", TWO_SKILL, level, fmt, stem, ans, steps, mistakes)
+        item.truth = {"A": A, "B": B, "C": C}
+        return item
+    ask_x = level == "easy"
+    stem = f"What is the {'x' if ask_x else 'y'}-intercept of the graph of {eq} in the xy-plane?"
+    key = _pt(xi, 0) if ask_x else _pt(0, yi)
+    wrong = [
+        ((0, yi) if ask_x else (xi, 0), f"this is the {'y' if ask_x else 'x'}-intercept"),
+        ((Fraction(C, B), 0) if ask_x else (0, Fraction(C, A)), "this divides by the wrong coefficient"),
+        ((-xi, 0) if ask_x else (0, -yi), "this has the wrong sign"),
+        ((C, 0) if ask_x else (0, C), f"this forgets to divide by the {'x' if ask_x else 'y'}-coefficient"),
+    ]
+    mistakes, seen = [], {key}
+    for (px, py), w in wrong:
+        t = _pt(px, py)
+        if t not in seen and Fraction(px).denominator == 1 and Fraction(py).denominator == 1:
+            seen.add(t)
+            mistakes.append((t, w))
+    steps = [
+        f"The {'x' if ask_x else 'y'}-intercept is where {'y' if ask_x else 'x'} = 0.",
+        (
+            f"{coef(A)} = {num(C)}, so x = {num(xi)}: {key}."
+            if ask_x
+            else f"{coef(B, 'y')} = {num(C)}, so y = {num(yi)}: {key}."
+        ),
+    ]
+    item = MathItem("intercepts_std", TWO_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
+    item.truth = {"A": A, "B": B, "C": C}
+    return item
+
+
+def point_on_line(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """Easy: 'Which point lies on the graph of y = 3x − 4 in the xy-plane?' Medium: the line is in standard form
+    (3x − 2y = 12). Hard: 'The point (k, 5) lies on the line 4x − 3y = 9. What is the value of k?' Traps: the point's
+    coordinates swapped, a sign flipped, a point on the line with the y-coefficient's sign flipped."""
+    if level == "hard":
+        while True:
+            A, B = rng.randint(2, 7), rng.choice(nz(-7, 7))
+            k_, y0 = rng.choice(nz(-8, 9)), rng.choice(nz(-8, 9))
+            if abs(B) > 1 and A != abs(B) and k_ != y0:
+                break
+        C = A * k_ + B * y0
+        stem = f"The point ({'k'}, {num(y0)}) lies on the line {axby(A, B, C)} in the xy-plane. What is the value of k?"
+        ans = Fraction(k_)
+        mistakes = [
+            (Fraction(C + B * y0, A), f"this moves {coef(B, 'y')} to the other side with the wrong sign"),
+            (Fraction(C, A), f"this leaves out the {coef(B, 'y')} term"),
+            (Fraction(C - A * y0, B), "this puts the y-value in for x and solves for y instead"),
+            (Fraction(C - B * y0), f"this stops before dividing by {A}"),
+            (-ans, "this has the wrong sign"),
+        ]
+        steps = [
+            f"Substitute y = {num(y0)}: {num(A)}k {plus(B * y0)} = {num(C)}".replace("k  ", "k ") + ".",
+            f"So {num(A)}k = {num(C - B * y0)} and k = {num(ans)}.",
+        ]
+        item = MathItem("point_on_line", TWO_SKILL, level, fmt, stem, ans, steps, mistakes, positive_only=False)
+        item.truth = {"A": A, "B": B, "C": C, "y0": y0}
+        return item
+    while True:
+        if level == "easy":
+            m, b = Fraction(rng.choice(nz(-4, 4))), rng.choice(nz(-6, 6))
+            x0 = rng.choice(nz(-4, 4))
+        else:
+            m = Fraction(rng.choice(nz(-4, 4)), rng.choice([2, 3]))
+            b = rng.choice(nz(-6, 6))
+            x0 = m.denominator * rng.choice(nz(-3, 3))
+        y0 = m * x0 + b
+        if abs(x0) != abs(y0) and y0 and abs(m) != 1 and m.denominator <= 3:
+            break
+    if level == "easy":
+        eq = f"y = {linf(m, b)}"
+
+        def on(x, y):
+            return y == m * x + b
+    else:
+        A, B, C = -m.numerator, m.denominator, b * m.denominator
+        if A < 0:
+            A, B, C = -A, -B, -C
+        eq = axby(A, B, C)
+
+        def on(x, y):
+            return A * x + B * y == C
+
+    stem = f"Which point lies on the graph of {eq} in the xy-plane?"
+    key = _pt(x0, y0)
+    cands = [
+        ((y0, x0), "this swaps the x- and y-coordinates"),
+        ((x0, -y0), "this has the wrong sign on y"),
+        ((-x0, y0), "this has the wrong sign on x"),
+        ((x0, -m * x0 + b), "this point is on the line with the slope's sign flipped"),
+        ((x0, m * x0 - b), "this point uses the y-intercept with the wrong sign"),
+    ]
+    mistakes, seen = [], {key}
+    for (px, py), w in cands:
+        t = _pt(px, py)
+        if t not in seen and not on(px, py) and Fraction(py).denominator == 1:
+            seen.add(t)
+            mistakes.append((t, w))
+    steps = [f"Substitute each point into {eq}.", f"Only {key} makes the equation true."]
+    item = MathItem("point_on_line", TWO_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
+    item.truth = {"m": m, "b": b}
+    return item
+
+
+def line_two_points(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'A line passes through the points (2, 5) and (6, 13) in the xy-plane. Which equation defines the line?'
+    Medium: negative coordinates and a fraction slope. Hard: 'What is the y-intercept of the line?' (a number). Traps:
+    run over rise, subtracting in mixed order (the sign), the first point's y-value as the y-intercept."""
+    while True:
+        m = Fraction(rng.choice(nz(-4, 4)), 1 if level == "easy" else rng.choice([1, 2, 3]))
+        b = rng.choice(nz(-8, 8))
+        x1 = m.denominator * rng.choice(range(-3, 4) if level != "easy" else range(0, 3))
+        x2 = x1 + m.denominator * rng.choice([1, 2, 3])
+        y1, y2 = m * x1 + b, m * x2 + b
+        if abs(m) != 1 and b != y1 and b != -b + 2 * y1 and 0 not in (x1, x2) and y1 != 0:
+            break
+    p1, p2 = _pt(x1, y1), _pt(x2, y2)
+    steps = [
+        f"Slope: ({num(y2)} {MINUS} {par(y1)}) ÷ ({num(x2)} {MINUS} {par(x1)}) = {num(m)}.",
+        f"Use {p1}: {num(y1)} = {par(m)}({num(x1)}) + b, so b = {num(b)}.",
+    ]
+    if level == "hard":
+        stem = f"A line in the xy-plane passes through the points {p1} and {p2}. What is the y-intercept of the line?"
+        stem = stem.replace("What is the y-intercept", "What is the y-coordinate of the y-intercept")
+        ans = Fraction(b)
+        mistakes = [
+            (Fraction(y1), "this is the first point's y-value"),
+            (y1 + m * x1, "this adds the slope times x instead of subtracting it"),
+            (y1 - x1 / m, "this uses the slope flipped (run over rise)"),
+            (m, "this is the slope, not the y-intercept"),
+        ]
+        item = MathItem(
+            "line_two_points", TWO_SKILL, level, fmt, stem, ans, steps, mistakes, positive_only=False, fractions_ok=True
+        )
+        item.truth = {"m": m, "b": b, "pts": ((x1, y1), (x2, y2))}
+        return item
+    stem = f"A line in the xy-plane passes through the points {p1} and {p2}. Which equation defines the line?"
+    key = f"y = {linf(m, b)}"
+    mistakes = [
+        (f"y = {linf(1 / m, y1 - x1 / m)}", "this uses run over rise for the slope"),
+        (f"y = {linf(-m, y1 + m * x1)}", "this subtracts the coordinates in mixed order, so the slope's sign is wrong"),
+        (f"y = {linf(m, y1)}", f"this uses {num(y1)}, the first point's y-value, as the y-intercept"),
+        (f"y = {linf(m, y1 + m * x1)}", "this adds the slope times x instead of subtracting it"),
+    ]
+    item = MathItem("line_two_points", TWO_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key)
+    item.truth = {"m": m, "b": b, "pts": ((x1, y1), (x2, y2))}
+    return item
+
+
+def parallel_lines(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'Which line is parallel to y = 3x − 4?' Easy: slope-intercept choices. Medium: the given line in standard form
+    (2x + 5y = 10), choices in y = mx + b. Hard: everything in standard form ('Which line is parallel to
+    4x − 6y = 9?': 6x − 9y = 2). Traps: the perpendicular slope, the slope's sign flipped, the coefficients swapped,
+    the same line (not parallel: it is the line itself)."""
+    while True:
+        m = Fraction(rng.choice(nz(-5, 5)), 1 if level == "easy" else rng.choice([2, 3, 4, 5]))
+        b = rng.choice(nz(-8, 8))
+        if abs(m) != 1 and m.denominator <= 5 and abs(m.numerator) != m.denominator:
+            break
+    b2 = rng.choice([v for v in nz(-9, 9) if v != b])
+    if level != "hard":
+        given = f"y = {linf(m, b)}" if level == "easy" else std_form(m.numerator, m.denominator, b)
+        stem = f"In the xy-plane, which line is parallel to the line {given}?"
+        key = f"y = {linf(m, b2)}"
+        mistakes = [
+            (f"y = {linf(-1 / m, b2)}", "this slope is the negative reciprocal: that line is perpendicular"),
+            (f"y = {linf(-m, b2)}", "this slope has the wrong sign"),
+            (f"y = {linf(1 / m, b2)}", "this slope is flipped"),
+            (f"y = {linf(-m, b)}", "this slope has the wrong sign (the same y-intercept doesn't make it parallel)"),
+        ]
+        steps = [
+            f"The given line has slope {num(m)}" + (f" (solve {given} for y)." if level == "medium" else "."),
+            f"Parallel lines have the same slope and different y-intercepts, so {key}.",
+        ]
+    else:
+        A, Bc = -m.numerator, m.denominator  # −px + qy has slope p/q
+        if A < 0:
+            A, Bc = -A, -Bc
+        given_c = rng.choice(nz(-12, 12))
+        k = rng.choice([Fraction(3, 2), Fraction(2), Fraction(3), Fraction(1, 2)])
+        A2, B2 = A * k, Bc * k
+        while A2.denominator > 1 or B2.denominator > 1:
+            k = Fraction(2)
+            A2, B2 = A * k, Bc * k
+        c2 = rng.choice([v for v in nz(-15, 15) if Fraction(v) != given_c * k])
+        given = axby(A, Bc, given_c)
+        stem = f"In the xy-plane, which line is parallel to the line {given}?"
+        key = axby(A2, B2, c2)
+        mistakes = [
+            (pos_axby(A2, -B2, c2), "this flips the sign of the y-coefficient, which changes the slope's sign"),
+            (pos_axby(B2, A2, c2), "this swaps the x- and y-coefficients"),
+            (pos_axby(A2 * 2, B2, c2), "this changes only the x-coefficient, so the slope changes"),
+            (pos_axby(abs(B2), -A2 if B2 > 0 else A2, c2), "this line is perpendicular"),
+        ]
+        steps = [
+            f"The given line has slope {num(m)} (solve for y: y = {linf(m, Fraction(given_c, Bc))}).",
+            f"{key} has the same ratio of coefficients, so the same slope, and a different constant, so it is "
+            "parallel (not the same line).",
+        ]
+    seen, out = {key}, []
+    for t, w in mistakes:
+        if t not in seen:
+            seen.add(t)
+            out.append((t, w))
+    item = MathItem("parallel_lines", TWO_SKILL, level, "mcq", stem, Fraction(0), steps, out, key_text=key)
+    item.truth = {"m": m, "given": given}
+    return item
+
+
+def ineq_system_graph(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """A system of two inequalities graphed in the xy-plane: two shaded half-planes (the solutions are where the
+    shading overlaps), one boundary solid and one dashed. 'Which point (x, y) is a solution to the system of
+    inequalities shown?' Hard: 'Which system of inequalities is shown?' (the choices are systems). Traps: a point in
+    only one shaded region, a point on the dashed boundary, the signs backward."""
+    while True:
+        m1, m2 = Fraction(rng.choice(nz(-3, 3))), Fraction(rng.choice(nz(-3, 3)), rng.choice([1, 2]))
+        b1, b2 = rng.choice(nz(-4, 4)), rng.choice(nz(-4, 4))
+        s1, s2 = rng.choice(["above", "below"]), rng.choice(["above", "below"])
+        if m1 == m2 or abs(m1) == abs(m2):
+            continue
+        r1 = "≥" if s1 == "above" else "≤"  # solid
+        r2 = ">" if s2 == "above" else "<"  # dashed
+
+        def ok1(x, y, r=r1, m=m1, b=b1):
+            return _holds(r, y, m * x + b)
+
+        def ok2(x, y, r=r2, m=m2, b=b2):
+            return _holds(r, y, m * x + b)
+
+        pts = [(x, y) for x in range(-6, 7) for y in range(-6, 7)]
+        both = [p_ for p_ in pts if ok1(*p_) and ok2(*p_)]
+        only = [p_ for p_ in pts if ok1(*p_) != ok2(*p_)]
+        on_dash = [(x, y) for x, y in pts if y == m2 * x + b2 and ok1(x, y)]
+        if len(both) >= 6 and len(only) >= 4 and on_dash:
+            break
+    fig = graph_svg(
+        "x",
+        "y",
+        1,
+        8,
+        1,
+        8,
+        lines=[(m1, b1), (m2, b2)],
+        label_every=(2, 2),
+        x_lo=8,
+        y_lo=8,
+        plane=True,
+        shade=[(m1, b1, s1), (m2, b2, s2)],
+        dashed=(1,),
+    )
+    e1, e2 = f"y {r1} {linf(m1, b1)}", f"y {r2} {linf(m2, b2)}"
+    if level == "hard":
+        stem = "Which system of inequalities is represented by the graph shown?"
+        key = f"{e1}\n{e2}"
+        mistakes = [
+            (f"y {FLIP[r1]} {linf(m1, b1)}\n{e2}", "this has the first sign backward"),
+            (f"{e1}\ny {FLIP[r2]} {linf(m2, b2)}", "this has the second sign backward"),
+            (
+                f"y {LOOSE[r1]} {linf(m1, b1)}\ny {LOOSE[r2]} {linf(m2, b2)}",
+                "this mixes up the solid line (≤ or ≥) and the dashed line (< or >)",
+            ),
+            (f"y {FLIP[r1]} {linf(m1, b1)}\ny {FLIP[r2]} {linf(m2, b2)}", "this has both signs backward"),
+        ]
+        steps = [
+            f"Solid line y = {linf(m1, b1)}, shaded {s1}: {e1}.",
+            f"Dashed line y = {linf(m2, b2)}, shaded {s2}: {e2}.",
+        ]
+    else:
+        stem = "Which point (x, y) is a solution to the system of inequalities shown?"
+        key_pt = rng.choice(both)
+        key = _pt(*key_pt)
+        picks = [(rng.choice(on_dash), "this point is on the dashed line, which is not part of the solution")]
+        in1 = [p_ for p_ in only if ok1(*p_)]
+        in2 = [p_ for p_ in only if ok2(*p_)]
+        if in1:
+            picks.append((rng.choice(in1), "this point is in only the region shaded for the solid line"))
+        if in2:
+            picks.append((rng.choice(in2), "this point is in only the region shaded for the dashed line"))
+        while len(picks) < 3:
+            picks.append((rng.choice(only), "this point is in only one of the shaded regions"))
+        mistakes, seen = [], {key}
+        for pt, w in picks:
+            while _pt(*pt) in seen:
+                pt = rng.choice(only)
+            seen.add(_pt(*pt))
+            mistakes.append((_pt(*pt), w))
+        steps = [
+            f"The solutions are where both shaded regions overlap: {e1} and {e2}.",
+            f"Points on the dashed line are not included. Only {key} is in the overlap.",
+        ]
+    item = MathItem(
+        "ineq_system_graph", INEQ_SKILL, level, "mcq", stem, Fraction(0), steps, mistakes, key_text=key, figure=fig
+    )
+    item.truth = {"lines": [(m1, b1, r1), (m2, b2, r2)]}
+    return item
+
+
 FAMILY_LEVELS = {
     "expression_value": LEVELS,
     "linear_rate": LEVELS,
@@ -5456,6 +5802,11 @@ FAMILY_LEVELS = {
     "ineq_graph": LEVELS,
     "ineq_system_points": ("medium", "hard"),
     "ineq_fence_range": ("medium", "hard"),
+    "intercepts_std": LEVELS,
+    "point_on_line": LEVELS,
+    "line_two_points": LEVELS,
+    "parallel_lines": LEVELS,
+    "ineq_system_graph": LEVELS,
 }
 
 FAMILIES = {
@@ -5517,6 +5868,11 @@ FAMILIES = {
     "ineq_graph": ineq_graph,
     "ineq_system_points": ineq_system_points,
     "ineq_fence_range": ineq_fence_range,
+    "intercepts_std": intercepts_std,
+    "point_on_line": point_on_line,
+    "line_two_points": line_two_points,
+    "parallel_lines": parallel_lines,
+    "ineq_system_graph": ineq_system_graph,
 }
 
 

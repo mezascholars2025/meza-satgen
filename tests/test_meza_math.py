@@ -771,3 +771,90 @@ def test_fence_range_key_matches_the_constraints():
         for k, text in item.choices.items():
             test = chain(text)
             assert ([test(x) for x in grid] == truth) == (k == item.key), (item.stem, text)
+
+
+# ------------------------------------------- intercepts, points on lines, two points, parallel lines, graphed systems
+
+
+def pair_of(text: str) -> tuple[Fraction, Fraction]:
+    x, y = (value(v) for v in text.strip("()").split(", "))
+    return x, y
+
+
+def on_eq(eq: str, x, y, **consts) -> bool:
+    left, right = sides(eq)
+    return evaluate(left, x=x, y=y, **consts) == evaluate(right, x=x, y=y, **consts)
+
+
+def test_intercepts_and_points_on_lines():
+    for item in gen("intercepts_std"):
+        if item.level == "hard":
+            eq = re.search(r"graph of (.+?), where k", item.stem).group(1)
+            xi = value(re.search(r"x-intercept at \((−?[\d,]+), 0\)", item.stem).group(1))
+            for k, text in item.choices.items():
+                assert on_eq(eq, xi, 0, k=value(text)) == (k == item.key), (eq, text)
+        else:
+            eq = re.search(r"graph of (.+) in the xy-plane", item.stem).group(1)
+            axis = "x" if "x-intercept" in item.stem else "y"
+            for k, text in item.choices.items():
+                x, y = pair_of(text)
+                ok = on_eq(eq, x, y) and (y == 0 if axis == "x" else x == 0)
+                assert ok == (k == item.key), (eq, text)
+    for item in gen("point_on_line"):
+        if item.level == "hard":
+            eq = re.search(r"lies on the line (.+) in the xy-plane", item.stem).group(1)
+            y0 = value(re.search(r"\(k, (−?\d+)\)", item.stem).group(1))
+            for k, text in item.choices.items():
+                assert on_eq(eq, value(text), y0) == (k == item.key), (eq, text)
+        else:
+            eq = re.search(r"graph of (.+) in the xy-plane", item.stem).group(1)
+            for k, text in item.choices.items():
+                assert on_eq(eq, *pair_of(text)) == (k == item.key), (eq, text)
+
+
+def test_line_through_two_points_and_parallel_lines():
+    for item in gen("line_two_points"):
+        (x1, y1), (x2, y2) = (pair_of(p) for p in re.findall(r"\(−?\d+, −?\d+\)", item.stem))
+        m = (y2 - y1) / (x2 - x1)
+        if item.level == "hard":
+            assert value(item.choices[item.key]) == y1 - m * x1
+            assert sum(value(c) == y1 - m * x1 for c in item.choices.values()) == 1
+        else:
+            for k, eq in item.choices.items():
+                assert (on_eq(eq, x1, y1) and on_eq(eq, x2, y2)) == (k == item.key), eq
+    for item in gen("parallel_lines"):
+        given = re.search(r"parallel to the line (.+)\?$", item.stem).group(1)
+        A, B, C = line_of(given)
+        for k, eq in item.choices.items():
+            a, b, c = line_of(eq)
+            parallel = a * B == A * b and not (a * C == A * c and b * C == B * c)
+            assert parallel == (k == item.key), (given, eq)
+
+
+def test_graphed_system_of_inequalities():
+    for item in gen("ineq_system_graph"):
+        (m1, b1, r1), (m2, b2, r2) = item.truth["lines"]
+        assert item.figure.count("<polygon") == 2 and "stroke-dasharray" in item.figure
+        if item.level == "hard":
+            for k, text in item.choices.items():
+                e1, e2 = text.split("\n")
+                same = split_rel(e1)[1] == r1 and split_rel(e2)[1] == r2
+                assert line_of(e1.replace(r1 if same else split_rel(e1)[1], "=")) == line_of(f"y = {mm.linf(m1, b1)}")
+                assert same == (k == item.key), text
+        else:
+            for k, text in item.choices.items():
+                x, y = pair_of(text)
+                ok = holds(r1, y, m1 * x + b1) and holds(r2, y, m2 * x + b2)
+                assert ok == (k == item.key), text
+
+
+def test_every_family_spreads_its_key_over_at_least_three_letters():
+    for name, fam in mm.FAMILIES.items():
+        used: dict[str, int] = {}
+        for seed in range(120):
+            rng = random.Random(seed)
+            for level in mm.FAMILY_LEVELS[name]:
+                fam(rng, level, "mcq").build_choices(rng, used)
+        total = sum(used.values())
+        shares = sorted(used.get(k, 0) / total for k in "ABCD")
+        assert shares[1] >= 0.1, (name, used)  # three letters at 10% or more each

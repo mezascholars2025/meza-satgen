@@ -360,9 +360,23 @@ asking," Desmos tips) and example questions he described.
     0 < x ≤ 18; hard adds "area at least / more than 200 square yards": 6.25 ≤ x ≤ 18. Traps fence each side once,
     count one side once, use the wrong kind of inequality at the area limit, or drop the area limit).
   - graph_svg shades a half-plane (shade=[(m, b, "above")]) and draws strict boundaries dashed (dashed=(0,)).
+  - `ineq_system_graph` (two shaded half-planes, one solid and one dashed boundary, darker where they overlap: which
+    point is a solution? hard: which system is shown?).
+- More two-variable types (Nov 25): `intercepts_std` (x- or y-intercept of 3x + 4y = 24; hard: find k from the
+  x-intercept), `point_on_line` (which point lies on the line; hard: (k, 5) lies on 4x − 3y = 9), `line_two_points`
+  (the line through two points; hard: its y-intercept), `parallel_lines` (which line is parallel; hard all in
+  standard form, where flipping the y-coefficient's sign or swapping coefficients are the traps).
   - Graphs now also come in the full xy-plane (axes through the origin, −8 to 8, "x"/"y" and O), and two lines on a
     real-world graph get a key below it (solid and dashed). A choice that is a table or a system renders as one in
     review.html. Tests solve every system and check every choice independently.
+- **Where the answer lands (Sebastian, Nov 25).** Equation, phrase, table, and system choices: the key goes to the
+  letter used least so far in the batch (random among ties), so it is evenly spread. Number choices are listed in
+  ascending order, as on the SAT, so the letter follows from the values: the generator picks which real mistakes to
+  show so the key lands on the least-used letter it can reach. A test requires every family to use at least three
+  letters (10%+ each). Eight families still rarely put the key at D (ineq_max_word, tradeoff, word_solve,
+  system_cancel_letters, reciprocal_ratio, same_product, no_solution_k, system_times_more) because their real
+  mistakes almost all make the number bigger; how_many_solutions never uses C because "Exactly two" is never right.
+  A mixed batch is still even overall.
 - **Choices.** Numbers in ascending order, as on the SAT. A whole-number answer gets whole-number wrong choices (a
   stray fraction stands out), except medium `expression_value`, where x itself is the trap. Keys: among the letters
   the real mistakes can produce, each question takes the letter used least so far in the batch, so keys spread over
@@ -433,9 +447,6 @@ Audit decisions (Nov 24):
 - Math: the rest of Algebra from his deck (absolute value, function notation and composite functions), then the
   other math domains. He describes question types; Claude builds them in code and tests offline
   (no API batches).
-- Math: more two-variable and systems types worth adding: the x- and y-intercepts of ax + by = c, which point lies on
-  a line, the line through two points, parallel lines (same slope, the system has no solution), and a graphed system
-  of inequalities (two shaded regions overlapping; "which point is in the solution region?").
 
 - **Trap labels (proposed, not built):** a Words in Context trap list (most common meaning, other real meaning,
   wrong connotation, wrong degree, reversal, borrowed from elsewhere in the passage, grammatical but imprecise);
