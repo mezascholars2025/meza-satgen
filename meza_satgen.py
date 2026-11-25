@@ -39,10 +39,11 @@ from meza_quality import (PROBE_TYPES, base_type, describe, difficulty_of, featu
                           probe_votes, rhythm_check, vocab_used)
 from meza_quality import FOCUS_CRITIC_PROMPT, FOCUS_CRITIC_SYSTEM, fingerprint, focus_problems
 from meza_quality import (TRAP_CRITIC_PROMPT, TRAP_CRITIC_SYSTEM, TSP_BANDS, TSP_TRAPS, TSP_TYPES, TSP_VERBS,
-                          advanced_in, choice_mix_problems, lead_verb, trap_critic_problems, trap_label_problems,
+                          lead_verb, trap_critic_problems, trap_label_problems)
+from meza_quality import (advanced_in, central_stem_kind, choice_mix_problems, detail_stem_family, leadin_kinds,
                           word_tier)
 from satgen import cli, pipeline
-from satgen.answers import normalize_spr
+from satgen.answers import CHOICES, normalize_spr
 from satgen.llm import SimulatedClient
 from satgen.models import MCQ, SPR, Question
 
@@ -66,9 +67,9 @@ INFORMATIONAL_STAND_IN = (
 # Types whose passages may be literary excerpts. Every other type gets an informational
 # passage, so a literary slot becomes literature studies for it.
 EXCERPT_OK = (
-    "details", "central_ideas", "inferences", "words_in_context", "text_structure",
+    "details", "central_ideas", "words_in_context", "text_structure",
     "cross_text_connections",
-)
+)  # not inferences: a review of 21 real inference items found no literary excerpts
 
 SUBJECT_LINE = (
     "\n\nREQUIRED SUBJECT AREA FOR THIS QUESTION: {subject}.\n"
@@ -156,6 +157,245 @@ def clue_plan(count: int, seed: int) -> list[int]:
     return plan[:count]
 
 
+# Main idea items: the stem is assigned in code so the real mix holds (about 16 in 20 standard, 3 in 20
+# "Which question...", 1 in 20 a small variation), instead of the writer always using the standard one.
+CENTRAL_STEM_PLAN = [
+    ("standard", 16, "Which choice best states the main idea of the text?"),
+    ("question", 3, "Which question does the text most directly attempt to answer? (If the passage centers on one "
+                    "study, you may use instead: Based on the text, which research question was [the researchers'] "
+                    "study most likely intended to answer?)"),
+    ("variant", 1, "Which choice best describes the main idea of the text? (If the passage centers on one person, "
+                   "you may use instead: Which choice best states the text's main idea about [that person]?)"),
+]
+STEM_LINE = "\nREQUIRED STEM FOR THIS ITEM: {stem}"
+
+
+def stem_plan(count: int, seed: int) -> list[int]:
+    """Weighted blocks, as for clue structures: every 20 questions use each stem its weight's number of times."""
+    rng = random.Random(f"stem:{seed}")
+    block_src = [i for i, (_, w, _) in enumerate(CENTRAL_STEM_PLAN) for _ in range(w)]
+    plan: list[int] = []
+    while len(plan) < count:
+        block = block_src[:]
+        rng.shuffle(block)
+        plan.extend(block)
+    return plan[:count]
+
+
+# Central Ideas and Details (main idea + detail items). Weights come from a review of 33 real items at all three
+# levels; the shape and the detail question are assigned in code so the writer doesn't settle into one pattern.
+CID_SHAPES = {
+    "challenge": "an accepted view or expectation, then a challenge to it or a new finding that adds to or changes it",
+    "description": "a description or claim, then supporting details or a conclusion (no twist needed)",
+    "contrast": "a contrast of two things (two places, two people, two approaches, or two groups' views), kept "
+                "clearly apart",
+    "finding": "a study's setup, then its finding (it may end by ruling out another explanation)",
+    "cause": "a problem, then its cause (and possibly a proposed fix), or a claim followed by a chain of reasons",
+    "scene": "one short scene that shows a character's reaction to something",
+    "sketch": "a sketch of one character's nature or habits",
+    "metaphor": "an extended metaphor or image that carries the excerpt's feeling",
+}
+TWIST_SHAPES = ("challenge", "contrast")  # built on a contrast, so the no-third-twist rule is waived
+CID_SHAPE_WEIGHTS = {
+    "easy": {"description": 3, "finding": 1, "contrast": 1, "challenge": 1},
+    "medium": {"challenge": 3, "contrast": 2, "description": 1, "finding": 1, "cause": 1},
+    "hard": {"challenge": 4, "finding": 2, "contrast": 1, "cause": 1},
+    "literary": {"scene": 4, "sketch": 3, "metaphor": 1},
+}
+SHAPE_LINE = "\nREQUIRED PASSAGE SHAPE FOR THIS ITEM: {desc}."
+DETAIL_FAMILIES = {
+    "literal": 'Begin the question with "According to the text," (for example: what is true about [a character]? / '
+               "why are [a group] worried about [X]? / how do [a group] view [X]? / what is a difference between how "
+               "[a group] view [X] and how they view [Y]? / what does [a character] do as [an action]?)",
+    "based": 'Begin the question with "Based on the text," and ask what is likely or implied (for example: [a person '
+             "or team] would most likely agree with which statement about [X]? / which choice best describes [X] or "
+             "the relationship between [X] and [Y]? / what can be concluded about [a trend]? / what would have been "
+             "the most likely consequence if [X] had not happened?)",
+    "suggest": 'Use one of these wordings: "What does the text most strongly suggest about [X]?" / "What does the '
+               'text indicate about [X]?" / "The text makes which point about [X]?" / "It can most reasonably be '
+               'inferred from the text that [a finding] was important for which reason?" / "Information in the text '
+               'best supports which statement about [X]?"',
+}
+DETAIL_FAMILY_WEIGHTS = {
+    "easy": {"literal": 6, "based": 1},
+    "medium": {"literal": 3, "based": 4, "suggest": 3},
+    "hard": {"based": 5, "suggest": 4},  # never "According to the text" on hard items
+}
+DETAIL_FOCUS = {
+    "trait": "a trait or description of a person, character, or thing",
+    "viewpoint": "a person's or group's viewpoint (what they think, how they regard something, what they would "
+                 "agree with); wrong answers flip the view, give it to the wrong person or group, or state the view "
+                 "the person rejects",
+    "reason": "a reason, cause, or effect (why something happened, what it led to, or why a finding mattered)",
+    "conclusion": "a conclusion that follows from the evidence in the passage",
+    "other": "another specific detail (what a study was about, what a character does, a challenge a group faces, or "
+             "how two things are related)",
+}
+DETAIL_FOCUS_WEIGHTS = {
+    "informational": {"trait": 7, "viewpoint": 6, "reason": 6, "conclusion": 3, "other": 4},
+    "literary": {"trait": 3, "viewpoint": 1, "other": 1},
+}
+DETAIL_LINE = "\nREQUIRED QUESTION FOR THIS DETAIL ITEM: {family}. Ask about {focus}."
+
+
+def cid_assignment(qtype: str, level: str, literary: bool, seed: int, index: int) -> dict:
+    """Passage shape (both types) and, for detail items, the question family and focus. Seeded per item."""
+    rng = random.Random(f"cid:{seed}:{index}")
+    pick = lambda weights: rng.choices(list(weights), weights=list(weights.values()))[0]  # noqa: E731
+    out = {"shape": pick(CID_SHAPE_WEIGHTS["literary" if literary else level])}
+    if base_type(qtype) == "details":
+        out["family"] = pick(DETAIL_FAMILY_WEIGHTS[level])
+        out["focus"] = pick(DETAIL_FOCUS_WEIGHTS["literary" if literary else "informational"])
+    return out
+
+
+# Inferences, from a review of 21 real items (7 per level). The ending's job, the lead-in, the blank's form, and the
+# passage shape are assigned in code; "puzzle" and "example" endings bring their own shape.
+INF_SHAPES = {
+    "pushback": "an old or common view, then a finding that pushes back against it, then the blank",
+    "study": "a study's setup, then one or two findings (often two that must be put together), then the blank",
+    "tradeoff": "a trade-off or a chain of causes (one thing helps, another hurts), and the blank weighs them",
+    "approaches": "two approaches or views contrasted, and the blank applies one of them to a specific case",
+    "puzzle": "a puzzle: two facts that don't fit and one explanation ruled out, and the blank gives what is left",
+    "example": "a general claim, then one person or case as an example, and the blank says what the example shows",
+}
+INF_SHAPE_WEIGHTS = {  # "puzzle" and "example" come only with the ending of the same name
+    "easy": {"study": 3, "tradeoff": 2, "pushback": 1},
+    "medium": {"pushback": 4, "study": 3, "tradeoff": 1},
+    "hard": {"pushback": 2, "study": 2, "approaches": 2},
+}
+INF_TWIST_SHAPES = ("pushback", "approaches", "puzzle")
+INF_ENDINGS = {
+    "meaning": "say what a finding or set of facts means",
+    "puzzle": "explain a puzzle: why two facts don't line up",
+    "predict": "predict what should happen, or what researchers expected to happen",
+    "leaves_out": "point out what a view or approach leaves out",
+    "example": "say what an example shows",
+    "motive": "give someone's motive, or what a group should take away",
+}
+INF_ENDING_WEIGHTS = {
+    "easy": {"meaning": 4, "predict": 1, "example": 1, "motive": 1},
+    "medium": {"meaning": 3, "predict": 1, "motive": 1, "leaves_out": 1},
+    "hard": {"meaning": 2, "puzzle": 3, "leaves_out": 2, "predict": 1},
+}
+INF_LEADINS = {
+    "suggests": 'a "this finding suggests"-type phrase right before the blank (for example, "These findings suggest '
+                'that ______." or "...which indicates that ______.")',
+    "logic": "a logic word in the last sentence (therefore, thus, consequently, in this way, taken together), with the "
+             "blank finishing that sentence",
+    "other": 'a prediction ("...researchers would expect ______"), an "if this view is right" conditional, or a '
+             'purpose ("...in order to ______")',
+}
+INF_LEADIN_WEIGHTS = {"suggests": 3, "logic": 2, "other": 1}
+INF_BLANKS = {
+    "clause": "a full clause (each choice is a complete clause)",
+    "verb": "the sentence's verb phrase (all four choices start with a verb)",
+}
+INF_BLANK_WEIGHTS = {"clause": 11, "verb": 9}
+INF_LINE = ("\nREQUIRED ENDING FOR THIS INFERENCE ITEM: the completion must {ending}."
+            "\nREQUIRED LEAD-IN: {leadin}.\nREQUIRED BLANK FORM: the blank completes {blank}.")
+
+
+def inf_assignment(level: str, seed: int, index: int) -> dict:
+    """Ending, passage shape, lead-in, and blank form for one inference item. Seeded per item."""
+    rng = random.Random(f"inf:{seed}:{index}")
+    pick = lambda weights: rng.choices(list(weights), weights=list(weights.values()))[0]  # noqa: E731
+    ending = pick(INF_ENDING_WEIGHTS[level])
+    shape = ending if ending in ("puzzle", "example") else pick(INF_SHAPE_WEIGHTS[level])
+    return {"ending": ending, "shape": shape, "leadin": pick(INF_LEADIN_WEIGHTS), "blank": pick(INF_BLANK_WEIGHTS)}
+
+
+# Command of Evidence, from a review of 21 real items (7 per level). Each item gets a variation by difficulty;
+# quotation items exist only at easy and medium, so a hard quotation slot is written as medium.
+COE_CLAIM_VARIATIONS = {
+    "support": 'Use the stem "Which finding, if true, would most directly support the [researchers\' or student\'s] '
+               '[conclusion/hypothesis/claim]?"',
+    "underlined": "Underline the claim with <u></u> and use the stem \"Which [detail/statement], if true, would most "
+                  "strongly support the claim in the underlined sentence?\"",
+    "expert": 'Make the claim a student\'s argument and use the stem "Which quotation from [an expert, described '
+              'generically] would most effectively support the student\'s argument?"; the choices are short quotations',
+    "weaken": 'Use the stem "Which finding, if true, would most directly undermine the [claim]?" (this variation is '
+              "rare on the real test)",
+}
+COE_CLAIM_VARIATION_WEIGHTS = {
+    "easy": {"support": 8, "underlined": 1, "expert": 1},
+    "medium": {"support": 7, "underlined": 1, "expert": 1, "weaken": 1},
+    "hard": {"support": 8, "underlined": 1, "weaken": 1},
+}
+COE_CLAIM_LOGIC = {
+    "direct": "a straight match: a student's claim after a few plain sentences, and a correct finding that basically "
+              "restates it",
+    "head_on": "test the claim head-on with its own groups and comparison, after one translation step (a threshold, "
+               "a code, or a hypothesis that turns measurements into categories); no stated rival explanation",
+    "rival": "state a rival explanation before the conclusion; the correct finding isolates the claimed cause from "
+             "the rival",
+    "chain": "make the claim a chain (X affects Y, and Y affects Z) or a two-part claim; the correct finding gives "
+             "both links or covers both halves, and a tempting wrong answer gives only one",
+    "mechanism": "leave a gap in the reasoning; the correct finding is a general fact or mechanism that fills it and "
+                 "may not mention the specific case at all",
+}
+COE_CLAIM_LOGIC_WEIGHTS = {
+    "easy": {"direct": 1},
+    "medium": {"head_on": 1},
+    "hard": {"rival": 2, "chain": 1, "mechanism": 1},
+}
+COE_TABLE_TASKS = {
+    "lookup": 'a one-value lookup: end the text with a sentence and "______." to be completed with one value from the '
+              "table; the choices are single words or numbers (one is a real value from the wrong row)",
+    "complete": 'complete a statement: end the text with "______." and read one or two values straight off the table',
+    "support": "support a claim: compare two rows against the claim after a translation step from the text (a "
+               "threshold or a definition); choices may be long multi-part statements with one wrong detail buried "
+               "inside",
+    "apply": "apply a definition, proposal, or hypothesis from the text to the data, tracking change over time; "
+             "sometimes the data run opposite to what a proposal predicts, so the student reasons backward",
+}
+COE_TABLE_TASK_WEIGHTS = {
+    "easy": {"lookup": 1, "complete": 2, "support": 1},
+    "medium": {"support": 2, "complete": 1},
+    "hard": {"apply": 3, "support": 1},
+}
+COE_GENRES = {"poem": 2, "novel": 1, "short story": 1, "collection of letters": 1, "travel narrative": 1, "play": 1}
+COE_LINE = "\nREQUIRED VARIATION FOR THIS EVIDENCE ITEM: {desc}."
+
+
+def coe_assignment(qtype: str, level: str, seed: int, index: int) -> dict:
+    """Variation (and logic or genre) for one Command of Evidence item. Seeded per item."""
+    rng = random.Random(f"coe:{seed}:{index}")
+    pick = lambda weights: rng.choices(list(weights), weights=list(weights.values()))[0]  # noqa: E731
+    base = base_type(qtype)
+    if base == "command_of_evidence_claim":
+        return {"variation": pick(COE_CLAIM_VARIATION_WEIGHTS[level]), "logic": pick(COE_CLAIM_LOGIC_WEIGHTS[level])}
+    if base == "command_of_evidence_quantitative":
+        return {"task": pick(COE_TABLE_TASK_WEIGHTS[level])}
+    if base == "command_of_evidence_quotation":
+        return {"genre": pick(COE_GENRES)}
+    return {}
+
+
+def coe_line(a: dict) -> str:
+    if "variation" in a:
+        desc = f"{COE_CLAIM_VARIATIONS[a['variation']]}. Logic: {COE_CLAIM_LOGIC[a['logic']]}"
+    elif "task" in a:
+        desc = f"a table item whose task is {COE_TABLE_TASKS[a['task']]}"
+    else:
+        desc = (f"the invented work is a {a['genre']}; mix quotation lengths from a short line to about 40 words, "
+                f"and end the text with a colon and the blank")
+    return COE_LINE.format(desc=desc)
+
+
+def key_plan(count: int, seed: int) -> list[int]:
+    """Where each question's correct answer goes (0-3 for A-D). Every block of 4 uses each letter once, so a batch
+    is evenly mixed and no letter appears more than twice in a row (satgen alone shuffles each question on its own,
+    which can stack up B's or put three C's in a row)."""
+    rng = random.Random(f"keys:{seed}")
+    plan: list[int] = []
+    while len(plan) < count:
+        block = list(range(len(CHOICES)))
+        rng.shuffle(block)
+        plan.extend(block)
+    return plan[:count]
+
+
 REPAIR_BLOCK = (
     "\n\nYOUR PREVIOUS DRAFT OF THIS QUESTION FAILED QUALITY CHECKS.\n"
     "Previous draft (JSON):\n{draft}\n\n"
@@ -218,6 +458,15 @@ MEANING_LINE = (
     "meaning, and every choice must fit the sentence grammatically. Use at most {cap} advanced word{s} among the choices."
 )
 NO_VOCAB_TYPES = ("rhetorical_synthesis",)  # notes are plain factual bullets
+# Central Ideas and Details test reading, not vocabulary: at easy and medium, bank words are optional (at most
+# one) and passages lean on subject terms a student can work out from context. Real hard passages are dense with
+# academic vocabulary, so hard items use one or two bank words as usual (review of 33 real items, Nov 2026).
+OPTIONAL_VOCAB_TYPES = ("central_ideas", "details")  # optional at easy and medium; hard uses one or two
+OPTIONAL_VOCAB_LINE = (
+    "\nVOCABULARY FOR THIS PASSAGE ({level}, optional): this item tests the main idea, not vocabulary. You may use "
+    "at most one of these words if it fits naturally, or none: {words}. Rely instead on subject terms a student can "
+    "work out from the sentence around them."
+)
 VOCAB_LINE = (
     "\nVOCABULARY FOR THIS PASSAGE ({level}): sprinkle in {need_text} of these words, used naturally and correctly "
     "(any form is fine): {words}. Use no more than {cap} advanced word{s} in the whole passage; the rest of the "
@@ -315,6 +564,9 @@ def log_attempt(entry: dict) -> None:
 class MezaPipeline(pipeline.Pipeline):
     plan: list[int] = []
     clues: list[int] = []
+    stems: list[int] = []
+    keys: list[int] = []
+    seed: int = 0
     # Questions of the same type are written one at a time (other types still run in parallel), so each
     # new question can see the shape of the ones before it and is told to do something different.
     _type_locks: dict[str, threading.Lock] = {}
@@ -328,12 +580,26 @@ class MezaPipeline(pipeline.Pipeline):
         seed = int(os.environ.get("MEZA_SUBJECT_SEED") or random.SystemRandom().randrange(10**9))
         type(self).plan = subject_plan(count, seed)
         type(self).clues = clue_plan(count, seed)
+        type(self).stems = stem_plan(count, seed)
+        type(self).seed = seed
+        type(self).keys = key_plan(count, seed)
         self.vocab = VocabBank(VOCAB_PATH, seed)
         self._recent = {}
         print(f"Subject seed: {seed} (set MEZA_SUBJECT_SEED={seed} to repeat this order)", file=sys.stderr)
         if QUALITY != "off":
             print(f"Quality gate: {QUALITY}, up to {MAX_REPAIRS} rewrites per question", file=sys.stderr)
         return super().run(qtypes, count, *args, **kwargs)
+
+    def shuffle(self, q: Question, index: int) -> None:
+        """Put the correct answer at this question's planned letter and shuffle the wrong answers around it."""
+        if q.format != MCQ or index >= len(self.keys):
+            return super().shuffle(q, index)
+        right = q.choices[q.answer]
+        wrong = [q.choices[k] for k in CHOICES if k != q.answer]
+        random.Random(f"keys:{self.seed}:{index}").shuffle(wrong)
+        wrong.insert(self.keys[index], right)
+        q.choices = dict(zip(CHOICES, wrong, strict=True))
+        q.answer = CHOICES[self.keys[index]]
 
     def _draft(self, prompt: str, qtype: str, fmt: str) -> tuple[Question, dict]:
         for tries in range(3):  # a draft with broken JSON is retried without using up a rewrite
@@ -390,6 +656,8 @@ class MezaPipeline(pipeline.Pipeline):
             return self._generate(index, qtype)
 
     def _generate(self, index: int, qtype: str) -> Question:
+        if base_type(qtype) == "command_of_evidence_quotation" and difficulty_of(qtype, index) == "hard":
+            qtype = base_type(qtype) + "_medium"  # real quotation items are easy or medium only
         slot = self.plan[index] if index < len(self.plan) else index % len(SUBJECTS)
         subject = subject_for(qtype, slot)
         fmt = SPR if qtype.startswith("spr_") else MCQ
@@ -432,18 +700,46 @@ class MezaPipeline(pipeline.Pipeline):
             kinds = [k for k, w, _ in FUNCTION_KINDS for _ in range(w)]
             want_kind = rng.choice(kinds)
             base_prompt += FUNCTION_LINE.format(desc=next(d for k, _, d in FUNCTION_KINDS if k == want_kind))
+        stem_kind, stem_text = "", ""
+        if base_type(qtype) == "central_ideas":
+            si = self.stems[index] if index < len(self.stems) else 0
+            stem_kind, _, stem_text = CENTRAL_STEM_PLAN[si]
+            base_prompt += STEM_LINE.format(stem=stem_text)
         if "_recent" not in self.__dict__:
             self._recent = {}
         if "vocab" not in self.__dict__:
             self.vocab = VocabBank(VOCAB_PATH, index)
         level = difficulty_of(qtype, index) or "medium"
+        cid: dict = {}
+        if base_type(qtype) in ("central_ideas", "details"):
+            cid = cid_assignment(qtype, level, subject.startswith("LITERATURE:"), self.seed, index)
+            base_prompt += SHAPE_LINE.format(desc=CID_SHAPES[cid["shape"]])
+            if "family" in cid:
+                base_prompt += DETAIL_LINE.format(family=DETAIL_FAMILIES[cid["family"]],
+                                                  focus=DETAIL_FOCUS[cid["focus"]])
+        inf: dict = {}
+        if base_type(qtype) == "inferences":
+            inf = inf_assignment(level, self.seed, index)
+            base_prompt += SHAPE_LINE.format(desc=INF_SHAPES[inf["shape"]])
+            base_prompt += INF_LINE.format(ending=INF_ENDINGS[inf["ending"]], leadin=INF_LEADINS[inf["leadin"]],
+                                           blank=INF_BLANKS[inf["blank"]])
+        coe: dict = {}
+        if base_type(qtype).startswith("command_of_evidence"):
+            coe = coe_assignment(qtype, level, self.seed, index)
+        if coe:
+            base_prompt += coe_line(coe)
+        twist_ok = cid.get("shape") in TWIST_SHAPES or inf.get("shape") in INF_TWIST_SHAPES
         vocab, need, cap, plan = [], 0, 9, None
         if fmt == MCQ and QUALITY != "off" and not base_type(qtype).startswith(NO_VOCAB_TYPES):
             poetry = "POETRY" in subject.upper()
             vocab, need, cap = self.vocab.passage_words(level, poetry=poetry)
+            optional = base_type(qtype).startswith(OPTIONAL_VOCAB_TYPES) and level != "hard"
+            if optional:
+                need, cap = 0, 1
             if vocab:
-                base_prompt += VOCAB_LINE.format(level=level, need_text="one or two" if cap > 1 else "one",
-                                                 words=", ".join(vocab), cap=cap, s="s" if cap > 1 else "")
+                line = OPTIONAL_VOCAB_LINE if optional else VOCAB_LINE
+                base_prompt += line.format(level=level, need_text="one or two" if cap > 1 else "one",
+                                           words=", ".join(vocab), cap=cap, s="s" if cap > 1 else "")
             if base_type(qtype) == "words_in_context_meaning":
                 targets = self.vocab.targets(6)
                 adv_cap = MEANING_ADV_CAP.get(level, 1)
@@ -458,7 +754,7 @@ class MezaPipeline(pipeline.Pipeline):
                                                 key_tier=TIER_LABEL[plan["key_tier"]].split(" (")[0])
         recent = self._recent.get(base_type(qtype), [])
         if QUALITY != "off" and fmt == MCQ and recent:
-            twisty = sum(r["twist"] for r in recent[-3:]) >= 2 and clue != "contrast"
+            twisty = sum(r["twist"] for r in recent[-3:]) >= 2 and clue != "contrast" and not twist_ok
             extra = (" Several of them used a belief-then-twist rhythm, so this one must not use a contrast at all."
                      if twisty else "")
             items = "\n".join(f"{i}. {describe(r)}" for i, r in enumerate(recent, 1))
@@ -483,11 +779,19 @@ class MezaPipeline(pipeline.Pipeline):
                 return q
 
             res = lint(qtype, q.passage, q.stem, q.choices, q.answer, q.explanation, subject=subject, clue=clue,
-                       want_kind=want_kind, choice_band=band)
+                       want_kind=want_kind, choice_band=band, difficulty=level)
             key_mark = (q.choices.get(q.answer, "") if base_type(qtype).startswith(("words_in_context", "transitions"))
                         else lead_verb(q.choices.get(q.answer, "")) if base_type(qtype) in TSP_TYPES else "")
             shape = features(qtype, q.passage, key_mark, clue)
-            problems = list(res.fails) + rhythm_check(shape, recent)
+            problems = list(res.fails) + rhythm_check(shape, recent, twist_ok=twist_ok)
+            got = central_stem_kind(q.stem) if stem_kind else None
+            if got and (got if got in ("standard", "question") else "variant") != stem_kind:
+                problems.append(f"Use the required stem for this item, word for word: {stem_text}")
+            if inf.get("leadin") in ("suggests", "logic") and inf["leadin"] not in leadin_kinds(q.passage):
+                problems.append(f"Use the required lead-in into the blank: {INF_LEADINS[inf['leadin']]}.")
+            fam = detail_stem_family(q.stem) if "family" in cid else None
+            if fam and fam != cid["family"]:
+                problems.append(f"Use the required question wording for this item: {DETAIL_FAMILIES[cid['family']]}.")
             used = vocab_used(q.passage, vocab)
             if len(used) < need:
                 problems.append(f"Use at least {need} of these words naturally in the passage (any form): "
@@ -530,6 +834,7 @@ class MezaPipeline(pipeline.Pipeline):
                          "probe_runs": len(hits), "shape": shape, "underlined": want_kind,
                          "traps": data.get("traps"), "trap_critic": critic, "vocab": vocab, "vocab_used": used,
                          "choice_plan": plan, "word_role": role, "focus": focus,
+                         "stem": stem_kind, "cid": cid, "inf": inf, "coe": coe,
                          "problems": problems, "passed": not problems or flagged,
                          "flagged": soft if flagged else [], "fingerprint": fingerprint(q.passage, q.stem)})
             if not problems or flagged:
