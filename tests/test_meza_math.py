@@ -3,9 +3,13 @@
 import json
 import random
 import re
+import sys
 from fractions import Fraction
+from pathlib import Path
 
-import meza_math as mm
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+import meza_math as mm  # noqa: E402
 
 
 def value(text: str) -> Fraction:
