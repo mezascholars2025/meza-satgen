@@ -223,6 +223,17 @@ Each rule below came from auditing output or from Sebastian's review rounds agai
   SATGEN_GEN_MODEL and SATGEN_REVIEW_MODEL in .env to switch; keep the critic at least as strong as the writer and
   Haiku as the blind solver. Opus pricing is added to satgen's cost table from `meza_satgen.py`.
 
+- **Opus vs Sonnet (Nov 24, 15 Opus questions vs the 28 Sonnet trap-run questions in the same three skills).**
+  Opus wrote and reviewed with the new disguise rules; both sets were then graded by the same judges (Opus trap
+  critic, Haiku answering 5 times without the passage). Haiku found the key without the passage 83% of the time for
+  Opus vs 72% for Sonnet; trap scores 2.79 vs 2.70; wording tells (absolutes, key plus extra) 0 vs 7; cost $0.51 vs
+  $0.25 per question. So Opus is not worth double yet, and the disguise rules removed the wording tells but not the
+  guessability. Asked to explain its picks, Haiku named three tells: (1) outside knowledge: the passages were
+  well-known findings (McAdam's roads, the doorway effect, the flowing-glass myth), so the key matches what a
+  student already knows; Opus picks famous findings more often than Sonnet; (2) the key is the "center" of the
+  choices (each wrong answer varies it in a different direction; true for 15 of 28 Sonnet keys, about twice chance);
+  (3) the key is the only balanced or concessive choice. Runs: `runs/opus-tsp`, `runs/opus-cid`, `runs/opus-inf`.
+
 - **Second real run: 1 of 10 shipped.** Stacked judgment checks rejected nearly everything. → the reviewer-model
   critics and the passage-free probe are now "soft": after the last rewrite, a question whose only remaining
   problems are soft ships with a yellow Review flag in review.html (and "FLAGGED: ..." in the CSV's Review status)
@@ -280,8 +291,9 @@ Audit decisions (Nov 24):
 
 ## Open next steps
 
-- Measure the disguise changes: run 5 Text Structure + 5 Central Ideas and compare probe failures and "obvious"
-  ratings with the trap runs; then compare Sonnet vs Opus as the writer on the same slots.
+- Guessable keys (see Opus vs Sonnet): (1) topics whose finding is not common knowledge, or where the popular belief
+  is the trap; the probe's rewrite message should allow changing the finding, not only the wrong answers; (2) a code
+  check for the "center" key; (3) the critic checks that at least one wrong answer is as balanced as the key.
 - Topics repeat across runs (glacial varves came up in both trap rounds, in different runs): the rhythm memory only
   covers the current run. A cross-run topic log would fix it.
 - Trap bank: review the 9 starter seeds and 8 Claude-reviewed picks, approve or remove them, and add GOOD TRAPS from each real run. Watch for
