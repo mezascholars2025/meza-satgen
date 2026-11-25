@@ -143,7 +143,7 @@ def evaluate(expr: str, **values) -> Fraction:
     """Evaluate an SAT-style expression ('5x + x + 99', 'x(r − 3) + 4x', '24f', 'x/6') exactly."""
     e = expr.replace(mm.MINUS, "-")
     e = re.sub(r"(?<=\d),(?=\d{3})", "", e)  # thousands commas
-    e = re.sub(r"\d+", lambda m: f"F({m.group(0)})", e)
+    e = re.sub(r"\d+(?:\.\d+)?", lambda m: f'F("{m.group(0)}")', e)
     e = re.sub(r"(\))\s*(?=[A-Za-z(])", r"\1*", e)  # ")x", ")(" -> ")*x"
     e = re.sub(r"\b([a-z])\s*(?=\()", r"\1*", e)  # "x(" -> "x*("
     e = re.sub(r"(?<![A-Za-z])([a-z])(?=[a-z])", r"\1*", e)
@@ -279,3 +279,36 @@ def test_infinite_two_constants_truth_makes_both_sides_identical():
         asked = re.search(r"value of (.+)\?", item.stem).group(1)
         assert value(item.choices[item.key]) == evaluate(asked, **item.truth)
         assert sum(value(t) == evaluate(asked, **item.truth) for t in item.choices.values()) == 1
+
+
+def test_fraction_decimal_keys_solve_the_equation():
+    for item in gen("fraction_decimal"):
+        left, right = sides(item.passage)
+        for k, text in item.choices.items():
+            x = value(text)
+            assert (evaluate(left, x=x) == evaluate(right, x=x)) == (k == item.key), (item.passage, text)
+
+
+def test_word_solve_keys_follow_from_the_story():
+    for item in gen("word_solve"):
+        t = item.truth
+        if item.level == "easy":
+            want = (t["T"] - t["F"]) / t["r"]
+            assert mm.money(t["F"]) in item.stem and mm.money(t["T"]) in item.stem
+        elif item.level == "medium":
+            want = t["w"] if "width of" in item.stem else t["L"]
+            P = int(re.search(r"perimeter of the garden is (\d+)", item.stem).group(1))
+            assert 2 * (t["w"] + t["L"]) == P
+        else:
+            S = int(re.search(r"is (\d+)\.", item.stem).group(1))
+            assert sum(t["nums"]) == S
+            want = t["nums"][-1] if "greatest" in item.stem else t["nums"][0]
+        assert value(item.choices[item.key]) == want
+        assert sum(value(c) == want for c in item.choices.values()) == 1
+
+
+def test_which_has_property_only_the_key_has_it():
+    for item in gen("which_has_property"):
+        want = mm.PROPERTIES[re.match(r"Which equation has (.+)\?", item.stem).group(1)]
+        for k, eq in item.choices.items():
+            assert (classify(*sides(eq)) == want) == (k == item.key), (item.stem, eq)

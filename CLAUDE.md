@@ -246,6 +246,21 @@ asking," Desmos tips) and example questions he described.
     - `infinite_two_constants` ("a(2x + 3) + 4x = 14x + b ... infinitely many solutions ... value of b / a / a + b?"):
       match the x-terms to find a, then the constants to find b. Medium has no extra x-term; hard adds it and can
       ask for a + b.
+    - `fraction_decimal`: easy "0.4x + 1.2 = 3.6" (choices shown as decimals; traps move the decimal point,
+      stop before dividing, or divide too early), medium "x/3 + x/4 = 7" (traps add the denominators, leave out a
+      term, multiply only one side by the LCD), hard "(x + 4)/3 = (x − 2)/5" (traps cross multiply the wrong way or
+      without distributing, or give the value of each fraction).
+    - `word_solve` (word problems that ask for a number): easy a fixed fee plus a cost per unit (phone texts, taxi
+      miles, plumber hours, parking hours; each setting has a realistic fee range, and the fee is at least two units
+      of the rate); medium a rectangle whose length is m times or k more than its width, given the perimeter, asking
+      for the width or the length; hard the sum of three or four consecutive (even/odd) integers, asking for the
+      least or greatest. Traps: leaving out the fee, the other dimension, treating it as a square, counting each
+      side once, the middle integer, the other end, counting by 1 instead of 2. Stories can be AI-worded like the
+      rest (`--ai-stories`); story checks now handle decimals such as $0.10.
+    - `which_has_property` ("Which equation has no solution?", or infinitely many, or exactly one): four equations
+      with the same left side; each choice's right side changes the x-coefficient, the constant, or both, and each
+      wrong choice's explanation names the property it does have. Hard builds up the left side and factors some
+      right sides.
   - Equations are shown on their own line above the question (the `passage` field), as on the SAT. Families with
     choices that are equations or phrases put the key at the letter used least so far in the batch.
     `tests/test_meza_math.py` checks every choice by substitution: only the key solves the equation, makes the
@@ -314,6 +329,8 @@ Audit decisions (Nov 24):
 
 ## Open next steps
 
+- Math: solving a formula for one variable ("A = ½h(b + c); which equation gives h?") belongs with Advanced Math
+  (equivalent expressions), per Sebastian; build it there.
 - Math: more Algebra families from Sebastian's deck (systems of equations: number of solutions; absolute value;
   function notation and composite functions; slopes, parallel and perpendicular lines; inequalities), then the other
   math domains. He describes question types; Claude builds them in code and tests offline (no API batches).

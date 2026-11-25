@@ -57,6 +57,21 @@ def lin(a: int, b: int, var: str = "x") -> str:
     return out
 
 
+def dec(n) -> str:
+    """Fraction(2, 5) -> '0.4'; Fraction(3) -> '3' (for decimal equations)."""
+    n = Fraction(n)
+    if n.denominator == 1:
+        return num(n)
+    text = f"{abs(float(n)):,.4f}".rstrip("0").rstrip(".")
+    return (MINUS if n < 0 else "") + text
+
+
+def money(n) -> str:
+    """Fraction(1, 10) -> '$0.10'; Fraction(25) -> '$25'; 1250 -> '$1,250'."""
+    n = Fraction(n)
+    return f"${n.numerator:,}" if n.denominator == 1 else f"${float(n):,.2f}"
+
+
 def spr_answer(n) -> str:
     """Grid-in answer string (ASCII minus, fraction if needed)."""
     n = Fraction(n)
@@ -85,6 +100,7 @@ class MathItem:
     fractions_ok: bool = False  # fraction wrong choices are natural here (fraction answers)
     fixed_choices: list[str] | None = None  # text choices in a set order ("Zero", "Exactly one", ...)
     truth: dict | None = None  # values of the constants behind the question (for tests)
+    decimals: bool = False  # show numeric choices as decimals (0.4) instead of fractions (2/5)
 
     def build_choices(self, rng: random.Random, used: dict[str, int] | None = None) -> None:
         """Four numeric choices in ascending order (as on the SAT): the answer plus three distinct real mistakes. The
@@ -124,7 +140,8 @@ class MathItem:
                     seen.add(v)
                     wrong.append((v, "an arithmetic slip near the correct value"))
         values = sorted([(self.answer, "")] + wrong[:3], key=lambda v: v[0])
-        self.choices = {k: num(v) for k, (v, _) in zip("ABCD", values, strict=True)}
+        show = dec if self.decimals else num
+        self.choices = {k: show(v) for k, (v, _) in zip("ABCD", values, strict=True)}
         self.key = next(k for k, (v, _) in zip("ABCD", values, strict=True) if v == self.answer)
         self.mistakes = list(wrong[:3])
         if used is not None:
@@ -164,7 +181,8 @@ class MathItem:
             for k, text in self.choices.items():
                 if k == self.key:
                     continue
-                why = next(w for v, w in self.mistakes if (v if self.key_text else num(v)) == text)
+                show = dec if self.decimals else num
+                why = next(w for v, w in self.mistakes if (v if self.key_text else show(v)) == text)
                 lines.append(f"Choice {k} ({text}): {why}.")
         return "\n".join(lines)
 
@@ -1265,6 +1283,362 @@ def infinite_two_constants(rng: random.Random, level: str, fmt: str) -> MathItem
     return item
 
 
+def terminating(n: Fraction) -> bool:
+    """True if n can be written as a short decimal (denominator built from 2s and 5s)."""
+    d = n.denominator
+    for f in (2, 5):
+        while d % f == 0:
+            d //= f
+    return d == 1 and n.denominator <= 100
+
+
+def fraction_decimal(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """Easy: decimals, '0.4x + 1.2 = 3.6'. Medium: fractions, 'x/3 + x/4 = 7' (clear them with 12). Hard: cross
+    multiplying, '(x + 4)/3 = (x − 2)/5'."""
+    if level == "easy":
+        while True:
+            a = Fraction(rng.choice([2, 3, 4, 5, 6, 7, 8, 9, 12, 15, 25]), 10)
+            x = rng.randint(2, 20)
+            b = Fraction(rng.choice(nz(-40, 40)), 10)
+            c = a * x + b
+            if c > 0 and b.denominator != 1:
+                break
+        passage = f"{dec(a)}x{' + ' + dec(b) if b > 0 else ' ' + MINUS + ' ' + dec(-b)} = {dec(c)}"
+        stem = "What value of x is the solution to the given equation?"
+        mistakes = [
+            (Fraction(x * 10), "this moves the decimal point one place too far"),
+            (Fraction(x, 10), "this moves the decimal point one place the wrong way"),
+            (
+                (c + b) / a,
+                f"this {'adds' if b > 0 else 'subtracts'} {dec(abs(b))} instead of "
+                f"{'subtracting' if b > 0 else 'adding'} it",
+            ),
+            (c - b, f"this stops before dividing by {dec(a)}"),
+            (c / a - b, f"this divides by {dec(a)} before removing the {dec(abs(b))}"),
+        ]
+        mistakes = [(v, w) for v, w in mistakes if terminating(v)]
+        steps = [
+            f"{'Subtract' if b > 0 else 'Add'} {dec(abs(b))}: {dec(a)}x = {dec(c - b)}.",
+            f"Divide by {dec(a)}: x = {dec(c - b)} ÷ {dec(a)} = {x}. (Or multiply everything by 10 first: "
+            f"{dec(10 * a)}x{' + ' if b > 0 else ' ' + MINUS + ' '}{dec(abs(10 * b))} = {dec(10 * c)}.)",
+        ]
+        return MathItem(
+            "fraction_decimal",
+            SKILL,
+            level,
+            fmt,
+            stem,
+            Fraction(x),
+            steps,
+            mistakes,
+            passage=passage,
+            fractions_ok=True,
+            decimals=True,
+        )
+    if level == "medium":
+        while True:
+            p_, q = rng.sample(range(2, 9), 2)
+            L = p_ * q // __import__("math").gcd(p_, q)
+            x = L * rng.randint(1, 6)
+            r = x // p_ + x // q
+            if len({x, r * (p_ + q), r * p_, r * L}) == 4:
+                break
+        passage = f"x/{p_} + x/{q} = {r}"
+        stem = "What value of x is the solution to the given equation?"
+        mistakes = [
+            (Fraction(r * (p_ + q)), f"this adds the fractions as x/{p_ + q}, adding the denominators"),
+            (Fraction(r * p_), f"this leaves out the x/{q} term"),
+            (Fraction(r * L), f"this multiplies only the right side by {L}"),
+            (Fraction(r * p_ * q), f"this multiplies by {p_} and by {q} but forgets that the x-terms add up"),
+        ]
+        steps = [
+            f"Multiply every term by {L}, the least common denominator: {L // p_}x + {L // q}x = {r * L}.",
+            f"Combine: {L // p_ + L // q}x = {r * L}, so x = {x}.",
+        ]
+        return MathItem("fraction_decimal", SKILL, level, fmt, stem, Fraction(x), steps, mistakes, passage=passage)
+    while True:  # hard: (x + a)/p = (x − b)/q
+        p_, q = rng.sample(range(2, 10), 2)
+        k = rng.choice(nz(-6, 6))
+        a = rng.choice(nz(-9, 9))
+        b = k * (p_ - q) - a
+        x = k * p_ - a
+        if b and x and abs(b) <= 15:
+            break
+    passage = f"(x{plus(a)})/{p_} = (x{plus(-b)})/{q}"
+    stem = "What value of x is the solution to the given equation?"
+    mistakes = [
+        (Fraction(-b - a, q - p_), f"this multiplies only x by {q} and by {p_}, not the whole numerators"),
+        (Fraction(-q * b - p_ * a, p_ - q), f"this cross multiplies the wrong way ({p_} with x{plus(a)})"),
+        (Fraction(k), "this is the value of each fraction, not of x"),
+        (Fraction(-x), "this has the right size but the wrong sign"),
+    ]
+    steps = [
+        f"Cross multiply: {q}(x{plus(a)}) = {p_}(x{plus(-b)}).",
+        f"Distribute: {lin(q, q * a)} = {lin(p_, -p_ * b)}.",
+        f"Collect terms: {term(q - p_)} = {num(-p_ * b - q * a)}" + (f", so x = {num(x)}." if q - p_ != 1 else "."),
+    ]
+    return MathItem(
+        "fraction_decimal", SKILL, level, fmt, stem, Fraction(x), steps, mistakes, passage=passage, positive_only=False
+    )
+
+
+FEE_FRAMES = [
+    dict(
+        setup="{n}'s phone plan charges a monthly fee of {F} plus {r} for each text message sent. {n}'s bill for "
+        "one month was {T}.",
+        q="How many text messages did {n} send that month?",
+        rates=[Fraction(1, 10), Fraction(1, 20), Fraction(1, 4), Fraction(3, 20)],
+        counts=range(40, 400, 10),
+        fees=(15, 60),
+    ),
+    dict(
+        setup="A taxi company charges {F} to start a ride plus {r} for each mile driven. {n} paid {T} for one ride.",
+        q="How many miles long was {n}'s ride?",
+        rates=[Fraction(3, 2), 2, Fraction(5, 2), 3, Fraction(7, 4)],
+        counts=range(3, 25),
+        fees=(3, 10),
+    ),
+    dict(
+        setup="A plumber charges {F} for a house call plus {r} for each hour of work. {n}'s bill for one house call "
+        "was {T}.",
+        q="For how many hours did the plumber work?",
+        rates=[45, 60, 75, 80, 90],
+        counts=range(2, 9),
+        fees=(50, 180),
+    ),
+    dict(
+        setup="A parking garage charges {F} to enter plus {r} for each hour a car is parked. {n} paid {T} to park "
+        "one day.",
+        q="For how many hours was {n}'s car parked?",
+        rates=[Fraction(5, 2), 3, 4, Fraction(7, 2)],
+        counts=range(2, 12),
+        fees=(4, 20),
+    ),
+]
+
+
+def word_solve(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """Word problems that ask for a number. Easy: a fixed fee plus a cost per unit ('How many text messages?').
+    Medium: a rectangle's perimeter ('What is the width?'). Hard: consecutive integers ('What is the greatest?')."""
+    name = rng.choice(NAMES)
+    if level == "easy":
+        f = rng.choice(FEE_FRAMES)
+        r = Fraction(rng.choice(f["rates"]))
+        while True:
+            # the fee is a whole number of units, so the mistakes come out whole, in this setting's usual range
+            lo, hi = f["fees"]
+            fee_units = rng.randint(max(2, -(-lo // r)), max(2, int(hi // r)))  # never fee = rate
+            F = r * fee_units
+            k = rng.choice(f["counts"])
+            T = F + r * k
+            if lo <= F <= hi and T.denominator in (1, 2, 4, 5, 10, 20, 100) and fee_units != k:
+                break
+        setup = f["setup"].format(n=name, F=money(F), r=money(r), T=money(T))
+        question = f["q"].format(n=name)
+        mistakes = [
+            (T / r, f"this divides the whole bill by {money(r)}, leaving out the {money(F)}"),
+            ((T + F) / r, f"this adds the {money(F)} instead of subtracting it"),
+            (T - F, f"this stops before dividing by {money(r)}"),
+            (Fraction(fee_units), f"this divides the {money(F)} by {money(r)}"),
+        ]
+        steps = [
+            f"Subtract the fixed {money(F)}: {money(T)} {MINUS} {money(F)} = {money(T - F)}.",
+            f"Divide by {money(r)} each: {money(T - F)} ÷ {money(r)} = {k}.",
+        ]
+        item = MathItem("word_solve", SKILL, level, fmt, f"{setup} {question}", Fraction(k), steps, mistakes)
+        item.story = dict(
+            kind="setup",
+            level=level,
+            setup=setup,
+            question=question,
+            given=[F, r, T],
+            shown=[money(F), money(r), money(T)],
+            situation="a fixed fee plus a cost for each unit",
+        )
+        item.truth = {"F": F, "r": r, "T": T}
+        return item
+    if level == "medium":
+        unit = rng.choice(["feet", "meters", "yards"])
+        times = rng.random() < 0.5
+        ask = rng.choice(["width", "length"])
+        while True:
+            m = rng.randint(2, 5)
+            # an even "longer by" amount, and a width that is an even multiple of m, keep the mistakes whole numbers
+            w = rng.randint(3, 40) if not times else 2 * m * rng.randint(1, 6)
+            more = 2 * rng.randint(1, 10)
+            L_ = m * w if times else w + more
+            P = 2 * (w + L_)
+            if L_ != w:
+                break
+        rel = f"{m} times its width" if times else f"{more} {unit} longer than its width"
+        setup = f"The length of a rectangular garden is {rel}. The perimeter of the garden is {P} {unit}."
+        question = f"What is the {ask} of the garden, in {unit}?"
+        ans, other = (w, L_) if ask == "width" else (L_, w)
+        if times:  # the true width is P / (2(m + 1))
+            once = Fraction(P, m + 1)  # added the length and width once instead of twice
+            no_width = Fraction(P, 2 * m)  # left the width out of the perimeter
+            scale = m if ask == "length" else 1
+            mistakes = [
+                (once * scale, "this adds the length and the width once instead of twice"),
+                (no_width * scale, f"this leaves the width out: it solves 2({m}w) = {P}"),
+            ]
+        else:  # the true width is (P − 2·more) / 4
+            once = Fraction(P - more, 2)
+            extra_once = Fraction(P - more, 4)
+            shift = more if ask == "length" else 0
+            mistakes = [
+                (once + shift, "this adds the length and the width once instead of twice"),
+                (extra_once + shift, f"this subtracts the {more} extra {unit} only once instead of twice"),
+            ]
+        mistakes = [
+            (
+                Fraction(other),
+                f"this is the {'length' if ask == 'width' else 'width'}; the question asks for the {ask}",
+            ),
+            (Fraction(P, 4), "this treats the garden as a square"),
+        ] + mistakes
+        steps = (
+            [
+                f"Let w be the width. The length is {m}w, so the perimeter is 2w + 2({m}w) = {2 + 2 * m}w = {P}.",
+                f"So w = {w}" + (f" and the length is {m}({w}) = {L_}." if ask == "length" else "."),
+            ]
+            if times
+            else [
+                f"Let w be the width. The length is w + {more}, so the perimeter is 2w + 2(w + {more}) = 4w + "
+                f"{2 * more} = {P}.",
+                f"So 4w = {P - 2 * more} and w = {w}"
+                + (f"; the length is {w} + {more} = {L_}." if ask == "length" else "."),
+            ]
+        )
+        item = MathItem("word_solve", SKILL, level, fmt, f"{setup} {question}", Fraction(ans), steps, mistakes[:3])
+        item.story = dict(
+            kind="setup",
+            level=level,
+            setup=setup,
+            question=question,
+            given=[m, P] if times else [more, P],
+            situation="a rectangle's length, width, and perimeter",
+        )
+        item.truth = {"w": w, "L": L_}
+        return item
+    # hard: consecutive integers
+    step = rng.choice([1, 2, 2])
+    count = rng.choice([3, 3, 4]) if step == 1 else 3
+    kind = {1: "consecutive integers", 2: rng.choice(["consecutive even integers", "consecutive odd integers"])}[step]
+    while True:
+        first = rng.randint(5, 60)
+        if step == 2 and (first % 2 == 0) != (kind == "consecutive even integers"):
+            continue
+        nums = [first + step * i for i in range(count)]
+        break
+    S = sum(nums)
+    ask = rng.choice(["greatest", "least"])
+    ans = nums[-1] if ask == "greatest" else nums[0]
+    other = nums[0] if ask == "greatest" else nums[-1]
+    words = {3: "three", 4: "four"}[count]
+    setup = f"The sum of {words} {kind} is {S}."
+    question = f"What is the {ask} of these integers?"
+    mistakes = [
+        (
+            Fraction(other),
+            f"this is the {'least' if ask == 'greatest' else 'greatest'} of the integers; the "
+            f"question asks for the {ask}",
+        ),
+        (Fraction(S, count), "this is the average of the integers" + (", the middle one" if count == 3 else "")),
+        (
+            Fraction(nums[0] + step * count if ask == "greatest" else nums[-1] - step * count),
+            "this counts one integer too many",
+        ),
+        (Fraction(nums[1] if count > 2 else nums[0]), "this is the second integer"),
+    ]
+    if step == 2:
+        up_by_one = nums[0] + (count - 1) if ask == "greatest" else nums[-1] - (count - 1)
+        mistakes.insert(2, (Fraction(up_by_one), "this counts up by 1 instead of by 2"))
+    n0 = "n" + "".join(f" + (n + {step * i})" for i in range(1, count))
+    steps = [
+        "Call the least integer n. The integers are "
+        + ", ".join(["n"] + [f"n + {step * i}" for i in range(1, count)])
+        + ".",
+        f"Their sum is {n0} = {count}n + {step * sum(range(count))} = {S}, so n = {nums[0]}.",
+        f"The {ask} integer is {ans}.",
+    ]
+    item = MathItem("word_solve", SKILL, level, fmt, f"{setup} {question}", Fraction(ans), steps, mistakes)
+    item.story = dict(
+        kind="setup", level=level, setup=setup, question=question, given=[S], situation=f"the sum of {words} {kind}"
+    )
+    item.truth = {"nums": nums}
+    return item
+
+
+PROPERTIES = {
+    "no solution": "Zero",
+    "infinitely many solutions": "Infinitely many",
+    "exactly one solution": "Exactly one",
+}
+
+
+def which_has_property(rng: random.Random, level: str, fmt: str) -> MathItem:
+    """'Which equation has no solution?' (or infinitely many, or exactly one), with four equations as the choices.
+    All four share the left side; the right sides differ in the x-coefficient, the constant, or both. Hard: the left
+    side is built up and some right sides are factored."""
+    prop = rng.choice(list(PROPERTIES))
+    while True:
+        a, p_, q = rng.randint(2, 7), (rng.randint(2, 4) if level == "hard" else 1), rng.choice(nz(-9, 9))
+        s_ = rng.choice(nz(-9, 9)) if level == "hard" else 0
+        A, B = a * p_, a * q + s_
+        d, d2 = rng.sample(nz(-6, 6), 2)
+        e, e2 = rng.sample([n for n in nz(-3, 3) if A + n], 2)
+        if B + d and B - d and B + d2:
+            break
+    left = f"{a}({lin(p_, q)})" + (plus(s_) if s_ else "")
+
+    def rhs(A2: int, B2: int) -> str:
+        g = __import__("math").gcd(A2, B2)
+        if level == "hard" and g > 1 and rng.random() < 0.5:
+            return f"{g}({lin(A2 // g, B2 // g)})"
+        return lin(A2, B2)
+
+    cases = {
+        "Infinitely many": (A, B),
+        "Zero": (A, B + d),
+        "Zero2": (A, B - d),
+        "Exactly one": (A + e, B),
+        "Exactly one2": (A + e2, B + d2),
+    }
+    say = {
+        "Infinitely many": "this equation has infinitely many solutions: both sides are the same expression",
+        "Zero": "this equation has no solution: same x-coefficient, different constants",
+        "Exactly one": "this equation has exactly one solution: the x-coefficients are different",
+    }
+    pick = {
+        "no solution": ("Zero", ["Infinitely many", "Exactly one", "Exactly one2"]),
+        "infinitely many solutions": ("Infinitely many", ["Zero", "Exactly one", "Exactly one2"]),
+        "exactly one solution": ("Exactly one", ["Infinitely many", "Zero", "Zero2"]),
+    }[prop]
+    key = f"{left} = {rhs(*cases[pick[0]])}"
+    mistakes = [(f"{left} = {rhs(*cases[c])}", say[c.rstrip("2")]) for c in pick[1]]
+    steps = [
+        f"The left side simplifies to {lin(A, B)}.",
+        {
+            "no solution": "No solution means the same x-coefficient with a different constant.",
+            "infinitely many solutions": "Infinitely many solutions means both sides are the same expression.",
+            "exactly one solution": "Exactly one solution means the x-coefficients are different.",
+        }[prop],
+        f"Only {key} does that: its right side is {lin(*cases[pick[0]])}.",
+    ]
+    return MathItem(
+        "which_has_property",
+        SKILL,
+        level,
+        "mcq",
+        f"Which equation has {prop}?",
+        Fraction(0),
+        steps,
+        mistakes,
+        key_text=key,
+    )
+
+
 FAMILY_LEVELS = {
     "expression_value": LEVELS,
     "linear_rate": LEVELS,
@@ -1282,6 +1656,9 @@ FAMILY_LEVELS = {
     "no_solution_k": ("medium", "hard"),
     "how_many_solutions": ("medium", "hard"),
     "infinite_two_constants": ("medium", "hard"),
+    "fraction_decimal": LEVELS,
+    "word_solve": LEVELS,
+    "which_has_property": ("medium", "hard"),
 }
 
 FAMILIES = {
@@ -1301,6 +1678,9 @@ FAMILIES = {
     "no_solution_k": no_solution_k,
     "how_many_solutions": how_many_solutions,
     "infinite_two_constants": infinite_two_constants,
+    "fraction_decimal": fraction_decimal,
+    "word_solve": word_solve,
+    "which_has_property": which_has_property,
 }
 
 
@@ -1336,9 +1716,11 @@ Reply with JSON only: {{"setup": "<the sentences>"}}"""
 SOLVE_MCQ_PROMPT = 'Answer this SAT math question. Reply with JSON only: {{"answer": "<A, B, C, or D>"}}\n\n{question}'
 
 
-def story_numbers_ok(stem: str, given: list[int]) -> list[str]:
-    """Every planned number exactly once, in the planned order (so each keeps its role), and nothing else."""
-    found = [int(n.replace(",", "")) for n in re.findall(r"\d[\d,]*", stem)]
+def story_numbers_ok(stem: str, given: list) -> list[str]:
+    """Every planned number exactly once, in the planned order (so each keeps its role), and nothing else. Decimals
+    such as $0.10 count as one number."""
+    found = [Fraction(n.replace(",", "")) for n in re.findall(r"\d[\d,]*(?:\.\d+)?", stem)]
+    given = [Fraction(n) for n in given]
     problems = []
     if sorted(found) != sorted(given):
         problems.append(f"numbers in the story {found} must be exactly {given}")
@@ -1348,7 +1730,7 @@ def story_numbers_ok(stem: str, given: list[int]) -> list[str]:
             f"number keeps its role"
         )
     for n in given:
-        if n >= 1000 and num(n) not in stem:
+        if n >= 1000 and n.denominator == 1 and num(n) not in stem:
             problems.append(f"write {n} as {num(n)}")
     if not stem.strip().endswith("?"):
         problems.append("the story must end with the question")
@@ -1366,7 +1748,7 @@ class Story:
         if not item.story or not self.writer:
             return
         f = item.story
-        numbers = ", ".join(num(n) for n in f["given"])
+        numbers = ", ".join(f.get("shown") or [num(n) for n in f["given"]])
         setup_kind = f.get("kind") == "setup"
         for attempt in range(self.tries):
             if setup_kind:  # the writer words the setup; the exact question is added by code
