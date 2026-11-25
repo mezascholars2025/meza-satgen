@@ -7,7 +7,7 @@ PART 1 - RULES FOR EVERY QUESTION
 
 1. FORMAT
 - One passage (or a pair of passages labeled "Text 1" and "Text 2") followed by exactly one question with four answer choices and exactly one correct answer.
-- The passage (or both texts together) is 25-150 words. Count the words before you finish. Notes in rhetorical synthesis items count toward the limit.
+- The passage (or both texts together) is 25-150 words. Count the words before you finish. Notes in rhetorical synthesis items count toward the limit. The introduction to a literary excerpt ("The following text is from...") does NOT count: the excerpt itself must meet the length targets.
 - Target lengths: Standard English Conventions, Transitions, and Words in Context: 25-70 words. Rhetorical Synthesis: 60-120 words of notes. All other types: 80-150 words.
 - Use "______" (six underscores) for any blank the student must fill.
 - Mark an underlined portion with <u> and </u>.
@@ -95,6 +95,7 @@ words_in_context_completion
 - Stem: "Which choice completes the text with the most logical and precise word or phrase?"
 - The passage contains one blank. The text must make exactly one choice correct, but the student should have to WORK OUT the meaning from the logic of the passage, not find a synonym sitting next to the blank.
 - CLUE STRUCTURE: every words_in_context_completion prompt names a REQUIRED CLUE STRUCTURE. Build the passage around it. Unless the required structure is "restatement", never put a colon, semicolon, or dash right after the blank to explain the word. (On the real test that pattern is uncommon, roughly 1 item in 10-15.)
+- THE WORD IS USUALLY A DETAIL. On most real items the tested word sits in one sentence as part of a larger point; the passage's main idea is about something else. The prompt assigns a ROLE OF THE TESTED WORD: for "detail", only the word's own sentence (plus at most one nearby phrase) supplies the clue, and no other sentence exists to hint at it. Bad: a passage whose every sentence illustrates what a "sound mentor" is.
 - DO NOT DEFINE THE ANSWER. No sentence may restate the key's meaning or pile up concrete examples that spell it out (bad: a blank for "exacting" followed by "she fixed every uneven phrase and had players repeat passages until perfect"). The evidence must be indirect: a result, a contrast with what was expected, an evaluation, a consequence someone draws, or a qualification.
 - Choices: four words or short phrases of the same part of speech and register. In about one item in four, use short phrases (for example "at odds with", "in keeping with") instead of single words. Distractors fit the grammar but not the logic or precision (wrong direction, wrong degree, wrong connotation). Never offer two near-synonyms that both work.
 - Vary the key. Never use a word shown as an example anywhere in this rulebook as the answer.

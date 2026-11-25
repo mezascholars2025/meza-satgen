@@ -82,8 +82,26 @@ def slide_block(q: dict, with_answer: bool) -> str:
     return out + "</div>"
 
 
+def review_flags(run: Path) -> dict:
+    """Questions the quality gate let through with a judgment-call problem still open, keyed by fingerprint."""
+    flags = {}
+    log = run / "quality.jsonl"
+    if log.exists():
+        for line in log.read_text(encoding="utf-8").splitlines():
+            entry = json.loads(line)
+            if entry.get("flagged") and entry.get("fingerprint"):
+                flags[entry["fingerprint"]] = entry["flagged"]
+    return flags
+
+
+def fingerprint(q: dict) -> str:
+    text = re.sub(r"</?u>", "", q.get("passage", "")) + " " + q.get("stem", "")
+    return " ".join(text.lower().split())[:160]
+
+
 def build(run: Path) -> None:
     qs = json.loads((run / "questions.json").read_text(encoding="utf-8"))
+    flags = review_flags(run)
     report = {}
     if (run / "report.json").exists():
         report = json.loads((run / "report.json").read_text(encoding="utf-8"))
@@ -99,7 +117,8 @@ def build(run: Path) -> None:
             ch = q.get("choices", {})
             w.writerow([i, t["domain"], t["skill"], t["difficulty"], t["subject"], q.get("type", ""), q.get("passage", ""),
                         q.get("stem", ""), ch.get("A", ""), ch.get("B", ""), ch.get("C", ""), ch.get("D", ""),
-                        q.get("answer", ""), t["body"], "", ""])
+                        q.get("answer", ""), t["body"],
+                        ("FLAGGED: " + " | ".join(flags[fingerprint(q)])) if fingerprint(q) in flags else "", ""])
 
     # HTML
     cards = []
@@ -111,8 +130,11 @@ def build(run: Path) -> None:
             for k, v in q.get("choices", {}).items())
         words = len(q.get("passage", "").split())
         expl = "".join(f"<p>{esc(p)}</p>" for p in t["body"].splitlines() if p.strip())
+        flag = flags.get(fingerprint(q))
+        flag_html = ('<div class="flag"><b>Review flag</b> (shipped after the last rewrite; check this first):'
+                     + "".join(f"<p>{esc(x)}</p>" for x in flag) + "</div>") if flag else ""
         cards.append(f"""
-<article class="card">
+<article class="card{' flagged' if flag else ''}">
   <div class="meta"><span class="num">{i}</span>
     <span class="chip">{esc(t['domain'] or 'Domain')}</span>
     <span class="chip">{esc(t['skill'] or q.get('type',''))}</span>
@@ -121,6 +143,7 @@ def build(run: Path) -> None:
     <span class="wc">{words} words</span>
     <button class="copy" onclick="copyBlock(this,'q{i}')">Copy question</button>
     <button class="copy" onclick="copyBlock(this,'a{i}')">Copy with answer</button></div>
+  {flag_html}
   <div class="src" id="q{i}">{slide_block(q, False)}</div>
   <div class="src" id="a{i}">{slide_block(q, True)}</div>
   <div class="passage">{render_passage(q.get('passage',''))}</div>
@@ -146,6 +169,7 @@ main{{max-width:820px;margin:0 auto;padding:20px 16px 60px}}
 .num{{background:var(--navy);color:#fff;border-radius:50%;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-weight:700}}
 .chip{{background:var(--cream);border-radius:999px;padding:2px 10px;color:var(--ink)}} .diff.easy{{background:#e3f1e3}} .diff.medium{{background:#fbefd2}} .diff.hard{{background:#f7dcdc}} .subj{{background:#e6ecf7;color:var(--navy)}}
 .wc{{margin-left:auto;color:var(--muted)}}
+.flag{{background:#fff4cc;border:1px solid var(--gold);border-radius:8px;padding:8px 12px;margin:0 0 12px;font-size:14px}} .flag p{{margin:4px 0 0}} .card.flagged{{border-color:var(--gold)}}
 .copy{{background:#fff;border:1px solid var(--navy);color:var(--navy);padding:4px 10px;font-size:13px}} .copy.done{{background:var(--navy);color:#fff}}
 .src{{position:fixed;left:0;top:0;width:900px;opacity:0;pointer-events:none;z-index:-1;background:#fff;color:#000}}
 .passage{{border-left:3px solid var(--gold);padding-left:14px}} .passage p{{margin:0 0 8px}} .passage .title{{font-weight:700}}

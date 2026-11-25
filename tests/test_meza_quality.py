@@ -467,7 +467,9 @@ POEM = (
     'The following text is from Harriet Lowell Ames\'s 1874 poem "To the Clock in the Hall." The speaker, a '
     "widow who has just sold the house where she raised her children, addresses the clock she is leaving.\n\n"
     "Thou keeper of our hours, unasked, unthanked,\nthrough vows and quarrels and the indolent years,\n"
-    "what tally wilt thou keep when we are scattered?"
+    "what tally wilt thou keep when we are scattered?\nWill strangers' boots upon the stair be counted\n"
+    "as once our children's were, with equal care,\nor shalt thou, idle in the hall, remember\n"
+    "the hours we gave thee, and refuse the rest?"
 )
 
 
@@ -611,3 +613,74 @@ def test_new_bank_and_meaning_targets():
     multi = {w["word"] for w in data["words"] if w.get("multi_meaning")}
     t = bank.targets(6)
     assert len(t) == 6 and sum(w in multi for w in t) >= 3
+
+
+def test_literary_intro_does_not_count_toward_length():
+    stem = "Which choice completes the text with the most logical and precise word or phrase?"
+    p = (
+        "The following text is from Edmund Calloway Brandt's 1889 novel \"The Salt-Merchant's Ledger.\" Marian, a "
+        "young guest at her aunt's dinner party, has just spilled a glass of wine across the tablecloth.\n\n"
+        "Marian's stammering apology served only to ______ her embarrassment, for every halting word drew more eyes "
+        "toward her end of the table."
+    )
+    ch = {"A": "compound", "B": "execute", "C": "confer", "D": "mock"}
+    subj = "LITERATURE: PROSE FICTION - an excerpt"
+    fails = lint("words_in_context_completion", p, stem, ch, "A", EXPL + " [Invented work]", subject=subj).fails
+    assert any("standardized words" in f or "excerpt itself" in f for f in fails)
+
+
+def test_focus_critic_rules():
+    from meza_quality import focus_problems
+
+    built_around = {"main_idea": "a mentor's sound judgment", "word_is_main_idea": True, "hint_sentences": 3}
+    assert focus_problems(built_around, "detail")
+    assert focus_problems(built_around, "central") == []
+    detail = {"main_idea": "how railway routes were chosen", "word_is_main_idea": False, "hint_sentences": 1}
+    assert focus_problems(detail, "detail") == []
+    assert focus_problems({}, "detail") == []
+
+
+def test_vocab_used_matches_phrases():
+    assert vocab_used("The council grappled with the budget for months.", ["grapple with"]) == ["grapple with"]
+    assert vocab_used("She chose to mull it over.", ["mull over"]) == []  # words split by "it": not the phrase
+    assert vocab_used("He was a pedant about commas.", ["pedant", "grapple with"]) == ["pedant"]
+
+
+class SoftCritic(FakeSolver):
+    """The trap critic never approves: every draft has one weak wrong answer."""
+
+    def complete(self, prompt, system="", temperature=0.7, json_mode=False):
+        if "veteran Digital SAT item reviewer" not in system:
+            return super().complete(prompt, system, temperature, json_mode)
+        return (
+            json.dumps(
+                {
+                    "B": {
+                        "accurate_content": True,
+                        "on_topic": True,
+                        "tempting": 1,
+                        "trap": "too_narrow",
+                        "why": "weak",
+                    },
+                    "C": {"accurate_content": True, "on_topic": True, "tempting": 4, "trap": "wrong_target"},
+                    "D": {"accurate_content": True, "on_topic": True, "tempting": 4, "trap": "misread_stance"},
+                }
+            ),
+            50,
+            50,
+        )
+
+
+def test_soft_problems_flag_instead_of_reject(tmp_path, monkeypatch):
+    log = tmp_path / "quality.jsonl"
+    monkeypatch.setattr(meza_satgen, "LOG_PATH", str(log))
+    monkeypatch.setattr(meza_satgen, "VOCAB_RULES", {"hard": (0, 0, 9, ())})
+    monkeypatch.setattr(meza_satgen, "TSP_BANDS", {"short": (5, 30), "long": (5, 30)})
+    writer = TrapWriter()
+    p = meza_satgen.MezaPipeline(writer, FakeSolver(), SoftCritic(), context="rules")
+    p.plan = [5]
+    q = p.generate(0, "text_structure_purpose_hard")  # ships after the last rewrite instead of failing
+    entries = [json.loads(x) for x in log.read_text().splitlines()]
+    assert entries[-1]["flagged"] and entries[-1]["passed"]
+    assert not any(e["flagged"] for e in entries[:-1])
+    assert entries[-1]["fingerprint"] and q.stem
