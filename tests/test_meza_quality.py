@@ -859,7 +859,7 @@ INF_P = (
 )
 INF_CH = {
     "A": "earthworms may harm forests whose native plants rely on a thick layer of fallen leaves.",
-    "B": "earthworms improve the soil of every forest they reach by mixing leaves into it.",
+    "B": "earthworms improve the soil of the northern forests they reach by mixing leaves into it.",
     "C": "native seedlings grow fastest in forests where the litter layer is very thin.",
     "D": "most gardeners in northern regions have stopped adding earthworms to their soil.",
 }
@@ -1190,3 +1190,50 @@ def test_draft_may_not_reuse_a_model_examples_topic(with_wordfreq, monkeypatch):
     assert meza_traps.reused_topic(copy, [ex])
     other = "A team of physicists filmed dry spaghetti rods as they were bent until they broke into pieces."
     assert meza_traps.reused_topic(other, [ex]) == []
+
+
+# --- Sebastian's five trap categories and the disguise rules ---
+
+
+def test_every_trap_type_belongs_to_one_of_sebastians_categories():
+    for fam, traps in meza_traps.TRAPS.items():
+        assert set(meza_traps.CATEGORY_OF[fam]) == set(traps), fam
+        assert set(meza_traps.CATEGORY_OF[fam].values()) <= set(meza_traps.CATEGORIES)
+    assert meza_traps.category_name("cid", "never_said") == "Assumption (never said)"
+    menu = meza_traps.trap_menu("inf")
+    assert "STARTS OFF RIGHT" in menu and "ALWAYS/NEVER" in menu and "overreach" in menu
+
+
+def test_absolute_words_disguised_and_logic_phrases_allowed():
+    from meza_quality import absolutes_in
+
+    assert absolutes_in("It is the only explanation the team considers.") == ["only"]
+    assert absolutes_in("would recover only if host fish returned") == []
+    assert absolutes_in('It quotes the line "every changing wind" to show his scorn.') == []
+
+
+def test_common_core_tell():
+    from meza_quality import common_core_problems
+
+    added = {
+        "A": "It is a teaching aid that models how swells move around islands.",
+        "B": "It is a teaching aid that uses small shells to model how swells move around islands.",
+        "C": "It is a memory aid that lays out the routes canoes take between islands.",
+        "D": "It is a navigation chart that records distances between islands at a consistent scale.",
+    }
+    assert any("plus an extra claim" in x for x in common_core_problems(added, "A"))
+    swapped = dict(added, B="It is a teaching aid that models how winds move across the open ocean.")
+    assert common_core_problems(swapped, "A") == []
+    assert any("most complete" in x for x in common_core_problems(added, "B"))
+
+
+def test_critic_flags_wrong_answers_that_are_obvious_without_the_passage():
+    from meza_quality import trap_critic_problems
+
+    v = {
+        k: {"accurate_content": True, "on_topic": True, "obvious": False, "tempting": 4, "trap": "twin"} for k in "BCD"
+    }
+    assert trap_critic_problems(v, "A", "hard", "inf") == []
+    v["C"] = dict(v["C"], obvious=True)
+    assert any("wording alone" in x for x in trap_critic_problems(v, "A", "hard", "inf"))
+    assert trap_critic_problems(v, "A", "easy", "inf") == []  # easy may keep one plain trap

@@ -37,14 +37,17 @@ from pathlib import Path
 
 from meza_quality import (PROBE_TYPES, base_type, describe, difficulty_of, features, lint, probe_feedback,
                           probe_votes, rhythm_check, vocab_used)
-from meza_traps import CRITIC_GUIDANCE, CRITIC_SYSTEM, TRAPS, critic_prompt, family_of, format_examples
-from meza_traps import load_bank, pick_examples, reused_topic
+from meza_traps import CRITIC_GUIDANCE, CRITIC_SYSTEM, critic_prompt, family_of, format_examples
+from meza_traps import DISGUISE, load_bank, pick_examples, reused_topic, trap_menu
 from meza_quality import FOCUS_CRITIC_PROMPT, FOCUS_CRITIC_SYSTEM, fingerprint, focus_problems
-from meza_quality import (TSP_BANDS, TSP_TRAPS, TSP_TYPES, TSP_VERBS,
+from meza_quality import (TSP_BANDS, TSP_TYPES, TSP_VERBS,
                           lead_verb, trap_critic_problems, trap_label_problems)
 from meza_quality import (advanced_in, central_stem_kind, choice_mix_problems, detail_stem_family, leadin_kinds,
                           word_tier)
-from satgen import cli, pipeline
+from satgen import cli, cost, pipeline
+
+# Prices satgen's table doesn't list yet (USD per million tokens, input/output; platform.claude.com pricing, Nov 2026).
+cost.PRICES.setdefault("claude-opus-5-5", (4.00, 20.00))
 from satgen.answers import CHOICES, normalize_spr
 from satgen.llm import SimulatedClient
 from satgen.models import MCQ, SPR, Question
@@ -117,7 +120,7 @@ TRAP_LINE = (
     "SKIM TEST: at least two wrong answers must be accurate statements about what the passage says, wrong only in "
     "purpose, scope, order, or role, so a student who skimmed would accept them. Never build a wrong answer on a word "
     "the passage barely touches, and never let one contradict an explicit statement.\n"
-    "{level_rule} Add a \"traps\" field to the JSON mapping each wrong answer's letter to its trap type."
+    "{disguise}\n{level_rule} Add a \"traps\" field to the JSON mapping each wrong answer's letter to its trap type."
 )
 TRAP_LEVEL_RULE = {
     "easy": "Even at easy, every wrong answer stays on topic; easy items just use plainer traps (too narrow, wrong target).",
@@ -127,8 +130,9 @@ TRAP_LEVEL_RULE = {
 }
 # Every other skill with a trap list (vocabulary, Central Ideas and Details, Inferences, Command of Evidence).
 TRAP_LINE_GENERAL = (
-    "\nWRONG ANSWERS FOR THIS ITEM: {guidance} Build each wrong answer on one of these trap types:\n{traps}\n"
-    "No filler: every wrong answer must target a real mistake a careful student could make.\n"
+    "\nWRONG ANSWERS FOR THIS ITEM: {guidance} Build each wrong answer on one of these trap types (grouped by "
+    "Meza's five trap categories):\n{traps}\n"
+    "No filler: every wrong answer must target a real mistake a careful student could make.\n{disguise}\n"
     "{level_rule} Add a \"traps\" field to the JSON mapping each wrong answer's letter to its trap type."
 )
 TRAP_LEVEL_RULE_GENERAL = {
@@ -708,7 +712,7 @@ class MezaPipeline(pipeline.Pipeline):
             base_prompt += TSP_LINE.format(lo=band[0], hi=band[1], style=f"{style} style", verbs=", ".join(verbs[:9]),
                                            avoid=avoid)
             base_prompt += TRAP_LINE.format(
-                traps="\n".join(f"  - {k}: {v}" for k, v in TSP_TRAPS.items()),
+                traps=trap_menu("tsp"), disguise=DISGUISE,
                 level_rule=TRAP_LEVEL_RULE.get(difficulty_of(qtype, index) or "medium", ""))
         if base_type(qtype) == "text_structure_function":
             rng = random.Random(f"function:{index}:{len(self.plan)}")
@@ -728,7 +732,7 @@ class MezaPipeline(pipeline.Pipeline):
         if trap_fam and trap_fam != "tsp":
             lvl = difficulty_of(qtype, index) or "medium"
             base_prompt += TRAP_LINE_GENERAL.format(
-                guidance=CRITIC_GUIDANCE[trap_fam], traps="\n".join(f"  - {k}: {v}" for k, v in TRAPS[trap_fam].items()),
+                guidance=CRITIC_GUIDANCE[trap_fam], traps=trap_menu(trap_fam), disguise=DISGUISE,
                 level_rule=TRAP_LEVEL_RULE_GENERAL.get(lvl, ""))
         examples = []
         if trap_fam and TRAP_EXAMPLES:

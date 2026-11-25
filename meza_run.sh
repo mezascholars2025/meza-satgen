@@ -48,6 +48,9 @@ fi
 # Models: Claude Sonnet writes, Claude Haiku solves (a different model, so it can't share
 # the writer's blind spots), Claude Sonnet reviews. Override the writer in .env if needed.
 export SATGEN_GEN_MODEL="${SATGEN_GEN_MODEL:-claude-sonnet-5-5}"
+# The reviewer (blind review and the trap/focus critics) should be at least as strong as the writer. To write with
+# Opus, set both in .env: SATGEN_GEN_MODEL=claude-opus-5-5 and SATGEN_REVIEW_MODEL=claude-opus-5-5.
+export SATGEN_REVIEW_MODEL="${SATGEN_REVIEW_MODEL:-claude-sonnet-5-5}"
 SOLVER_MODEL="${MEZA_SOLVER_MODEL:-claude-haiku-5-5}"
 
 RUN="runs/$(date +%Y-%m-%d_%H%M%S)"

@@ -205,6 +205,24 @@ Each rule below came from auditing output or from Sebastian's review rounds agai
   (status "Claude-reviewed (pending Sebastian)"); `learn --pick 2,5 --status ...` adds chosen numbers, and the
   level now comes from the explanation tag. Runs: `runs/traps-r1-*`, `runs/traps-r2-*`.
 
+- **Disguised traps and Sebastian's five categories (Sebastian, Nov 24).** The trap runs showed the key was obvious
+  more often than the traps were weak. Three tells: a wrong answer that is the key plus a tacked-on clause (students
+  pick the shared core), the key as the only balanced or complete choice, and overstatement carried by words like
+  "only" or "every". Sebastian teaches students five trap categories on the portal flashcards (Starts off right,
+  Assumption, Reiteration, Opposite, Always/Never), so a trap that wears its category's label is crossed out without
+  reading. → those five categories are now the main labels: every skill's trap types are grouped under them
+  (`CATEGORY_OF` in `meza_traps.py`; Words in Context adds "Wrong sense"), in the writer's prompt, the rulebook's
+  answer-choice rules, and review.html. A DISGUISE rule tells the writer each wrong answer must need the passage
+  to rule out, twins must swap an element rather than add one, and the key must not be the only balanced choice.
+  Code: lint fails any absolute word that appears only in wrong answers (was: two or more; "only if" and quoted text
+  are ignored), and `common_core_problems` fails a wrong answer that is the key plus 3+ words (or the key that is a
+  wrong answer plus 3+ words); on the 42 trap-run questions it caught 3 real cases and none of the good "swap"
+  twins. The trap critic also marks each wrong answer "obvious" (rule-out-able without the passage); any obvious
+  wrong answer at medium/hard is a soft problem (easy may keep one).
+- **Writer model (Nov 24).** Opus 5.5 costs twice Sonnet 5.5 ($4/$20 vs $2/$10 per million tokens). Set
+  SATGEN_GEN_MODEL and SATGEN_REVIEW_MODEL in .env to switch; keep the critic at least as strong as the writer and
+  Haiku as the blind solver. Opus pricing is added to satgen's cost table from `meza_satgen.py`.
+
 - **Second real run: 1 of 10 shipped.** Stacked judgment checks rejected nearly everything. → the reviewer-model
   critics and the passage-free probe are now "soft": after the last rewrite, a question whose only remaining
   problems are soft ships with a yellow Review flag in review.html (and "FLAGGED: ..." in the CSV's Review status)
@@ -262,8 +280,8 @@ Audit decisions (Nov 24):
 
 ## Open next steps
 
-- Key stands out without the passage (the probe's most common flag in the trap runs): wrong answers need the same
-  completeness and balance as the key. Next thing to fix for Text Structure, Central Ideas, and Inferences.
+- Measure the disguise changes: run 5 Text Structure + 5 Central Ideas and compare probe failures and "obvious"
+  ratings with the trap runs; then compare Sonnet vs Opus as the writer on the same slots.
 - Topics repeat across runs (glacial varves came up in both trap rounds, in different runs): the rhythm memory only
   covers the current run. A cross-run topic log would fix it.
 - Trap bank: review the 9 starter seeds and 8 Claude-reviewed picks, approve or remove them, and add GOOD TRAPS from each real run. Watch for

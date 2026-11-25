@@ -115,7 +115,7 @@ TARGET_WORDS = {
 OVERUSED_TOPICS = ["bee", "pollinat", "sunflower", "bean seedling", "sea turtle", "mangrove", "octopus",
                    "crow", "coral reef", "urban heat island"]
 ABSOLUTES = ["only", "always", "never", "all", "every", "none", "entirely", "completely", "proves",
-             "proved", "impossible", "best", "certainly", "solely", "exclusively"]
+             "proved", "impossible", "best", "certainly", "solely", "exclusively", "greatest"]
 TRANSITION_GROUPS = {
     "contrast": ["however", "nevertheless", "nonetheless", "by contrast", "in contrast", "still", "even so",
                  "on the other hand", "conversely", "instead", "rather", "yet"],
@@ -175,6 +175,39 @@ def reading_text(passage: str) -> str:
         keep.append(s)
     text = " ".join(x for x in keep if x)
     return re.sub(r"</?u>", "", text)
+
+
+def absolutes_in(choice: str) -> list[str]:
+    """Absolute words in a choice, ignoring logic phrases ("only if", "not only") and quoted text."""
+    text = re.sub(r"[\"\u201c][^\"\u201d]*[\"\u201d]", " ", choice.lower())
+    text = re.sub(r"\b(only if|if only|not only|not all|not every)\b", " ", text)
+    return [a for a in ABSOLUTES if has_word(text, a)]
+
+
+def common_core_problems(choices: dict, answer: str) -> list[str]:
+    """The "common core" tell: a wrong answer that is the key plus an extra claim (or the key is a wrong answer plus
+    an extra claim). Test-wise students pick the shared core, or the most complete choice, without reading."""
+    def cw(s: str) -> list[str]:
+        return [w for w in words(s) if w not in STOP]
+
+    key = cw(choices.get(answer, ""))
+    ks = set(key)
+    out = []
+    if len(key) < 4:
+        return out
+    for k, v in choices.items():
+        if k == answer:
+            continue
+        w = cw(v)
+        ws = set(w)
+        if len(ks & ws) / len(ks) >= 0.85 and len(w) >= len(key) + 3:
+            out.append(f"Choice {k} is the correct answer plus an extra claim, so students can pick the shared core "
+                       "without reading. Build twins by SWAPPING one element (the cause, direction, group, or result) "
+                       "and keep the same length, never by adding a clause to the key.")
+        elif ws and len(ks & ws) / len(ws) >= 0.85 and len(key) >= len(w) + 3:
+            out.append(f"The correct answer is choice {k} plus an extra part, so it stands out as the most complete "
+                       "choice. Give the wrong answers the same number of parts as the key.")
+    return out
 
 
 def fingerprint(passage: str, stem: str) -> str:
@@ -493,13 +526,16 @@ def lint(qtype: str, passage: str, stem: str, choices: dict[str, str], answer: s
         if min(lens.values()) and longest / min(lens.values()) > 2.6:
             r.warns.append("Choice lengths vary a lot; real choices look parallel.")
 
-        abs_wrong = [w for w in wrong if any(has_word(w, a) for a in ABSOLUTES)]
-        abs_key = any(has_word(key, a) for a in ABSOLUTES)
-        if len(abs_wrong) >= 2 and not abs_key and t != "command_of_evidence_quotation":  # quotes may say "never"
-            found = sorted({a for w in abs_wrong for a in ABSOLUTES if has_word(w, a)})
-            r.fails.append(f"Absolute words ({', '.join(found)}) appear only in wrong answers, so students can "
-                           f"eliminate them without reading. Keep at most one overstated distractor and make the "
-                           f"others wrong for reasons that need the passage.")
+        # Disguise (Sebastian, Nov 24): students learn the Always/Never trap, so a wrong answer that carries an
+        # absolute word the key lacks can be crossed out without reading. Overstate through the claim, not the word.
+        abs_wrong = [w for w in wrong if absolutes_in(w)]
+        abs_key = bool(absolutes_in(key))
+        if abs_wrong and not abs_key and t != "command_of_evidence_quotation":  # quotes may say "never"
+            found = sorted({a for w in abs_wrong for a in absolutes_in(w)})
+            r.fails.append(f"Absolute words ({', '.join(found)}) appear only in wrong answers, so a student who knows "
+                           f"the Always/Never trap crosses them out without reading. Disguise the overstatement: make "
+                           f"the claim go too far (a bigger scope, a firmer cause, a wider group) in ordinary words.")
+        r.fails += common_core_problems(choices, answer)
 
         content = lambda s: {w for w in words(s) if w not in STOP and len(w) > 3}  # noqa: E731
         ptext = content(text)
@@ -819,6 +855,12 @@ def trap_critic_problems(verdict: dict, answer: str, level: str, family: str = "
         out.append("Too many wrong answers misstate the passage's content: " + "; ".join(inaccurate) + ". At least two "
                    "wrong answers must describe what the passage really says, accurately, and be wrong only about its "
                    "purpose, scope, order, or role, so a student who skimmed would accept them.")
+    obvious = [k for k in wrong if isinstance(verdict.get(k), dict) and verdict[k].get("obvious") is True]
+    if len(obvious) > (1 if level == "easy" else 0):
+        out.append("These wrong answers can be ruled out from their wording alone, without the passage: "
+                   + ", ".join(obvious) + ". Disguise them: each must look as reasonable as the key until a student "
+                   "checks the passage (no absolute words, no clause tacked onto another choice, the same measured "
+                   "tone and length as the key).")
     allowed = {"easy": 1, "medium": 1, "hard": 0}.get(level, 0)
     if len(weak) > allowed or (level != "easy" and very_weak):
         near = ("an accurate statement about the passage with the wrong scope, action, relationship, order, or target"

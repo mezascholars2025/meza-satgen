@@ -30,14 +30,14 @@ PART 1 - RULES FOR EVERY QUESTION
 
 3. ANSWER CHOICES
 - The correct answer must be provable from specific words in the passage or specific data in the table. A careful student must be able to point to the evidence.
-- Each wrong choice must be wrong for one clear, identifiable reason. Use these distractor types:
-  a. Too broad - claims more than the passage supports.
-  b. Too narrow - a true detail that does not answer the question asked.
-  c. Reversed - states the opposite of the passage or flips cause and effect.
-  d. True but irrelevant - accurate, but does not answer the question.
-  e. Word trap - reuses words from the passage while misrepresenting what it says.
-  f. Overstatement - absolute language ("proves," "always," "all," "never") the passage does not support.
-  g. Misread data - misreports a value or comparison in the table (quantitative items only).
+- Each wrong choice must be wrong for one clear, identifiable reason. Every wrong answer belongs to one of Meza's five trap categories (each skill's section and the prompt name the specific types for that skill):
+  a. Starts off right - begins by answering the question correctly, then goes wrong partway through.
+  b. Assumption - takes information from the text and assumes something the text never says.
+  c. Reiteration - uses words and topics from the text but says something different from what the text says.
+  d. Opposite - answers the question the opposite way (goes against the claim, flips the logic or the meaning).
+  e. Always/Never - makes a stronger, more definite claim than the text does.
+  (Words in Context also uses Wrong sense: a real meaning of the word, or a near-synonym, that does not fit here.)
+- DISGUISE: students are taught these categories, so no wrong answer may wear its category's label. A wrong answer must be ruled out only by checking the passage: an Always/Never trap overstates through the claim (a bigger scope, a firmer cause, a wider group), never through words like always, never, only, all, or best; a twin swaps one element of the key and keeps its length, never adds a clause to it; the correct answer is never the only balanced, complete, or carefully worded choice.
 - No two choices may both be defensible. If a wrong choice could be argued for, rewrite it.
 - Keep all four choices parallel in length, grammar, and level of detail (how long and complex they are overall depends on difficulty; see section 4). The correct answer must not be the longest or most specific choice by default.
 - Never use "all of the above," "none of the above," or "both A and B."

@@ -83,6 +83,66 @@ TRAPS = {
         "wrong_part": "addresses a different claim or a different part of the passage",
     },
 }
+# Sebastian's five trap categories (the ones he teaches students on the portal flashcards, Nov 12). Every wrong answer
+# belongs to one of them; the skill lists above are the specific ways each category shows up in that skill.
+CATEGORIES = {
+    "starts_off_right": ("Starts off right", "begins by answering the question correctly, then goes wrong partway "
+                         "through"),
+    "assumption": ("Assumption", "takes information from the text and assumes something the text never says"),
+    "reiteration": ("Reiteration", "uses words and topics from the text but says something different from what the "
+                    "text says"),
+    "opposite": ("Opposite", "answers the question the opposite way (goes against the claim, flips the logic or "
+                 "the meaning)"),
+    "always_never": ("Always/Never", "makes a stronger, more definite claim than the text does"),
+    "wrong_sense": ("Wrong sense", "a real meaning of the word, or a near-synonym, that does not fit this context "
+                    "(vocabulary only)"),
+}
+CATEGORY_OF = {
+    "tsp": {"too_narrow": "reiteration", "too_broad": "always_never", "wrong_action": "always_never",
+            "wrong_relationship": "opposite", "wrong_order": "reiteration", "partial": "starts_off_right",
+            "wrong_target": "reiteration", "misread_stance": "assumption"},
+    "wic": {"most_common_meaning": "wrong_sense", "other_real_meaning": "wrong_sense",
+            "wrong_connotation": "wrong_sense", "wrong_degree": "always_never", "reversal": "opposite",
+            "borrowed_from_passage": "reiteration", "imprecise_fit": "wrong_sense"},
+    "cid": {"never_said": "assumption", "opposite": "opposite", "mix_up": "reiteration",
+            "half_right": "starts_off_right", "goes_too_far": "always_never", "word_echo": "reiteration",
+            "twin": "starts_off_right", "wrong_tone": "assumption"},
+    "inf": {"never_said": "assumption", "real_world_true": "assumption", "old_view": "opposite",
+            "overreach": "always_never", "twin": "starts_off_right", "half_right": "starts_off_right",
+            "opposite": "opposite"},
+    "coe": {"true_but_irrelevant": "reiteration", "half_right": "starts_off_right", "misread_data": "reiteration",
+            "opposite": "opposite", "wrong_part": "reiteration"},
+}
+
+
+def category_name(family: str, trap: str) -> str:
+    """'cid', 'never_said' -> 'Assumption (never said)'."""
+    cat = CATEGORY_OF.get(family, {}).get(trap)
+    label = trap.replace("_", " ")
+    return f"{CATEGORIES[cat][0]} ({label})" if cat else label
+
+
+def trap_menu(family: str) -> str:
+    """This skill's trap types, grouped under Sebastian's five categories, for the writer's prompt."""
+    lines = []
+    for cat, (name, desc) in CATEGORIES.items():
+        subs = [t for t in TRAPS[family] if CATEGORY_OF[family].get(t) == cat]
+        if subs:
+            lines.append(f"  {name.upper()}: {desc}.")
+            lines += [f"    - {t}: {TRAPS[family][t]}" for t in subs]
+    return "\n".join(lines)
+
+
+DISGUISE = (
+    "DISGUISE: students are taught to spot these categories, so no wrong answer may wear its category's label. Each "
+    "must be ruled out ONLY by checking the passage, never by its wording alone: an Always/Never trap overstates the "
+    "claim (a bigger scope, a firmer cause, a wider group) without words like always, never, only, all, or best; a "
+    "Starts off right trap goes wrong in a way only the passage reveals; a twin SWAPS one element of the key (the "
+    "cause, the direction, the group) and keeps its length, never adds a clause to it. The correct answer must not be "
+    "the only balanced, complete, or carefully worded choice: give at least one wrong answer the same measured tone "
+    "and the same number of parts."
+)
+
 FAMILY_OF = {
     "text_structure": "tsp",
     "words_in_context": "wic",
@@ -145,6 +205,8 @@ Correct answer: {answer}
 Judge each WRONG answer strictly, the way a veteran Digital SAT reviewer would. {guidance}
 
 For each wrong answer give:
+- obvious: true if a test-wise student who has NOT read the passage could rule it out from its wording alone (an
+  absolute word, an extra clause tacked onto another choice, a tone or scope that sets it apart from the others).
 - accurate_content: true only if every fact or detail it mentions is something the passage actually says, stated
   the way the passage states it (it may still be wrong about what the question asks). False if it adds, exaggerates,
   or contradicts anything. For single-word choices, use true.
@@ -155,7 +217,7 @@ For each wrong answer give:
 - trap: one of: {traps}, or "none" if it targets no real mistake (filler).
 
 Reply with JSON only, keyed by letter, for the three wrong answers:
-{{"<letter>": {{"accurate_content": true, "on_topic": true, "tempting": 3, "trap": "<type>", "why": "<one short sentence>"}}}}"""
+{{"<letter>": {{"accurate_content": true, "on_topic": true, "obvious": false, "tempting": 3, "trap": "<type>", "why": "<one short sentence>"}}}}"""
 
 
 def critic_prompt(family: str, question_text: str, answer: str) -> str:
@@ -208,7 +270,7 @@ def format_examples(examples: list[dict]) -> str:
         for k in CHOICE_KEYS:
             t = e.get("traps", {}).get(k)
             if t and k != e["answer"]:
-                lines.append(f"  {k} ({t['type']}): {t['why']}")
+                lines.append(f"  {k} ({category_name(family_of(e['skill']) or '', t['type'])}): {t['why']}")
         parts.append("\n".join(lines))
     return "\n".join(parts)
 

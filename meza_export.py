@@ -102,7 +102,8 @@ def trap_notes(run: Path, qs: list[dict]) -> dict:
         for k in sorted(traps):
             score = (critic.get(by_text.get(q["choices"][k], "")) or {})
             score = score.get("tempting") if isinstance(score, dict) else None
-            notes.append((k, traps[k]["type"], score, traps[k]["why"]))
+            fam = meza_traps.family_of(re.sub(r"_(easy|medium|hard)$", "", (entry or {}).get("qtype", ""))) or ""
+            notes.append((k, meza_traps.category_name(fam, traps[k]["type"]), score, traps[k]["why"]))
         out[i] = notes
     return out
 
@@ -159,7 +160,7 @@ def build(run: Path) -> None:
         trap_html = ""
         if traps.get(i):
             rows = "".join(
-                f"<li><b>{k}</b>: {esc(kind.replace('_', ' '))}"
+                f"<li><b>{k}</b>: {esc(kind)}"
                 + (f" <span class=\"score\">tempting {score}/5</span>" if score else "")
                 + (f" · {esc(why)}" if why else "") + "</li>"
                 for k, kind, score, why in traps[i])
